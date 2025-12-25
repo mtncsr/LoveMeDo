@@ -1,0 +1,333 @@
+.rendererContainer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-bg);
+    /* Ensure it takes full size of parent */
+    display: flex;
+    flex-direction: column;
+}
+
+.screenContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Backgrounds */
+.background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    object-fit: cover;
+}
+
+.backgroundOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Elements */
+.element {
+    position: absolute;
+    z-index: 10;
+    /* Interactable in preview/export, disabled in editor usually handled by wrapper */
+}
+
+/* Specific Element Types */
+.elementText {
+    white-space: pre-wrap;
+    user-select: none;
+}
+
+.elementImage {
+    filter: drop-shadow(var(--shadow-md));
+}
+
+.elementButton {
+    background: var(--color-primary);
+    color: white;
+    padding: 12px 24px;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    transition: transform 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.elementButton:active {
+    transform: scale(0.95);
+}
+
+.navigationBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    z-index: 100;
+    /* background: linear-gradient(to bottom, rgba(0,0,0,0.2), transparent); */
+}
+
+.navButton {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    border-radius: 50%;
+    color: white;
+    transition: background 0.2s;
+}
+
+.navButton:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.screenTitle {
+    flex: 1;
+    text-align: center;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: white;
+    font-size: 1.1rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Overlay Specifics */
+.overlayScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Menu Overlay */
+.menuOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.menuClose {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    font-size: 32px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.menuList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 300px;
+    padding: 20px;
+}
+
+.menuItem {
+    color: white;
+    font-size: 1.2rem;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--font-heading);
+}
+
+.menuIndex {
+    opacity: 0.5;
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+}
+
+.error {
+    color: red;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Navigation Grid */
+.navigationGrid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 80px 20px 20px;
+    z-index: 10;
+    overflow-y: auto;
+}
+
+.navGridItem {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    min-height: 120px;
+}
+
+.navGridItem:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.navGridItem:active {
+    transform: translateY(0);
+}
+
+.navGridNumber {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    font-family: var(--font-heading);
+}
+
+.navGridTitle {
+    font-size: 0.9rem;
+    color: var(--color-text);
+    font-weight: 500;
+    text-align: center;
+    font-family: var(--font-body);
+}
+
+@media (min-width: 600px) {
+    .navigationGrid {
+        grid-template-columns: repeat(3, 1fr);
+        padding: 100px 40px 40px;
+    }
+}
+
+/* Lightbox */
+.lightboxOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.lightboxImage {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    cursor: default;
+    object-fit: contain;
+}
+
+.lightboxClose {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: white;
+    font-size: 32px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    z-index: 10000;
+}
+
+.lightboxClose:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.lightboxNav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: white;
+    font-size: 40px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    z-index: 10000;
+}
+
+.lightboxNav:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.lightboxCounter {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}

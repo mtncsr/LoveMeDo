@@ -1,0 +1,144 @@
+import React, { useEffect } from 'react';
+import { useProjectStore } from '../store/projectStore';
+import { useUIStore } from '../store/uiStore';
+import { Renderer } from '../renderer/Renderer';
+import { ArrowLeft, Sparkles, Plus } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import styles from './EditorLayout.module.css';
+import ElementsMenu from './ElementsMenu';
+import Toolbar from './Toolbar';
+import MediaLibraryModal from './MediaLibraryModal';
+
+const EditorLayout: React.FC = () => {
+    const { project, updateScreen, updateElement, addScreen } = useProjectStore();
+    const {
+        setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
+        selectedElementId, isMediaLibraryOpen, mediaLibraryMode, setMediaLibraryOpen
+    } = useUIStore();
+
+    // If no active screen, set to first one
+    useEffect(() => {
+        if (project && project.screens.length > 0 && !activeScreenId) {
+            setActiveScreenId(project.screens[0].id);
+        }
+    }, [project, activeScreenId, setActiveScreenId]);
+
+    if (!project) return <div>No Project Loaded</div>;
+
+    const currentScreen = project.screens.find(s => s.id === activeScreenId);
+
+    const handleBack = () => {
+        setMode('templates');
+    };
+
+    const handleCreate = () => {
+        setMode('export');
+    };
+
+    const handleMediaSelect = (mediaId: string) => {
+        if (mediaLibraryMode === 'select' && activeScreenId && selectedElementId) {
+            const mediaItem = project.mediaLibrary[mediaId];
+            if (mediaItem) {
+                updateElement(activeScreenId, selectedElementId, { content: mediaItem.data });
+            }
+        }
+    };
+
+    return (
+        <div className={styles.editorContainer}>
+            {/* Top Bar */}
+            <header className={styles.topBar}>
+                <div className={styles.left}>
+                    <button className={styles.iconBtn} onClick={handleBack}>
+                        <ArrowLeft size={20} />
+                    </button>
+                </div>
+                <div className={styles.center}>
+                    <input
+                        className={styles.screenTitleInput}
+                        value={currentScreen?.title || ''}
+                        onChange={(e) => activeScreenId && updateScreen(activeScreenId, { title: e.target.value })}
+                        placeholder="Screen Title"
+                    />
+                </div>
+                <div className={styles.right}>
+                    <button className={styles.createBtn} onClick={handleCreate}>
+                        <Sparkles size={18} />
+                        <span>CREATE</span>
+                    </button>
+                </div>
+            </header>
+
+            {/* Screen Tabs */}
+            <div className={styles.tabsContainer}>
+                <div className={styles.tabsList}>
+                    {project.screens.map((screen, index) => (
+                        <button
+                            key={screen.id}
+                            className={`${styles.tab} ${activeScreenId === screen.id ? styles.activeTab : ''}`}
+                            onClick={() => setActiveScreenId(screen.id)}
+                        >
+                            <span className={styles.tabIndex}>{index + 1}</span>
+                            <span className={styles.tabTitle}>{screen.title}</span>
+                        </button>
+                    ))}
+                    <button
+                        className={styles.addScreenBtn}
+                        onClick={() => {
+                            const type = prompt('Screen type (overlay/content/navigation):', 'content') as 'overlay' | 'content' | 'navigation' | null;
+                            if (type && ['overlay', 'content', 'navigation'].includes(type)) {
+                                const { v4: uuidv4 } = require('uuid');
+                                const newScreen = {
+                                    id: uuidv4(),
+                                    title: `Screen ${project.screens.length + 1}`,
+                                    type: type as 'overlay' | 'content' | 'navigation',
+                                    background: {
+                                        type: 'solid' as const,
+                                        value: '#FFFFFF',
+                                        animation: 'fade' as const
+                                    },
+                                    elements: []
+                                };
+                                addScreen(newScreen);
+                                setActiveScreenId(newScreen.id);
+                            }
+                        }}
+                        title="Add Screen"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Workspace */}
+            <div className={styles.workspace}>
+                <div className={styles.canvasContainer}>
+                    <div className={styles.canvasWrapper}>
+                        <Renderer
+                            project={project}
+                            mode="editor"
+                            activeScreenId={activeScreenId || undefined}
+                            className={styles.editorRenderer}
+                            onElementSelect={setSelectedElementId}
+                            onElementUpdate={(id, changes) => activeScreenId && updateElement(activeScreenId, id, changes)}
+                        />
+                    </div>
+                </div>
+
+                {/* Toolbar */}
+                <Toolbar />
+            </div>
+
+            {/* Bottom Elements Menu */}
+            <div className={styles.bottomMenu}>
+                <ElementsMenu />
+            </div>
+
+            {/* Media Library Overlay */}
+            {isMediaLibraryOpen && <MediaLibraryModal onSelect={handleMediaSelect} />}
+
+        </div>
+    );
+};
+
+export default EditorLayout;

@@ -1,0 +1,160 @@
+.container {
+    width: 100%;
+    min-height: 100vh;
+    background-color: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    background: white;
+    padding: 24px 40px;
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.headerContent {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.headerText {
+    flex: 1;
+    text-align: center;
+}
+
+.headerText h1 {
+    color: var(--color-primary-dark);
+    margin-bottom: 8px;
+}
+
+.headerText p {
+    color: var(--color-text-light);
+}
+
+.backButton {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.backButton:hover {
+    background: #e0e0e0;
+}
+
+.importButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--color-border);
+    padding: 10px 20px;
+    border-radius: var(--radius-full);
+    font-weight: 500;
+    color: var(--color-text);
+    transition: background 0.2s;
+}
+
+.importButton:hover {
+    background: #f9f9f9;
+}
+
+.grid {
+    flex: 1;
+    max-width: 1200px;
+    width: 100%;
+    margin: 40px auto;
+    padding: 0 40px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 32px;
+}
+
+.card {
+    background: white;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid transparent;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--color-accent);
+}
+
+.cardThumbnail {
+    height: 160px;
+    background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emoji {
+    font-size: 64px;
+    animation: pulse-soft 3s infinite;
+}
+
+.cardContent {
+    padding: 20px;
+}
+
+.catBadge {
+    display: inline-block;
+    background: #fff0f3;
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+
+.card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: var(--color-text);
+}
+
+.meta {
+    color: var(--color-text-subtle);
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.descList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.descList li {
+    position: relative;
+    padding-left: 16px;
+    font-size: 0.9rem;
+    color: var(--color-text-light);
+    line-height: 1.5;
+}
+
+.descList li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--color-primary);
+}

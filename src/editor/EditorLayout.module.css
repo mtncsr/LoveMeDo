@@ -1,0 +1,206 @@
+.editorContainer {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f0f0f0;
+}
+
+.topBar {
+    height: 60px;
+    background: white;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+}
+
+.left,
+.right {
+    width: 100px;
+    /* Balance center */
+    display: flex;
+    align-items: center;
+}
+
+.right {
+    justify-content: flex-end;
+}
+
+.center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.iconBtn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--color-text);
+    background: transparent;
+    transition: background 0.2s;
+}
+
+.iconBtn:hover {
+    background: #f5f5f5;
+}
+
+.screenTitleInput {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--color-text);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.screenTitleInput:hover {
+    background: #f9f9f9;
+}
+
+.screenTitleInput:focus {
+    background: #fff;
+    outline: 2px solid var(--color-primary);
+}
+
+.createBtn {
+    background: var(--color-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.tabsContainer {
+    height: 48px;
+    background: white;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    overflow-x: auto;
+}
+
+.tabsList {
+    display: flex;
+    gap: 8px;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-subtle);
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab:hover {
+    background: #f5f5f5;
+}
+
+.activeTab {
+    background: #fff0f3;
+    color: var(--color-primary);
+    font-weight: 500;
+}
+
+.tabIndex {
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+}
+
+.activeTab .tabIndex {
+    background: rgba(255, 77, 109, 0.1);
+    color: var(--color-primary);
+}
+
+.workspace {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    background-color: #e5e5e5;
+    background-image: radial-gradient(#ccc 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.canvasContainer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    overflow: auto;
+}
+
+.canvasWrapper {
+    width: 375px;
+    /* Default Mobile View for Editor */
+    height: 667px;
+    background: white;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+    position: relative;
+    border: 1px solid #ddd;
+}
+
+/* Allow desktop toggle in editor too later? For now, focused on Mobile Gift */
+
+.editorRenderer {
+    pointer-events: none;
+    /* Let the wrapper handle interactions? Or pass click handlers */
+}
+
+/* Override pointer events for Renderer in Editor mode so we can select elements?
+   Actually we need pointer events ON for elements to click them.
+   The Renderer logic sets cursor to 'default' in editor, but we need selection.
+   We will inject a logic in Renderer or use an overlay.
+   Simpler: The ElementRenderer onClick handles selection store update.
+*/
+
+.bottomMenu {
+    height: 80px;
+    background: white;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    z-index: 100;
+}
+
+.menuItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+    width: 60px;
+}
+
+.menuItem:hover {
+    color: var(--color-primary);
+}
