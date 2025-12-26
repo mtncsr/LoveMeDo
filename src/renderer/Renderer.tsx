@@ -12,6 +12,7 @@ interface Props {
     onElementSelect?: (elementId: string) => void;
     onElementUpdate?: (elementId: string, changes: any) => void; // Using any for partial Element
     className?: string;
+    device?: 'mobile' | 'desktop'; // For template preview mode
 }
 
 export const Renderer: React.FC<Props> = ({
@@ -20,7 +21,8 @@ export const Renderer: React.FC<Props> = ({
     activeScreenId: propScreenId,
     onElementSelect,
     onElementUpdate,
-    className
+    className,
+    device
 }) => {
     // State for internal navigation (Preview/Export)
     const [internalActiveId, setInternalActiveId] = useState<string>(
@@ -142,6 +144,14 @@ export const Renderer: React.FC<Props> = ({
             }
         } else if (target === 'menu') {
             setIsMenuOpen(true);
+        } else if (target === 'nav-screen') {
+            // Navigate directly to navigation screen (last screen)
+            const navScreen = project.screens[project.screens.length - 1];
+            if (navScreen && navScreen.type === 'navigation') {
+                setNavHistory(prev => [...prev, activeId]);
+                setInternalActiveId(navScreen.id);
+                setIsMenuOpen(false);
+            }
         } else if (target === 'next') {
             // Logic for 'next' screen (start experience)
             const index = project.screens.findIndex(s => s.id === activeId);
@@ -187,7 +197,11 @@ export const Renderer: React.FC<Props> = ({
     if (!activeScreen) return <div className={styles.error}>No Screen Found</div>;
 
     return (
-        <div className={`${styles.rendererContainer} ${className || ''}`}>
+        <div 
+            className={`${styles.rendererContainer} ${className || ''}`}
+            data-mode={mode}
+            data-device={device}
+        >
             <ScreenRenderer
                 screen={activeScreen}
                 mode={mode}
@@ -196,6 +210,7 @@ export const Renderer: React.FC<Props> = ({
                 onElementClick={handleElementClick}
                 onElementUpdate={onElementUpdate}
                 allScreens={project.screens}
+                currentScreenIndex={project.screens.findIndex(s => s.id === activeId)}
                 key={activeScreen.id}
             />
 
@@ -214,25 +229,21 @@ export const Renderer: React.FC<Props> = ({
                                 {screen.title}
                             </div>
                         ))}
-                        {/* Always ensure navigation screen (last screen) is accessible */}
+                        {/* Always show navigation screen (last screen) prominently */}
                         {project.screens.length > 0 && (() => {
                             const lastScreen = project.screens[project.screens.length - 1];
-                            // If last screen is navigation and not already in list (shouldn't happen, but ensure it's there)
                             if (lastScreen.type === 'navigation') {
-                                const isAlreadyListed = project.screens.some(s => s.id === lastScreen.id);
-                                if (!isAlreadyListed) {
-                                    return (
-                                        <div
-                                            key={`nav-${lastScreen.id}`}
-                                            className={styles.menuItem}
-                                            onClick={() => handleNavigate(lastScreen.id)}
-                                            style={{ fontWeight: 'bold', borderTop: '2px solid rgba(255,255,255,0.3)', marginTop: '8px', paddingTop: '16px' }}
-                                        >
-                                            <span className={styles.menuIndex}>★</span>
-                                            {lastScreen.title}
-                                        </div>
-                                    );
-                                }
+                                return (
+                                    <div
+                                        key={`nav-${lastScreen.id}`}
+                                        className={styles.menuItem}
+                                        onClick={() => handleNavigate('nav-screen')}
+                                        style={{ fontWeight: 'bold', borderTop: '2px solid rgba(255,255,255,0.3)', marginTop: '8px', paddingTop: '16px' }}
+                                    >
+                                        <span className={styles.menuIndex}>★</span>
+                                        {lastScreen.title}
+                                    </div>
+                                );
                             }
                             return null;
                         })()}

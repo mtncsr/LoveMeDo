@@ -9,6 +9,33 @@
     flex-direction: column;
 }
 
+/* Device Frame Styles for Template Preview */
+.rendererContainer[data-mode="templatePreview"][data-device="mobile"] {
+    border-radius: 30px;
+    border: 8px solid #111;
+    aspect-ratio: 9 / 16;
+    /* Size based on available space - override base 100% width/height */
+    max-height: calc(95vh - 60px - 80px - 40px) !important;
+    height: calc(95vh - 60px - 80px - 40px) !important;
+    width: calc((95vh - 60px - 80px - 40px) * 9 / 16) !important;
+    max-width: 375px !important;
+    min-width: 250px;
+    min-height: 400px;
+    background: white !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+}
+
+.rendererContainer[data-mode="templatePreview"][data-device="desktop"] {
+    border-radius: 8px;
+    aspect-ratio: 16 / 9;
+    width: 100% !important;
+    max-width: 1200px !important;
+    height: auto !important;
+    background: white !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
 .screenContainer {
     position: absolute;
     top: 0;
@@ -51,6 +78,20 @@
 .elementText {
     white-space: pre-wrap;
     user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Sticker animations */
+.element[data-type="sticker"] {
+    animation: float 4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(5deg); }
 }
 
 .elementImage {
@@ -188,65 +229,105 @@
     text-align: center;
 }
 
-/* Navigation Grid */
-.navigationGrid {
+/* Navigation Pills */
+.navigationPills {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    padding: 80px 20px 20px;
-    z-index: 10;
-    overflow-y: auto;
-}
-
-.navGridItem {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 20px;
     display: flex;
     flex-direction: column;
+    gap: 10px; /* Small padding between buttons */
+    padding: 20px 20px 20px; /* Top padding for first button */
+    z-index: 10;
+    overflow-y: auto;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    box-sizing: border-box;
+}
+
+.navPill {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 50px; /* Pill shape */
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 16px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: none;
-    min-height: 120px;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    width: 100%;
+    max-width: 400px;
+    min-height: 60px;
+    cursor: pointer;
 }
 
-.navGridItem:hover {
-    transform: translateY(-2px);
+.navPill:hover {
+    transform: translateX(4px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 1);
 }
 
-.navGridItem:active {
-    transform: translateY(0);
+.navPill:active {
+    transform: translateX(2px);
 }
 
-.navGridNumber {
-    font-size: 2rem;
+.navPillNumber {
+    font-size: 18px;
     font-weight: 700;
     color: var(--color-primary);
+    background: rgba(74, 144, 226, 0.1);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     font-family: var(--font-heading);
 }
 
-.navGridTitle {
-    font-size: 0.9rem;
+.navPillTitle {
+    font-size: 16px;
+    font-weight: 600;
     color: var(--color-text);
-    font-weight: 500;
-    text-align: center;
+    text-align: left;
+    flex: 1;
     font-family: var(--font-body);
 }
 
+@media (max-width: 768px) {
+    .navigationPills {
+        padding: 20px 16px 16px;
+        gap: 10px;
+    }
+    
+    .navPill {
+        max-width: 100%;
+        padding: 14px 20px;
+    }
+    
+    .navPillNumber {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+    }
+    
+    .navPillTitle {
+        font-size: 15px;
+    }
+}
+
 @media (min-width: 600px) {
-    .navigationGrid {
-        grid-template-columns: repeat(3, 1fr);
-        padding: 100px 40px 40px;
+    .navigationPills {
+        padding: 30px 40px 40px;
+        gap: 12px;
+    }
+    
+    .navPill {
+        max-width: 450px;
     }
 }
 
@@ -330,4 +411,43 @@
     padding: 8px 16px;
     border-radius: 20px;
     font-size: 0.9rem;
+}
+
+/* Next Button Container */
+.nextButtonContainer {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 150;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+}
+
+.nextButton {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    color: var(--color-primary);
+    border: none;
+    padding: 12px 32px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nextButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.nextButton:active {
+    transform: translateY(0);
 }

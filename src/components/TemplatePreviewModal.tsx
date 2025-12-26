@@ -65,22 +65,11 @@ export const TemplatePreviewModal: React.FC<Props> = ({ templateId }) => {
 
                 {/* Preview Area */}
                 <div className={styles.previewArea}>
-                    <div
-                        className={styles.deviceFrame}
-                        data-device={device}
-                        style={{
-                            width: device === 'mobile' ? '375px' : '100%',
-                            height: device === 'mobile' ? '667px' : '100%',
-                            maxWidth: device === 'desktop' ? '1200px' : undefined,
-                            maxHeight: device === 'desktop' ? '800px' : undefined,
-                            aspectRatio: device === 'desktop' ? '16/9' : undefined,
-                        }}
-                    >
-                        <Renderer
-                            project={previewProject}
-                            mode="templatePreview"
-                        />
-                    </div>
+                    <Renderer
+                        project={previewProject}
+                        mode="templatePreview"
+                        device={device}
+                    />
                 </div>
 
                 {/* Footer */}

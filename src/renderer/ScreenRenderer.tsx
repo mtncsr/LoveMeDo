@@ -12,12 +12,18 @@ interface Props {
     onElementClick?: (elementId: string) => void;
     onElementUpdate?: (elementId: string, changes: Partial<ScreenElement>) => void;
     allScreens?: Screen[]; // For navigation grid
+    currentScreenIndex?: number; // For next button
 }
 
-export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, allScreens = [] }) => {
+export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, allScreens = [], currentScreenIndex }) => {
     if (!isActive) return null;
 
     const { background, elements, type, title } = screen;
+    
+    // Check if there's a next screen (including navigation screen)
+    const hasNextScreen = currentScreenIndex !== undefined && 
+                         allScreens.length > 0 && 
+                         currentScreenIndex < allScreens.length - 1;
 
     // Render Background
     const renderBackground = () => {
@@ -64,24 +70,35 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                         <ArrowLeft size={24} />
                     </button>
                     <div className={styles.screenTitle}>{title}</div>
-                    <button className={styles.navButton} onClick={() => onNavigate('menu')}>
+                    <button 
+                        className={styles.navButton} 
+                        onClick={() => {
+                            // Hamburger menu should navigate to navigation screen
+                            const navScreen = allScreens[allScreens.length - 1];
+                            if (navScreen && navScreen.type === 'navigation') {
+                                onNavigate('nav-screen');
+                            } else {
+                                onNavigate('menu');
+                            }
+                        }}
+                    >
                         <Menu size={24} />
                     </button>
                 </div>
             )}
 
-            {/* Navigation Grid (for navigation type screens) */}
+            {/* Navigation Pills (for navigation type screens) */}
             {type === 'navigation' && (
-                <div className={styles.navigationGrid}>
+                <div className={styles.navigationPills}>
                     {allScreens.map((navScreen, index) => (
                         <button
                             key={navScreen.id}
-                            className={styles.navGridItem}
+                            className={styles.navPill}
                             onClick={() => mode !== 'editor' && onNavigate(navScreen.id)}
                             style={{ cursor: mode === 'editor' ? 'default' : 'pointer' }}
                         >
-                            <div className={styles.navGridNumber}>{index + 1}</div>
-                            <div className={styles.navGridTitle}>{navScreen.title}</div>
+                            <span className={styles.navPillNumber}>{index + 1}</span>
+                            <span className={styles.navPillTitle}>{navScreen.title}</span>
                         </button>
                     ))}
                 </div>
@@ -97,6 +114,18 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                     onUpdate={onElementUpdate}
                 />
             ))}
+
+            {/* Next Button (for content screens only, at bottom) */}
+            {type === 'content' && hasNextScreen && mode !== 'editor' && (
+                <div className={styles.nextButtonContainer}>
+                    <button 
+                        className={styles.nextButton}
+                        onClick={() => onNavigate('next')}
+                    >
+                        Next →
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

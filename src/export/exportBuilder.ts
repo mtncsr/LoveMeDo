@@ -35,12 +35,18 @@ const GLOBAL_CSS = `
   .lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); color:white; font-size:40px; cursor:pointer; background:rgba(0,0,0,0.5); border:none; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
   .lightbox-prev { left:20px; }
   .lightbox-next { right:20px; }
-  .navigation-grid { position:absolute; top:0; left:0; width:100%; height:100%; display:grid; grid-template-columns:repeat(2,1fr); gap:16px; padding:80px 20px 20px; z-index:10; overflow-y:auto; }
-  .nav-grid-item { background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); border-radius:16px; padding:20px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; border:none; min-height:120px; cursor:pointer; }
-  .nav-grid-item:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
-  .nav-grid-number { font-size:2rem; font-weight:700; color:var(--color-primary); font-family:var(--font-heading); }
-  .nav-grid-title { font-size:0.9rem; color:var(--color-text); font-weight:500; text-align:center; font-family:var(--font-body); }
-  @media (min-width:600px) { .navigation-grid { grid-template-columns:repeat(3,1fr); padding:100px 40px 40px; } }
+  .navigation-pills { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; gap:10px; padding:20px 20px 20px; z-index:10; overflow-y:auto; align-items:center; box-sizing:border-box; }
+  .nav-pill { background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); border-radius:50px; padding:16px 24px; display:flex; align-items:center; justify-content:flex-start; gap:16px; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s,background 0.2s; border:2px solid rgba(255,255,255,0.3); width:100%; max-width:400px; min-height:60px; cursor:pointer; }
+  .nav-pill:hover { transform:translateX(4px); box-shadow:0 6px 16px rgba(0,0,0,0.2); background:rgba(255,255,255,1); }
+  .nav-pill:active { transform:translateX(2px); }
+  .nav-pill-number { font-size:18px; font-weight:700; color:var(--color-primary); background:rgba(74,144,226,0.1); border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--font-heading); }
+  .nav-pill-title { font-size:16px; font-weight:600; color:var(--color-text); text-align:left; flex:1; font-family:var(--font-body); }
+  @media (max-width:768px) { .navigation-pills { padding:20px 16px 16px; gap:10px; } .nav-pill { max-width:100%; padding:14px 20px; } .nav-pill-number { width:32px; height:32px; font-size:16px; } .nav-pill-title { font-size:15px; } }
+  @media (min-width:600px) { .navigation-pills { padding:30px 40px 40px; gap:12px; } .nav-pill { max-width:450px; } }
+  .next-button-container { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:150; width:100%; display:flex; justify-content:center; padding:0 20px; }
+  .next-button { background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); color:var(--color-primary); border:none; padding:12px 32px; border-radius:999px; font-size:1rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; display:flex; align-items:center; gap:8px; }
+  .next-button:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
+  .next-button:active { transform:translateY(0); }
   @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
   .animate-pulse { animation: pulse 2s infinite; }
 `;
@@ -71,6 +77,13 @@ const getRuntimeScript = (project: Project) => `
           }
       } else if (target === 'menu') {
           document.getElementById('menu').style.display = 'flex';
+      } else if (target === 'nav-screen') {
+          // Navigate directly to navigation screen (last screen)
+          const navScreen = project.screens[project.screens.length - 1];
+          if (navScreen && navScreen.type === 'navigation') {
+              historyStack.push(window.activeScreenId);
+              renderScreen(navScreen.id);
+          }
       } else if (target === 'next') {
           const currentIdx = project.screens.findIndex(s => s.id === window.activeScreenId);
           if (currentIdx < project.screens.length - 1) {
@@ -119,15 +132,23 @@ const getRuntimeScript = (project: Project) => `
             <div class="nav-bar">
                <button class="nav-btn" onclick="navigate('back')">←</button>
                <div class="screen-title">\${screen.title}</div>
-               <button class="nav-btn" onclick="navigate('menu')">☰</button>
+               <button class="nav-btn" onclick="navigate('nav-screen')">☰</button>
             </div>\` : '';
           
-          const navGrid = screen.type === 'navigation' ? \`
-            <div class="navigation-grid">
+          // Next button for content screens (including when next screen is navigation)
+          const currentIdx = project.screens.findIndex(s => s.id === screen.id);
+          const hasNextScreen = currentIdx < project.screens.length - 1;
+          const nextButton = screen.type === 'content' && hasNextScreen ? \`
+            <div class="next-button-container">
+               <button class="next-button" onclick="navigate('next')">Next →</button>
+            </div>\` : '';
+          
+          const navPills = screen.type === 'navigation' ? \`
+            <div class="navigation-pills">
                \${project.screens.map((navScreen, idx) => \`
-                 <button class="nav-grid-item" onclick="navigate('\${navScreen.id}')">
-                   <div class="nav-grid-number">\${idx + 1}</div>
-                   <div class="nav-grid-title">\${navScreen.title}</div>
+                 <button class="nav-pill" onclick="navigate('\${navScreen.id}')">
+                   <span class="nav-pill-number">\${idx + 1}</span>
+                   <span class="nav-pill-title">\${navScreen.title}</span>
                  </button>
                \`).join('')}
             </div>
@@ -208,7 +229,7 @@ const getRuntimeScript = (project: Project) => `
               return \`<div class="\${className}" style="\${style}" \${onClick}>\${contentHtml}</div>\`;
           }).join('');
 
-          el.innerHTML = bgContent + navBar + navGrid + elementsHtml;
+          el.innerHTML = bgContent + navBar + navPills + elementsHtml + nextButton;
           el.style.cssText = bgStyle;
           root.appendChild(el);
       });

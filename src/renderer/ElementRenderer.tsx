@@ -130,9 +130,14 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         }
     };
 
-    const commonProps = {
+    const commonProps: any = {
         className: `${styles.element} ${type === 'text' ? styles.elementText : ''} ${type === 'image' ? styles.elementImage : ''} ${type === 'button' ? styles.elementButton : ''}`,
-        style,
+        style: {
+            ...style,
+            padding: elStyles.backgroundColor && type === 'text' ? '12px 16px' : undefined,
+            display: type === 'text' && elStyles.backgroundColor ? 'flex' : undefined,
+        },
+        'data-type': type,
         onMouseDown: handleMouseDown,
         onClick: handleInteraction
     };
@@ -155,7 +160,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             );
 
         case 'sticker':
-            return <div {...commonProps} style={{ ...style, fontSize: `${elStyles.fontSize || 40}px` }}>{content}</div>;
+            return <div {...commonProps} style={{ ...style, fontSize: `${elStyles.fontSize || 40}px`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{content}</div>;
 
         case 'gallery':
             let images: string[] = [];
