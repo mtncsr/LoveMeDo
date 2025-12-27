@@ -28,9 +28,10 @@ export const TemplatePreviewModal: React.FC<Props> = ({ templateId }) => {
     if (!template || !previewProject) return null;
 
     const handleSelect = () => {
+        // Set mode first for immediate navigation, then project, then close preview
+        setMode('editor');
         setProject(previewProject);
         setPreview(false);
-        setMode('editor');
     };
 
     return (

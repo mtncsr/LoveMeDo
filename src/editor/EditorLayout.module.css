@@ -147,23 +147,62 @@
     background-size: 20px 20px;
 }
 
+.floatingDeviceToggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text);
+    cursor: pointer;
+    z-index: 50;
+    transition: all 0.2s;
+}
+
+.floatingDeviceToggle:hover {
+    background: #f9f9f9;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
 .canvasContainer {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px;
+    padding: 16px;
     overflow: auto;
 }
 
 .canvasWrapper {
-    width: 375px;
-    /* Default Mobile View for Editor */
-    height: 667px;
     background: white;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
     position: relative;
     border: 1px solid #ddd;
+}
+
+/* Mobile View (9:16 aspect ratio) */
+.canvasWrapper[data-device="mobile"] {
+    aspect-ratio: 9 / 16;
+    height: calc(100vh - 60px - 48px - 80px - 32px);
+    width: calc((100vh - 60px - 48px - 80px - 32px) * 9 / 16);
+    max-width: 100%;
+    max-height: calc(100vh - 60px - 48px - 80px - 32px);
+}
+
+/* Desktop View (16:9 aspect ratio) */
+.canvasWrapper[data-device="desktop"] {
+    aspect-ratio: 16 / 9;
+    width: min(calc(100% - 32px), calc((100vh - 60px - 48px - 80px - 32px) * 16 / 9));
+    max-width: calc(100vw - 32px);
+    height: auto;
 }
 
 /* Allow desktop toggle in editor too later? For now, focused on Mobile Gift */
@@ -203,4 +242,138 @@
 
 .menuItem:hover {
     color: var(--color-primary);
+}
+
+.zoomControl {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: white;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-md);
+    z-index: 200;
+    border: 1px solid var(--color-border);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.zoomControl:not(.expanded) {
+    padding: 8px;
+    gap: 0;
+}
+
+.zoomControl.expanded {
+    padding: 8px 16px;
+    gap: 12px;
+}
+
+.zoomControl .zoomSlider,
+.zoomControl .zoomBtn {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition: opacity 0.3s ease 0.1s, max-width 0.3s ease;
+    pointer-events: none;
+}
+
+.zoomControl.expanded .zoomSlider,
+.zoomControl.expanded .zoomBtn {
+    opacity: 1;
+    max-width: 200px;
+    pointer-events: auto;
+}
+
+.zoomControl.expanded .zoomSlider {
+    max-width: 120px;
+}
+
+.zoomControl .zoomIconBtn {
+    flex-shrink: 0;
+    opacity: 1;
+    max-width: none;
+    pointer-events: auto;
+}
+
+.zoomIconBtn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zoomIconBtn:hover {
+    background: #f5f5f5;
+    color: var(--color-primary);
+}
+
+.zoomBtn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zoomBtn:hover {
+    background: #f5f5f5;
+    color: var(--color-primary);
+}
+
+.zoomSlider {
+    width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+
+.zoomSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.zoomSlider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(255, 77, 109, 0.1);
+}
+
+.zoomSlider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.zoomSlider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(255, 77, 109, 0.1);
 }

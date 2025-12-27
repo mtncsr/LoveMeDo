@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
-import { ArrowLeft, Sparkles, Plus } from 'lucide-react';
+import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './EditorLayout.module.css';
 import ElementsMenu from './ElementsMenu';
@@ -15,6 +15,9 @@ const EditorLayout: React.FC = () => {
         setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
         selectedElementId, isMediaLibraryOpen, mediaLibraryMode, setMediaLibraryOpen
     } = useUIStore();
+    const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('mobile');
+    const [zoom, setZoom] = useState(100);
+    const [isZoomExpanded, setIsZoomExpanded] = useState(false);
 
     // If no active screen, set to first one
     useEffect(() => {
@@ -112,13 +115,64 @@ const EditorLayout: React.FC = () => {
 
             {/* Main Workspace */}
             <div className={styles.workspace}>
+                {/* Floating Device Toggle - Top Side */}
+                <button
+                    className={styles.floatingDeviceToggle}
+                    onClick={() => setDeviceView(deviceView === 'mobile' ? 'desktop' : 'mobile')}
+                    title={deviceView === 'mobile' ? 'Switch to Desktop' : 'Switch to Mobile'}
+                >
+                    {deviceView === 'mobile' ? <Smartphone size={18} /> : <Monitor size={18} />}
+                </button>
+
+                {/* Floating Zoom Control - Bottom Side */}
+                <div 
+                    className={`${styles.zoomControl} ${isZoomExpanded ? styles.expanded : ''}`}
+                    onMouseEnter={() => setIsZoomExpanded(true)}
+                    onMouseLeave={() => setIsZoomExpanded(false)}
+                >
+                    <button
+                        className={styles.zoomIconBtn}
+                        onClick={() => setIsZoomExpanded(!isZoomExpanded)}
+                        title="Zoom"
+                    >
+                        <ZoomIn size={18} />
+                    </button>
+                    <button 
+                        className={styles.zoomBtn}
+                        onClick={() => setZoom(Math.max(25, zoom - 10))}
+                        title="Zoom Out"
+                    >
+                        <Minus size={16} />
+                    </button>
+                    <input
+                        type="range"
+                        min="25"
+                        max="200"
+                        value={zoom}
+                        onChange={(e) => setZoom(Number(e.target.value))}
+                        className={styles.zoomSlider}
+                    />
+                    <button 
+                        className={styles.zoomBtn}
+                        onClick={() => setZoom(Math.min(200, zoom + 10))}
+                        title="Zoom In"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
+
                 <div className={styles.canvasContainer}>
-                    <div className={styles.canvasWrapper}>
+                    <div 
+                        className={styles.canvasWrapper} 
+                        data-device={deviceView}
+                        style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
+                    >
                         <Renderer
                             project={project}
                             mode="editor"
                             activeScreenId={activeScreenId || undefined}
                             className={styles.editorRenderer}
+                            device={deviceView}
                             onElementSelect={setSelectedElementId}
                             onElementUpdate={(id, changes) => activeScreenId && updateElement(activeScreenId, id, changes)}
                         />
