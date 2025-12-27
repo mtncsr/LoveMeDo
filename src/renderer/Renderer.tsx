@@ -177,30 +177,90 @@ export const Renderer: React.FC<Props> = ({
         }
     };
 
+    // Helper to resolve media ID to actual URL/data URL
+    const resolveMediaUrl = (content: string): string => {
+        if (project.mediaLibrary[content]) {
+            return project.mediaLibrary[content].data;
+        }
+        return content; // Already a URL
+    };
+
     const handleElementClick = (elementId: string) => {
-        if (mode === 'editor') {
+        const el = activeScreen?.elements.find(e => e.id === elementId);
+        
+        // Handle image clicks - open lightbox with hero + gallery images
+        if (el?.type === 'image') {
+            // Hero image clicked - collect hero image + all gallery images from same screen
+            const allImages: string[] = [];
+            let clickedImageIndex = 0;
+            
+            // Add the clicked hero image first
+            const heroImageUrl = resolveMediaUrl(el.content);
+            if (heroImageUrl && heroImageUrl.trim() !== '') {
+                allImages.push(heroImageUrl);
+                clickedImageIndex = 0;
+            }
+            
+            // Then, collect all gallery images from the same screen
+            activeScreen?.elements.forEach((elem) => {
+                if (elem.type === 'gallery') {
+                    let galleryImages: string[] = [];
+                    try {
+                        galleryImages = JSON.parse(elem.content);
+                        if (!Array.isArray(galleryImages)) galleryImages = [elem.content];
+                    } catch {
+                        galleryImages = [elem.content];
+                    }
+                    
+                    galleryImages.forEach((imgId) => {
+                        const imageUrl = resolveMediaUrl(imgId);
+                        if (imageUrl && imageUrl.trim() !== '') {
+                            allImages.push(imageUrl);
+                        }
+                    });
+                }
+            });
+            
+            if (allImages.length > 0) {
+                setLightboxImages(allImages);
+                setLightboxIndex(clickedImageIndex);
+                setLightboxSrc(allImages[clickedImageIndex]);
+            }
+            
+            // In editor mode, still select the element for editing
+            if (mode === 'editor') {
+                onElementSelect?.(elementId);
+            }
+        } else if (el?.type === 'gallery') {
+            // Gallery clicked - show gallery images only (existing behavior)
+            let images: string[] = [];
+            try {
+                images = JSON.parse(el.content);
+                if (!Array.isArray(images)) images = [el.content];
+            } catch {
+                images = [el.content];
+            }
+            
+            // Resolve media IDs to URLs
+            const resolvedImages = images.map(imgId => resolveMediaUrl(imgId)).filter(url => url && url.trim() !== '');
+            
+            if (resolvedImages.length > 0) {
+                setLightboxImages(resolvedImages);
+                setLightboxIndex(0);
+                setLightboxSrc(resolvedImages[0]);
+            }
+            
+            // In editor mode, still select the element for editing
+            if (mode === 'editor') {
+                onElementSelect?.(elementId);
+            }
+        } else if (mode === 'editor') {
+            // For non-image elements in editor, just select
             onElementSelect?.(elementId);
         } else {
-            // Preview/Export interactions
-            const el = activeScreen?.elements.find(e => e.id === elementId);
-            if (el?.type === 'gallery' || el?.type === 'image') {
-                let images: string[] = [];
-                if (el.type === 'gallery') {
-                    try {
-                        images = JSON.parse(el.content);
-                        if (!Array.isArray(images)) images = [el.content];
-                    } catch {
-                        images = [el.content];
-                    }
-                } else {
-                    images = [el.content];
-                }
-                
-                if (images.length > 0) {
-                    setLightboxImages(images);
-                    setLightboxIndex(0);
-                    setLightboxSrc(images[0]);
-                }
+            // Other interactions in preview/export mode
+            if (el?.type === 'button' && el.metadata?.action === 'navigate') {
+                // Button navigation handled elsewhere
             }
         }
     };

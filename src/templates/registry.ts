@@ -228,7 +228,7 @@ const templates: Template[] = [
         name: 'Birthday – Kids',
         description: ['Bright, playful, energetic', 'Falling confetti', 'Perfect for kids'],
         thumbnail: '🎈',
-        screens: 5,
+        screens: 6,
         tags: ['kids', 'fun', 'colorful'],
         defaultConfig: { primaryColor: '#FFD93D', fontHeading: 'Fredoka One', fontBody: 'Outfit' },
         initialProjectData: (title) => {
@@ -252,39 +252,56 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '',
-                    position: { x: 10, y: 28 },
+                    content: '/images/templates/heroes/birthday-kids-hero.png',
+                    position: { x: 10, y: 54 }, // Adjusted to end at 99% (54 + 45 = 99)
                     size: { width: 80, height: 45 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
             ]);
 
-            // Screen 3: Gallery + Caption + Wishes - Bright pink background
+            // Screen 3: Gallery + Caption - Bright pink background (wish cards removed)
             const s3 = createScreen('Gallery', 'content', 'linear-gradient(to bottom, #fff0f3, #ffe0e6)', [
                 createSticker('📸', 88, 8, 32, 0),
                 createText('Some of our favorite moments together', 12, 26, true, '#FF4D6D'),
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
                     position: { x: 10, y: 20 },
-                    size: { width: 80, height: 35 },
+                    size: { width: 80, height: 79 }, // Adjusted to end at 99% (20 + 79 = 99), leaving small padding for next button
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
-                },
-                createWishCard('Happy Birthday! We love you!', 58, '#FFD93D', '#FFFFFF'),
-                createWishCard('Wishing you endless joy and fun!', 70, '#FF4D6D', '#FFFFFF'),
-                createWishCard('So proud of you!', 80, '#4CC9F0', '#FFFFFF'),
+                }
             ]);
 
-            // Screen 4: Video Standalone - Bright cyan background
-            const s4 = createScreen('Video', 'content', 'linear-gradient(135deg, #4CC9F0, #7DD3FC, #FFFFFF)', [
+            // Screen 4: Wishes with Hero Image - Bright playful background
+            const s4 = createScreen('Wishes', 'content', 'linear-gradient(to bottom, #fff0f3, #ffe0e6)', [
+                {
+                    id: uuidv4(),
+                    type: 'image' as const,
+                    content: '/images/templates/heroes/birthday-kids-hero.png',
+                    position: { x: 10, y: 10 },
+                    size: { width: 80, height: 40 },
+                    styles: { zIndex: 5, borderRadius: 16, shadow: true }
+                },
+                createWishCard('Happy Birthday! We love you!', 55, '#FFD93D', '#FFFFFF'),
+                createWishCard('Wishing you endless joy and fun!', 68, '#FF4D6D', '#FFFFFF'),
+                createWishCard('So proud of you!', 87, '#4CC9F0', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
+            ]);
+
+            // Screen 5: Video Standalone - Bright cyan background
+            const s5 = createScreen('Video', 'content', 'linear-gradient(135deg, #4CC9F0, #7DD3FC, #FFFFFF)', [
                 createSticker('🎬', 12, 10, 40, 5),
                 createText('A special message for you', 12, 26, true, '#FF4D6D'),
                 {
                     id: uuidv4(),
                     type: 'video' as const,
-                    content: '',
-                    position: { x: 10, y: 22 },
+                    content: '/images/templates/videos/video-placeholder.mp4',
+                    position: { x: 10, y: 44 }, // Adjusted to end at 99% (44 + 55 = 99)
                     size: { width: 80, height: 55 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
@@ -297,7 +314,7 @@ const templates: Template[] = [
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 config: { title, primaryColor: '#FFD93D', fontHeading: 'Fredoka One', fontBody: 'Outfit' },
-                screens: [s1, s2, s3, s4, createNavScreen('linear-gradient(135deg, #FFD93D, #FFE66D, #FFFFFF)')],
+                screens: [s1, s2, s3, s4, s5, createNavScreen('linear-gradient(135deg, #FFD93D, #FFE66D, #FFFFFF)')],
                 mediaLibrary: {}
             };
         }
@@ -328,7 +345,7 @@ const templates: Template[] = [
             const s2 = createScreen('Message', 'content', 'linear-gradient(135deg, #FDF0F5, #F8E8EE, #FFF)', [
                 createSticker('❤️', 88, 8, 32, 0),
                 createSticker('💕', 10, 12, 28, -5),
-                createLongText('To my dearest love,\n\nEvery day with you is a gift. Every moment we share becomes a treasured memory. Your smile lights up my world, and your love fills my heart with endless joy.\n\nOn this special day, I want you to know how much you mean to me. You are my everything, my today, and my forever.\n\nWith all my love,', 12, 'rgba(255,255,255,0.95)', '#590d22')
+                createLongText('To my dearest love,\n\nEvery day with you is a gift. Every moment we share becomes a treasured memory. Your smile lights up my world, and your love fills my heart with endless joy.\n\nOn this special day, I want you to know how much you mean to me. You are my everything, my today, and my forever.\n\nWith all my love,', 34, 'rgba(255,255,255,0.95)', '#590d22') // Adjusted to end at 99% (34 + 65 = 99)
             ]);
             s2.elements[2].size = { width: 80, height: 65 };
 
@@ -339,8 +356,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
                 }
@@ -353,8 +375,8 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'video' as const,
-                    content: '',
-                    position: { x: 10, y: 22 },
+                    content: '/images/templates/videos/video-placeholder.mp4',
+                    position: { x: 10, y: 44 }, // Adjusted to end at 99% (44 + 55 = 99)
                     size: { width: 80, height: 55 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
@@ -405,8 +427,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
                 }
@@ -416,7 +443,7 @@ const templates: Template[] = [
             const s4 = createScreen('Wishes', 'content', 'linear-gradient(135deg, #f2e9e4, #FFFFFF)', [
                 createSticker('💝', 12, 10, 36, 5),
                 createWishCard('So inspiring to see your love', 15, '#9a8c98', '#FFFFFF'),
-                createWishCard('Here\'s to many more years', 30, '#4a4e69', '#FFFFFF'),
+                createWishCard('Here\'s to many more years', 87, '#4a4e69', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
             ]);
 
             // Screen 5: Video Standalone - Deep purple background
@@ -426,8 +453,8 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'video' as const,
-                    content: '',
-                    position: { x: 10, y: 22 },
+                    content: '/images/templates/videos/video-placeholder.mp4',
+                    position: { x: 10, y: 44 }, // Adjusted to end at 99% (44 + 55 = 99)
                     size: { width: 80, height: 55 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
@@ -462,7 +489,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '',
+                    content: '/images/templates/heroes/one-screen-hero.png',
                     position: { x: 0, y: 0 },
                     size: { width: 100, height: 100 },
                     styles: { zIndex: 1 }
@@ -509,14 +536,14 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '',
+                    content: '/images/templates/heroes/baby-birth-hero.png',
                     position: { x: 20, y: 12 },
                     size: { width: 60, height: 45 },
                     styles: { zIndex: 5, borderRadius: 16 }
                 },
                 createText('Born on [Date]', 60, 24, false, '#555'),
                 createText('At [Time]', 68, 24, false, '#555'),
-                createText('Weight: [Weight]', 76, 24, false, '#555'),
+                createText('Weight: [Weight]', 89, 24, false, '#555'), // Adjusted to end at 99% (89 + 10 = 99)
             ]);
 
             // Screen 3: Gallery + Caption
@@ -525,8 +552,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5 }
                 }
@@ -535,7 +567,7 @@ const templates: Template[] = [
             // Screen 4: Wishes
             const s4 = createScreen('Wishes', 'content', '#d8f3dc', [
                 createWishCard('Welcome, little one!', 20, '#95d5b2', '#FFFFFF'),
-                createWishCard('So much love already', 35, '#b7e4c7', '#FFFFFF'),
+                createWishCard('So much love already', 87, '#b7e4c7', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
             ]);
 
             return {
@@ -574,7 +606,7 @@ const templates: Template[] = [
             const s2 = createScreen('Message', 'content', 'linear-gradient(135deg, #FFFFFF, #fffef0, #ffc300)', [
                 createSticker('🎓', 88, 8, 40, 0),
                 createSticker('⭐', 10, 12, 36, -5),
-                createLongText('To new beginnings,\n\nYour journey has been one of dedication, perseverance, and growth. Every late night studying, every challenge overcome, every moment of doubt turned into determination—it all led to this incredible achievement.\n\nYou have shown that with hard work and passion, anything is possible. The future holds endless opportunities, and you are ready to embrace them all.\n\nCongratulations on this milestone. The world awaits your brilliance.', 12, 'rgba(255,255,255,0.95)', '#001d3d')
+                createLongText('To new beginnings,\n\nYour journey has been one of dedication, perseverance, and growth. Every late night studying, every challenge overcome, every moment of doubt turned into determination—it all led to this incredible achievement.\n\nYou have shown that with hard work and passion, anything is possible. The future holds endless opportunities, and you are ready to embrace them all.\n\nCongratulations on this milestone. The world awaits your brilliance.', 34, 'rgba(255,255,255,0.95)', '#001d3d') // Adjusted to end at 99% (34 + 65 = 99)
             ]);
             s2.elements[2].size = { width: 80, height: 65 };
 
@@ -585,8 +617,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
                 }
@@ -596,7 +633,7 @@ const templates: Template[] = [
             const s4 = createScreen('Wishes', 'content', 'linear-gradient(135deg, #FFFFFF, #fffef0)', [
                 createSticker('🏆', 88, 10, 40, 0),
                 createWishCard('So proud of you!', 20, '#ffc300', '#001d3d'),
-                createWishCard('The future is yours', 35, '#003566', '#FFFFFF'),
+                createWishCard('The future is yours', 87, '#003566', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
             ]);
 
             // Screen 5: Video Standalone - Deep navy background
@@ -606,8 +643,8 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'video' as const,
-                    content: '',
-                    position: { x: 10, y: 22 },
+                    content: '/images/templates/videos/video-placeholder.mp4',
+                    position: { x: 10, y: 44 }, // Adjusted to end at 99% (44 + 55 = 99)
                     size: { width: 80, height: 55 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
@@ -647,7 +684,7 @@ const templates: Template[] = [
             const s2 = createScreen('Note', 'content', 'linear-gradient(135deg, #FFFFFF, #fdfcdc, #f0ebd8)', [
                 createSticker('🙏', 88, 8, 40, 0),
                 createSticker('💝', 10, 12, 32, -5),
-                createLongText('I wanted to take a moment to express my deepest gratitude.\n\nYour kindness, support, and generosity have meant more to me than words can convey. In a world that sometimes feels rushed, you took the time to be present, to care, and to make a difference.\n\nThank you for being you. Thank you for everything you\'ve done. Your impact will not be forgotten.\n\nWith sincere appreciation,', 12, 'rgba(255,255,255,0.95)', '#6d6875')
+                createLongText('I wanted to take a moment to express my deepest gratitude.\n\nYour kindness, support, and generosity have meant more to me than words can convey. In a world that sometimes feels rushed, you took the time to be present, to care, and to make a difference.\n\nThank you for being you. Thank you for everything you\'ve done. Your impact will not be forgotten.\n\nWith sincere appreciation,', 34, 'rgba(255,255,255,0.95)', '#6d6875') // Adjusted to end at 99% (34 + 65 = 99)
             ]);
             s2.elements[2].size = { width: 80, height: 65 };
 
@@ -658,8 +695,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
                 }
@@ -668,7 +710,7 @@ const templates: Template[] = [
             // Screen 4: Wishes / Notes - Elegant beige/gold
             const s4 = createScreen('Wishes', 'content', 'linear-gradient(135deg, #FFFFFF, #fdfcdc)', [
                 createSticker('💌', 88, 10, 40, 0),
-                createWishCard('With appreciation, [Name]', 40, '#b5838d', '#FFFFFF'),
+                createWishCard('With appreciation, [Name]', 87, '#b5838d', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
             ]);
 
             return {
@@ -706,12 +748,12 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '',
+                    content: '/images/templates/heroes/memorial-hero.png',
                     position: { x: 25, y: 15 },
                     size: { width: 50, height: 50 },
                     styles: { zIndex: 5, borderRadius: 8 }
                 },
-                createText('Forever in our hearts', 68, 24, true, '#2b2d42')
+                createText('Forever in our hearts', 89, 24, true, '#2b2d42') // Adjusted to end at 99% (89 + 10 = 99)
             ]);
 
             // Screen 3: Gallery + Caption
@@ -720,8 +762,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5 }
                 }
@@ -731,7 +778,7 @@ const templates: Template[] = [
             const s4 = createScreen('Text', 'content', '#edf2f4', [
                 createLongText('In loving memory of a life well-lived.\n\nYour presence touched so many hearts, and your absence leaves a void that can never be filled. We remember your kindness, your wisdom, and the love you shared with all who knew you.\n\nThough you are no longer with us, your spirit lives on in the memories we cherish and the lives you touched.\n\nRest in peace, forever remembered, forever loved.', 12, 'rgba(255,255,255,0.95)', '#2b2d42')
             ]);
-            s4.elements[0].size = { width: 80, height: 65 };
+            s4.elements[0].size = { width: 80, height: 87 }; // Adjusted to end at 99% (12 + 87 = 99)
 
             return {
                 id: uuidv4(),
@@ -779,8 +826,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
                 }
@@ -789,7 +841,7 @@ const templates: Template[] = [
             // Screen 4: Long Invitation Text - Elegant white with pink accents
             const s4 = createScreen('Message', 'content', 'linear-gradient(135deg, #FFFFFF, #fff0f3)', [
                 createSticker('💌', 88, 10, 40, 0),
-                createLongText('We are thrilled to invite you to celebrate our special day.\n\nAfter [X] years together, we have decided to make it official and would be honored to have you join us as we say "I do."\n\nYour presence would make our day even more meaningful. Please save the date and join us for an evening of love, laughter, and celebration.\n\nWith love and excitement,', 12, 'rgba(255,255,255,0.95)', '#333')
+                createLongText('We are thrilled to invite you to celebrate our special day.\n\nAfter [X] years together, we have decided to make it official and would be honored to have you join us as we say "I do."\n\nYour presence would make our day even more meaningful. Please save the date and join us for an evening of love, laughter, and celebration.\n\nWith love and excitement,', 34, 'rgba(255,255,255,0.95)', '#333') // Adjusted to end at 99% (34 + 65 = 99)
             ]);
             s4.elements[1].size = { width: 80, height: 65 };
 
@@ -829,7 +881,7 @@ const templates: Template[] = [
                 createSticker('⭐', 88, 8, 40, 0),
                 createSticker('✨', 10, 12, 36, -5),
                 createText('Looking back...', 12, 34, true, '#FFD700'),
-                createLongText('As we reflect on the past year, we remember the challenges we overcame, the growth we experienced, and the moments that shaped us. Every high and every low contributed to who we are today.\n\nWe are grateful for the lessons learned, the connections made, and the memories created. The year may be ending, but the journey continues.', 22, 'rgba(0,0,0,0.8)', '#FFF')
+                createLongText('As we reflect on the past year, we remember the challenges we overcame, the growth we experienced, and the moments that shaped us. Every high and every low contributed to who we are today.\n\nWe are grateful for the lessons learned, the connections made, and the memories created. The year may be ending, but the journey continues.', 49, 'rgba(0,0,0,0.8)', '#FFF') // Adjusted to end at 99% (49 + 50 = 99)
             ]);
             s2.elements[3].size = { width: 80, height: 50 };
 
@@ -840,8 +892,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5, borderRadius: 12, shadow: true }
                 }
@@ -852,7 +909,7 @@ const templates: Template[] = [
                 createSticker('🎆', 88, 10, 40, 0),
                 createWishCard('Health', 20, '#FFD700', '#000'),
                 createWishCard('Joy', 35, '#FFD700', '#000'),
-                createWishCard('New beginnings', 50, '#FFD700', '#000'),
+                createWishCard('New beginnings', 87, '#FFD700', '#000'), // Adjusted to end at 99% (87 + 12 = 99)
             ]);
 
             // Screen 5: Video Standalone - Midnight blue
@@ -862,8 +919,8 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'video' as const,
-                    content: '',
-                    position: { x: 10, y: 22 },
+                    content: '/images/templates/videos/video-placeholder.mp4',
+                    position: { x: 10, y: 44 }, // Adjusted to end at 99% (44 + 55 = 99)
                     size: { width: 80, height: 55 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
@@ -905,19 +962,19 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '',
+                    content: '/images/templates/heroes/cny-hero.png',
                     position: { x: 20, y: 15 },
                     size: { width: 60, height: 50 },
                     styles: { zIndex: 5 }
                 },
-                createText('Strength, prosperity, and renewal', 68, 24, true, '#d00000')
+                createText('Strength, prosperity, and renewal', 89, 24, true, '#d00000') // Adjusted to end at 99% (89 + 10 = 99)
             ]);
 
             // Screen 3: Wishes
             const s3 = createScreen('Wishes', 'content', '#d00000', [
                 createWishCard('Good fortune', 15, '#ffba08', '#d00000'),
                 createWishCard('Health', 30, '#ffba08', '#d00000'),
-                createWishCard('Success', 45, '#ffba08', '#d00000'),
+                createWishCard('Success', 87, '#ffba08', '#d00000'), // Adjusted to end at 99% (87 + 12 = 99)
             ]);
 
             // Screen 4: Gallery + Caption
@@ -926,8 +983,13 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
-                    content: '[]',
-                    position: { x: 10, y: 20 },
+                    content: JSON.stringify([
+                        '/images/templates/galleries/gallery-1.png',
+                        '/images/templates/galleries/gallery-2.png',
+                        '/images/templates/galleries/gallery-3.png',
+                        '/images/templates/galleries/gallery-4.png'
+                    ]),
+                    position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
                     styles: { zIndex: 5 }
                 }

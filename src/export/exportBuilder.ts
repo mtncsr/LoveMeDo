@@ -183,7 +183,7 @@ const getRuntimeScript = (project: Project) => `
                   if (project.mediaLibrary[elem.content]) {
                       imageSrc = project.mediaLibrary[elem.content].data;
                   }
-                  contentHtml = \`<img src="\${imageSrc}" style="width:100%; height:100%; object-fit:cover; display:block; border-radius:inherit;" />\`;
+                  contentHtml = \`<img src="\${imageSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; display:block; border-radius:inherit;" />\`;
                   onClick = \`onclick="openLightbox('\${imageSrc}')"\`;
               } else if (elem.type === 'button') {
                   className += ' element-button animate-pulse';
@@ -205,16 +205,87 @@ const getRuntimeScript = (project: Project) => `
                        }
                        return imgId;
                    });
-                   contentHtml = \`<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; width:100%; height:100%;">
-                      \${images.slice(0,4).map(src => \`<img src="\${src}" style="width:100%; height:100%; object-fit:cover; border-radius:4px;" onclick="event.stopPropagation(); openLightbox('\${src}')" />\`).join('')}
-                   </div>\`;
+                   
+                   const galleryId = 'gallery_' + elem.id.replace(/[^a-zA-Z0-9]/g, '_');
+                   const initialIndex = Math.floor(images.length / 2);
+                   
+                   // Generate unique function names for this gallery
+                   const navPrevFunc = \`navPrev_\${galleryId}\`;
+                   const navNextFunc = \`navNext_\${galleryId}\`;
+                   const thumbClickFunc = \`thumbClick_\${galleryId}\`;
+                   
+                   contentHtml = \`
+                     <div id="\${galleryId}" style="display:flex; flex-direction:column; width:100%; height:100%; padding:4px; box-sizing:border-box;">
+                       <div style="position:relative; width:100%; flex:1; min-height:60%; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">
+                         <img id="\${galleryId}_hero" src="\${images[\${initialIndex}]}" style="width:100%; height:100%; object-fit:contain; object-position:center;" />
+                         \${images.length > 1 ? \`
+                           <button onclick="\${navPrevFunc}()" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">‹</button>
+                           <button onclick="\${navNextFunc}()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">›</button>
+                         \` : ''}
+                       </div>
+                       \${images.length > 1 ? \`
+                         <div id="\${galleryId}_thumbs" style="display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin;">
+                           \${images.map((src, idx) => \`
+                             <div onclick="\${thumbClickFunc}(\${idx})" style="flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:\${idx === \${initialIndex} ? '3px solid var(--color-primary)' : '2px solid transparent'}; opacity:\${idx === \${initialIndex} ? 1 : 0.7}; transition:all 0.2s; background-color:#f0f0f0;">
+                               <img src="\${src}" style="width:100%; height:100%; object-fit:cover;" />
+                             </div>
+                           \`).join('')}
+                         </div>
+                       \` : ''}
+                     </div>
+                     <script>
+                       (function() {
+                         let currentIndex = \${initialIndex};
+                         const images = \${JSON.stringify(images)};
+                         const heroImg = document.getElementById('\${galleryId}_hero');
+                         const thumbsContainer = document.getElementById('\${galleryId}_thumbs');
+                         
+                         window[\${navPrevFunc}] = function() {
+                           currentIndex = (currentIndex - 1 + images.length) % images.length;
+                           heroImg.src = images[currentIndex];
+                           updateThumbnails();
+                         };
+                         
+                         window[\${navNextFunc}] = function() {
+                           currentIndex = (currentIndex + 1) % images.length;
+                           heroImg.src = images[currentIndex];
+                           updateThumbnails();
+                         };
+                         
+                         window[\${thumbClickFunc}] = function(index) {
+                           currentIndex = index;
+                           heroImg.src = images[currentIndex];
+                           updateThumbnails();
+                         };
+                         
+                         function updateThumbnails() {
+                           if (!thumbsContainer) return;
+                           const thumbs = thumbsContainer.children;
+                           for (let i = 0; i < thumbs.length; i++) {
+                             const thumb = thumbs[i];
+                             if (i === currentIndex) {
+                               thumb.style.border = '3px solid var(--color-primary)';
+                               thumb.style.opacity = '1';
+                             } else {
+                               thumb.style.border = '2px solid transparent';
+                               thumb.style.opacity = '0.7';
+                             }
+                           }
+                           // Scroll to center current thumbnail
+                           const thumbWidth = 60 + 6; // width + gap
+                           const scrollPos = (currentIndex - 2) * thumbWidth;
+                           thumbsContainer.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
+                         }
+                       })();
+                     </script>
+                   \`;
               } else if (elem.type === 'video') {
                    // Check if content is a media ID or direct URL
                    let videoSrc = elem.content;
                    if (project.mediaLibrary[elem.content]) {
                        videoSrc = project.mediaLibrary[elem.content].data;
                    }
-                   contentHtml = \`<video src="\${videoSrc}" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" controls></video>\`;
+                   contentHtml = \`<video src="\${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls></video>\`;
               } else if (elem.type === 'long-text') {
                    const expanded = false; // Start collapsed
                    contentHtml = \`<div style="max-height:\${expanded ? 'none' : '200px'}; overflow-y:\${expanded ? 'auto' : 'hidden'}; padding:12px; background-color:\${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:\${elem.styles.borderRadius || 8}px;">

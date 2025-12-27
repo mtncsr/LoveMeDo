@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ScreenElement } from '../types/model';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './styles.module.css';
 
 const LongTextElement: React.FC<{
@@ -525,13 +526,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 return (
                     <div
                         {...commonProps}
-                        style={{
-                            ...commonProps.style,
-                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
-                            padding: elStyles.frameColor ? '8px' : '0',
-                            display: 'flex',
-                            flexDirection: 'column',
-                        }}
+                    style={{
+                        ...commonProps.style,
+                        border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                        padding: elStyles.frameColor ? '8px' : '0',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: elStyles.backgroundColor || 'transparent',
+                    }}
                     >
                         {hasTitle && (
                             <div style={{
@@ -547,8 +551,44 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         <img
                             src={content}
                             alt="Element"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'contain', 
+                                objectPosition: 'center',
+                                borderRadius: 4 
+                            }}
                             draggable={false}
+                            onLoad={(e) => {
+                                // Optionally adjust element size based on image aspect ratio
+                                if (mode === 'editor' && onUpdate && elementRef.current) {
+                                    const img = e.currentTarget;
+                                    const naturalWidth = img.naturalWidth;
+                                    const naturalHeight = img.naturalHeight;
+                                    
+                                    if (naturalWidth > 0 && naturalHeight > 0) {
+                                        const aspectRatio = naturalWidth / naturalHeight;
+                                        const parent = elementRef.current.offsetParent as HTMLElement;
+                                        if (parent) {
+                                            const parentWidth = parent.clientWidth;
+                                            const parentHeight = parent.clientHeight;
+                                            const currentWidthPercent = size.width || 80;
+                                            const currentHeightPercent = size.height || 45;
+                                            
+                                            // Calculate what height would maintain aspect ratio
+                                            const currentWidthPx = (currentWidthPercent / 100) * parentWidth;
+                                            const idealHeightPx = currentWidthPx / aspectRatio;
+                                            const idealHeightPercent = (idealHeightPx / parentHeight) * 100;
+                                            
+                                            // Only update if the difference is significant (more than 5%)
+                                            if (Math.abs(idealHeightPercent - currentHeightPercent) > 5) {
+                                                // Don't auto-resize, let user manually adjust if needed
+                                                // This is just for reference - we keep contain to show full image
+                                            }
+                                        }
+                                    }
+                                }
+                            }}
                         />
                         {hasSubtitle && (
                             <div style={{
@@ -565,11 +605,22 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 );
             }
             return (
-                <div {...commonProps}>
+                <div {...commonProps} style={{
+                    ...commonProps.style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: elStyles.backgroundColor || 'transparent',
+                }}>
                     <img
                         src={content}
                         alt="Element"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                        }}
                         draggable={false}
                     />
                     {renderResizeHandles()}
@@ -627,21 +678,58 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 images = [content];
             }
 
+            // Initialize current index to middle image
+            const [currentImageIndex, setCurrentImageIndex] = useState<number>(
+                Math.floor(images.length / 2)
+            );
+            const thumbnailCarouselRef = useRef<HTMLDivElement>(null);
+
+            // Scroll carousel to center current image
+            useEffect(() => {
+                if (thumbnailCarouselRef.current && images.length > 0) {
+                    const thumbnailWidth = 60; // Approximate thumbnail width + gap
+                    const scrollPosition = (currentImageIndex - 2) * thumbnailWidth;
+                    thumbnailCarouselRef.current.scrollTo({
+                        left: Math.max(0, scrollPosition),
+                        behavior: 'smooth'
+                    });
+                }
+            }, [currentImageIndex, images.length]);
+
+            const handlePrev = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (images.length > 0) {
+                    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+                }
+            };
+
+            const handleNext = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (images.length > 0) {
+                    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+                }
+            };
+
+            const handleThumbnailClick = (index: number, e: React.MouseEvent) => {
+                e.stopPropagation();
+                setCurrentImageIndex(index);
+            };
+
             const galleryTitle = element.metadata?.title && element.metadata.title.trim() !== '';
             const gallerySubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
+            const isInteractive = mode !== 'editor';
 
             return (
                 <div
                     {...commonProps}
                     style={{
                         ...commonProps.style,
-                        display: galleryTitle || gallerySubtitle || elStyles.frameColor ? 'flex' : 'grid',
-                        flexDirection: galleryTitle || gallerySubtitle || elStyles.frameColor ? 'column' : undefined,
-                        gridTemplateColumns: !galleryTitle && !gallerySubtitle && !elStyles.frameColor ? 'repeat(2, 1fr)' : undefined,
-                        gap: '4px',
-                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
                         border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
-                        padding: elStyles.frameColor ? '8px' : (galleryTitle || gallerySubtitle ? '4px' : '4px'),
+                        padding: elStyles.frameColor ? '8px' : '4px',
+                        overflow: 'hidden',
+                        backgroundColor: elStyles.backgroundColor || 'transparent',
                     }}
                 >
                     {galleryTitle && (
@@ -655,32 +743,163 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             {element.metadata.title}
                         </div>
                     )}
+                    
+                    {/* Hero Image with Navigation */}
                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: '4px',
+                        position: 'relative',
+                        width: '100%',
+                        flex: 1,
+                        minHeight: '60%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: '#f0f0f0',
+                        borderRadius: 8,
                         overflow: 'hidden',
-                        flex: galleryTitle || gallerySubtitle || elStyles.frameColor ? 1 : undefined,
+                        marginBottom: '8px',
                     }}>
-                        {images.slice(0, 4).map((src, i) => (
+                        {images.length > 0 && (
                             <img
-                                key={i}
-                                src={src}
-                                alt={`Gallery ${i}`}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                                src={images[currentImageIndex]}
+                                alt={`Gallery ${currentImageIndex + 1}`}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'contain',
+                                    objectPosition: 'center',
+                                }}
                                 draggable={false}
                             />
-                        ))}
+                        )}
+                        
+                        {/* Navigation Arrows */}
+                        {isInteractive && images.length > 1 && (
+                            <>
+                                <button
+                                    onClick={handlePrev}
+                                    style={{
+                                        position: 'absolute',
+                                        left: '8px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'rgba(0, 0, 0, 0.6)',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: 'white',
+                                        zIndex: 10,
+                                        transition: 'background 0.2s',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.8)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
+                                    }}
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <button
+                                    onClick={handleNext}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '8px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'rgba(0, 0, 0, 0.6)',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '36px',
+                                        height: '36px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: 'white',
+                                        zIndex: 10,
+                                        transition: 'background 0.2s',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.8)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.6)';
+                                    }}
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </>
+                        )}
                     </div>
-                    {images.length > 4 && (
-                        <div style={{
-                            position: 'absolute', bottom: gallerySubtitle ? '24px' : '4px', right: '4px',
-                            background: 'rgba(0,0,0,0.6)', color: 'white',
-                            padding: '2px 6px', borderRadius: 4, fontSize: '0.8rem'
-                        }}>
-                            +{images.length - 4}
+
+                    {/* Thumbnail Carousel */}
+                    {images.length > 1 && (
+                        <div
+                            ref={thumbnailCarouselRef}
+                            style={{
+                                display: 'flex',
+                                gap: '6px',
+                                overflowX: 'auto',
+                                overflowY: 'hidden',
+                                padding: '4px 0',
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#ccc transparent',
+                                WebkitOverflowScrolling: 'touch',
+                            }}
+                            onWheel={(e) => {
+                                if (e.deltaY !== 0) {
+                                    e.currentTarget.scrollLeft += e.deltaY;
+                                    e.preventDefault();
+                                }
+                            }}
+                        >
+                            {images.map((src, index) => (
+                                <div
+                                    key={index}
+                                    onClick={isInteractive ? (e) => handleThumbnailClick(index, e) : undefined}
+                                    style={{
+                                        flexShrink: 0,
+                                        width: '60px',
+                                        height: '60px',
+                                        borderRadius: '6px',
+                                        overflow: 'hidden',
+                                        cursor: isInteractive ? 'pointer' : 'default',
+                                        border: currentImageIndex === index ? '3px solid var(--color-primary)' : '2px solid transparent',
+                                        opacity: currentImageIndex === index ? 1 : 0.7,
+                                        transition: 'all 0.2s',
+                                        backgroundColor: '#f0f0f0',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (isInteractive && currentImageIndex !== index) {
+                                            e.currentTarget.style.opacity = '0.9';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (isInteractive && currentImageIndex !== index) {
+                                            e.currentTarget.style.opacity = '0.7';
+                                        }
+                                    }}
+                                >
+                                    <img
+                                        src={src}
+                                        alt={`Thumbnail ${index + 1}`}
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                        }}
+                                        draggable={false}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     )}
+
                     {gallerySubtitle && (
                         <div style={{
                             padding: '4px 8px',
@@ -702,13 +921,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 return (
                     <div
                         {...commonProps}
-                        style={{
-                            ...commonProps.style,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
-                            padding: elStyles.frameColor ? '8px' : '0',
-                        }}
+                    style={{
+                        ...commonProps.style,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                        padding: elStyles.frameColor ? '8px' : '0',
+                        backgroundColor: elStyles.backgroundColor || 'transparent',
+                    }}
                     >
                         {videoTitle && (
                             <div style={{
@@ -724,7 +946,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         <video
                             src={content}
                             controls
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectFit: 'contain',
+                                objectPosition: 'center',
+                                borderRadius: 4 
+                            }}
                             draggable={false}
                         />
                         {videoSubtitle && (
@@ -742,11 +970,22 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 );
             }
             return (
-                <div {...commonProps}>
+                <div {...commonProps} style={{
+                    ...commonProps.style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: elStyles.backgroundColor || 'transparent',
+                }}>
                     <video
                         src={content}
                         controls
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                        }}
                         draggable={false}
                     />
                     {renderResizeHandles()}

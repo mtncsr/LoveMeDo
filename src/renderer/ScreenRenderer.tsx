@@ -60,7 +60,10 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
         if (mode === 'editor') {
             onElementClick?.(element.id);
         } else {
-            if (element.type === 'button' && element.metadata?.action === 'navigate') {
+            // In preview/export mode, handle image/gallery clicks for lightbox
+            if (element.type === 'image' || element.type === 'gallery') {
+                onElementClick?.(element.id);
+            } else if (element.type === 'button' && element.metadata?.action === 'navigate') {
                 const target = element.metadata.target;
                 if (target === 'next') {
                     // Navigate to next screen (for Start Experience button)
