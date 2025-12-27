@@ -61,10 +61,11 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
     z-index: 1;
     pointer-events: none;
+    padding: 3% 0 0 4%; /* Top and left padding to move away from corner */
 }
 
 /* Elements */
@@ -72,6 +73,22 @@
     position: absolute;
     z-index: 10;
     /* Interactable in preview/export, disabled in editor usually handled by wrapper */
+}
+
+.resizeHandle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--color-primary);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10001;
+    transition: transform 0.2s;
+}
+
+.resizeHandle:hover {
+    transform: scale(1.2);
 }
 
 /* Specific Element Types */
@@ -92,6 +109,56 @@
 @keyframes float {
     0%, 100% { transform: translateY(0px) rotate(0deg); }
     50% { transform: translateY(-10px) rotate(5deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+}
+
+@keyframes fade {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+}
+
+@keyframes slide {
+    0% { transform: translateX(-10px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Animation classes */
+.elementAnimateFloat {
+    animation: float 4s ease-in-out infinite;
+}
+
+.elementAnimatePulse {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.elementAnimateFade {
+    animation: fade 3s ease-in-out infinite;
+}
+
+.elementAnimateBounce {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+.elementAnimateSlide {
+    animation: slide 1s ease-out;
+}
+
+.elementAnimateRotate {
+    animation: rotate 3s linear infinite;
 }
 
 .elementImage {

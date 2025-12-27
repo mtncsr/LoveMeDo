@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { ScreenElement } from '../types/model';
 import styles from './styles.module.css';
 
@@ -6,9 +6,11 @@ const LongTextElement: React.FC<{
     element: ScreenElement;
     style: React.CSSProperties;
     mode: 'templatePreview' | 'editor' | 'export';
+    isSelected: boolean;
     onMouseDown: (e: React.MouseEvent) => void;
     onClick: (e: React.MouseEvent) => void;
-}> = ({ element, style, mode, onMouseDown, onClick }) => {
+    onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
+}> = ({ element, style, mode, isSelected, onMouseDown, onClick }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const { content, styles: elStyles } = element;
 
@@ -22,6 +24,7 @@ const LongTextElement: React.FC<{
                 padding: '12px',
                 backgroundColor: elStyles.backgroundColor || 'rgba(255,255,255,0.9)',
                 borderRadius: elStyles.borderRadius || 8,
+                border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
             }}
             onMouseDown={onMouseDown}
             onClick={onClick}
@@ -54,23 +57,46 @@ const LongTextElement: React.FC<{
 interface Props {
     element: ScreenElement;
     mode: 'templatePreview' | 'editor' | 'export';
+    isSelected?: boolean;
     onClick?: (e: React.MouseEvent) => void;
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
+    screenType?: 'overlay' | 'content' | 'navigation'; // Screen type for safe area calculation
 }
 
-export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate }) => {
+export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay' }) => {
     const { type, position, size, content, styles: elStyles } = element;
+    const elementRef = useRef<HTMLDivElement>(null);
+    const [isEditingText, setIsEditingText] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const resizeHandleRef = useRef<string | null>(null);
+    const pinchStartDistanceRef = useRef<number | null>(null);
+    const pinchStartSizeRef = useRef<{ width: number; height: number } | null>(null);
 
+    // Get animation class
+    const getAnimationClass = () => {
+        if (mode === 'editor') return ''; // Disable animations in editor for performance
+        const animation = elStyles.animation;
+        if (!animation || animation === 'none') return '';
+        return styles[`elementAnimate${animation.charAt(0).toUpperCase() + animation.slice(1)}`] || '';
+    };
+
+    // Handle drag
+    const dragStartRef = useRef<{ x: number; y: number } | null>(null);
     const handleMouseDown = (e: React.MouseEvent) => {
-        if (mode !== 'editor' || !onUpdate) return;
+        if (mode !== 'editor' || isResizing) return;
 
-        e.stopPropagation(); // Prevent screen click
-        onClick?.(e); // Select on drag start
+        e.stopPropagation();
+        // Select element immediately on mouse down (even if onUpdate is not available)
+        onClick?.(e);
+
+        // Only enable dragging if onUpdate is available
+        if (!onUpdate) return;
 
         const startX = e.clientX;
         const startY = e.clientY;
         const startLeft = position.x;
         const startTop = position.y;
+        dragStartRef.current = { x: startX, y: startY };
 
         const target = e.currentTarget as HTMLElement;
         const parent = target.offsetParent as HTMLElement;
@@ -78,38 +104,256 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
         const parentWidth = parent.clientWidth;
         const parentHeight = parent.clientHeight;
+        let hasMoved = false;
 
         const handleMouseMove = (mv: MouseEvent) => {
-            mv.preventDefault();
-            const dx = mv.clientX - startX;
-            const dy = mv.clientY - startY;
+            const dx = Math.abs(mv.clientX - startX);
+            const dy = Math.abs(mv.clientY - startY);
+            
+            // Only start dragging if mouse moved more than 3px (to distinguish from click)
+            if (dx > 3 || dy > 3) {
+                hasMoved = true;
+                mv.preventDefault();
+                const dxPl = ((mv.clientX - startX) / parentWidth) * 100;
+                const dyPl = ((mv.clientY - startY) / parentHeight) * 100;
 
-            // Convert px delta to percentage
-            const dxPl = (dx / parentWidth) * 100;
-            const dyPl = (dy / parentHeight) * 100;
-
-            onUpdate(element.id, {
-                position: {
-                    x: Math.min(100, Math.max(0, startLeft + dxPl)),
-                    y: Math.min(100, Math.max(0, startTop + dyPl))
-                }
-            });
+                onUpdate(element.id, {
+                    position: {
+                        x: Math.min(100, Math.max(0, startLeft + dxPl)),
+                        y: Math.min(100, Math.max(0, startTop + dyPl))
+                    }
+                });
+            }
         };
 
         const handleMouseUp = () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
+            dragStartRef.current = null;
         };
 
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
     };
 
+    // Handle resize
+    const handleResizeStart = (e: React.MouseEvent, handle: string) => {
+        if (mode !== 'editor' || !onUpdate) return;
+        e.stopPropagation();
+        setIsResizing(true);
+        resizeHandleRef.current = handle;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = size.width || 20;
+        const startHeight = size.height || 20;
+        const startLeft = position.x;
+        const startTop = position.y;
+
+        const target = elementRef.current;
+        const parent = target?.offsetParent as HTMLElement;
+        if (!parent) return;
+
+        const parentWidth = parent.clientWidth;
+        const parentHeight = parent.clientHeight;
+
+        const handleMouseMove = (mv: MouseEvent) => {
+            mv.preventDefault();
+            const dx = (mv.clientX - startX) / parentWidth * 100;
+            const dy = (mv.clientY - startY) / parentHeight * 100;
+
+            let newWidth = startWidth;
+            let newHeight = startHeight;
+            let newLeft = startLeft;
+            let newTop = startTop;
+
+            const maintainAspect = mv.shiftKey;
+
+            if (handle.includes('e')) { // East (right)
+                newWidth = Math.max(5, Math.min(95, startWidth + dx));
+                if (maintainAspect) {
+                    newHeight = (newWidth / startWidth) * startHeight;
+                }
+            }
+            if (handle.includes('w')) { // West (left)
+                newWidth = Math.max(5, Math.min(95, startWidth - dx));
+                newLeft = Math.max(0, Math.min(95, startLeft + dx));
+                if (maintainAspect) {
+                    newHeight = (newWidth / startWidth) * startHeight;
+                    newTop = startTop + (startHeight - newHeight);
+                }
+            }
+            if (handle.includes('s')) { // South (bottom)
+                newHeight = Math.max(5, Math.min(95, startHeight + dy));
+                if (maintainAspect) {
+                    newWidth = (newHeight / startHeight) * startWidth;
+                }
+            }
+            if (handle.includes('n')) { // North (top)
+                newHeight = Math.max(5, Math.min(95, startHeight - dy));
+                newTop = Math.max(0, Math.min(95, startTop + dy));
+                if (maintainAspect) {
+                    newWidth = (newHeight / startHeight) * startWidth;
+                    newLeft = startLeft + (startWidth - newWidth);
+                }
+            }
+
+            onUpdate(element.id, {
+                size: { width: newWidth, height: newHeight },
+                position: { x: newLeft, y: newTop }
+            });
+        };
+
+        const handleMouseUp = () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            setIsResizing(false);
+            resizeHandleRef.current = null;
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    };
+
+    // Handle pinch-to-resize
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (mode !== 'editor' || !onUpdate || e.touches.length !== 2) return;
+        e.stopPropagation();
+
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
+
+        pinchStartDistanceRef.current = distance;
+        pinchStartSizeRef.current = { width: size.width || 20, height: size.height || 20 };
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (mode !== 'editor' || !onUpdate || e.touches.length !== 2 || !pinchStartDistanceRef.current || !pinchStartSizeRef.current) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const distance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
+
+        const scale = distance / pinchStartDistanceRef.current;
+        const newWidth = Math.max(5, Math.min(95, pinchStartSizeRef.current.width * scale));
+        const newHeight = Math.max(5, Math.min(95, pinchStartSizeRef.current.height * scale));
+
+        onUpdate(element.id, {
+            size: { width: newWidth, height: newHeight }
+        });
+    };
+
+    const handleTouchEnd = () => {
+        pinchStartDistanceRef.current = null;
+        pinchStartSizeRef.current = null;
+    };
+
+    // Handle text content change
+    const handleTextChange = (e: React.FormEvent<HTMLDivElement>) => {
+        if (!onUpdate) return;
+        const newContent = e.currentTarget.textContent || '';
+        onUpdate(element.id, { content: newContent });
+    };
+
+    // Auto-resize text elements - only when content or styles change
+    const lastTriggerRef = useRef<string>('');
+    const isResizingRef = useRef(false);
+    const onUpdateRef = useRef(onUpdate);
+    
+    // Keep onUpdate ref up to date
+    useEffect(() => {
+        onUpdateRef.current = onUpdate;
+    }, [onUpdate]);
+    
+    useEffect(() => {
+        if (type !== 'text' || !elementRef.current || !onUpdateRef.current || mode !== 'editor' || isResizingRef.current) return;
+        
+        // Create a trigger key from the values that should trigger recalculation
+        const triggerKey = `${content}-${elStyles.fontSize}-${elStyles.fontFamily}`;
+        
+        // Skip if this exact combination was already processed
+        if (lastTriggerRef.current === triggerKey) return;
+        
+        const element = elementRef.current;
+        const textElement = element.querySelector('[contenteditable]') as HTMLElement;
+        if (!textElement || !element.offsetParent) return;
+
+        const measureDiv = document.createElement('div');
+        measureDiv.style.position = 'absolute';
+        measureDiv.style.visibility = 'hidden';
+        measureDiv.style.whiteSpace = 'pre-wrap';
+        measureDiv.style.fontSize = elStyles.fontSize ? `${elStyles.fontSize}px` : '24px';
+        measureDiv.style.fontFamily = elStyles.fontFamily || 'inherit';
+        measureDiv.style.width = '200px';
+        measureDiv.textContent = content;
+        document.body.appendChild(measureDiv);
+
+        const parentWidth = element.offsetParent.clientWidth;
+        const parentHeight = element.offsetParent.clientHeight;
+        const calculatedWidth = Math.min(95, Math.max(10, (measureDiv.scrollWidth / parentWidth) * 100 + 2));
+        const calculatedHeight = Math.min(95, Math.max(5, (measureDiv.scrollHeight / parentHeight) * 100 + 2));
+
+        document.body.removeChild(measureDiv);
+
+        // Only update if different from current size (with small threshold to avoid unnecessary updates)
+        const currentWidth = size.width || 0;
+        const currentHeight = size.height || 0;
+        if (Math.abs(calculatedWidth - currentWidth) > 0.5 || 
+            Math.abs(calculatedHeight - currentHeight) > 0.5) {
+            lastTriggerRef.current = triggerKey;
+            isResizingRef.current = true;
+            onUpdateRef.current(element.id, {
+                size: { width: calculatedWidth, height: calculatedHeight }
+            });
+            // Reset flag after state update completes
+            requestAnimationFrame(() => {
+                isResizingRef.current = false;
+            });
+        } else {
+            // Even if size didn't change, mark this trigger as processed
+            lastTriggerRef.current = triggerKey;
+        }
+    }, [content, elStyles.fontSize, elStyles.fontFamily, type, element.id, mode]);
+
+    // Safe area calculation for content screens
+    // Navigation bar: 60px ≈ 10% on mobile (accounts for nav bar)
+    // Next button: ~80px ≈ 15% from bottom (accounts for next button area)
+    // Safe area: top 10% to bottom 85% (75% available height)
+    const isContentScreen = screenType === 'content';
+    const safeAreaTop = 10;      // 10% from top (below nav bar)
+    const safeAreaBottom = 85;   // 85% from top (above next button)
+    const safeAreaHeight = safeAreaBottom - safeAreaTop; // 75% available height
+
+    // Adjust position and size for content screens
+    let adjustedY = position.y;
+    let adjustedHeight = size.height;
+    
+    if (isContentScreen) {
+        // Map element's y position (0-100%) to safe area (10-85%)
+        // Element at y: 0% → renders at y: 10% (top of safe area)
+        // Element at y: 100% → renders at y: 85% (bottom of safe area)
+        adjustedY = safeAreaTop + (position.y / 100) * safeAreaHeight;
+        
+        // Scale element height proportionally to safe area
+        if (adjustedHeight) {
+            adjustedHeight = (adjustedHeight / 100) * safeAreaHeight;
+        }
+    }
+
     const style: React.CSSProperties = {
         left: `${position.x}%`,
-        top: `${position.y}%`,
+        top: `${adjustedY}%`,
         width: size.width ? `${size.width}%` : 'auto',
-        height: size.height ? `${size.height}%` : 'auto',
+        height: adjustedHeight ? `${adjustedHeight}%` : 'auto',
         color: elStyles.color,
         backgroundColor: elStyles.backgroundColor,
         fontSize: elStyles.fontSize ? `${elStyles.fontSize}px` : undefined,
@@ -119,48 +363,260 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         borderRadius: elStyles.borderRadius,
         opacity: elStyles.opacity,
         transform: elStyles.rotation ? `rotate(${elStyles.rotation}deg)` : undefined,
-        zIndex: elStyles.zIndex,
+        zIndex: elStyles.zIndex || 10,
         boxShadow: elStyles.shadow ? 'var(--shadow-md)' : undefined,
-        cursor: mode === 'editor' ? 'move' : (type === 'button' || type === 'image' || type === 'gallery') ? 'pointer' : 'default',
+        textDecoration: elStyles.textDecoration,
+        fontStyle: elStyles.fontStyle,
+        cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery') ? 'pointer' : 'default',
+        border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
     };
 
     const handleInteraction = (e: React.MouseEvent) => {
-        if (mode !== 'editor') {
+        // In editor mode, allow clicks for selection (but not for navigation/interaction)
+        if (mode === 'editor') {
+            // Only select if not dragging (mouse hasn't moved much)
+            if (onClick) onClick(e);
+        } else {
+            // In preview/export mode, handle normal interactions
             if (onClick) onClick(e);
         }
     };
 
+    // Render resize handles
+    const renderResizeHandles = () => {
+        if (mode !== 'editor' || !isSelected) return null;
+
+        const handles = [
+            { id: 'nw', pos: { top: '-6px', left: '-6px' }, cursor: 'nw-resize' },
+            { id: 'n', pos: { top: '-6px', left: '50%', transform: 'translateX(-50%)' }, cursor: 'n-resize' },
+            { id: 'ne', pos: { top: '-6px', right: '-6px' }, cursor: 'ne-resize' },
+            { id: 'e', pos: { top: '50%', right: '-6px', transform: 'translateY(-50%)' }, cursor: 'e-resize' },
+            { id: 'se', pos: { bottom: '-6px', right: '-6px' }, cursor: 'se-resize' },
+            { id: 's', pos: { bottom: '-6px', left: '50%', transform: 'translateX(-50%)' }, cursor: 's-resize' },
+            { id: 'sw', pos: { bottom: '-6px', left: '-6px' }, cursor: 'sw-resize' },
+            { id: 'w', pos: { top: '50%', left: '-6px', transform: 'translateY(-50%)' }, cursor: 'w-resize' },
+        ];
+
+        return (
+            <>
+                {handles.map(handle => (
+                    <div
+                        key={handle.id}
+                        className={styles.resizeHandle}
+                        style={{
+                            position: 'absolute',
+                            ...handle.pos,
+                            width: '12px',
+                            height: '12px',
+                            backgroundColor: 'var(--color-primary)',
+                            border: '2px solid white',
+                            borderRadius: '50%',
+                            cursor: handle.cursor,
+                            zIndex: 10001,
+                        }}
+                        onMouseDown={(e) => handleResizeStart(e, handle.id)}
+                    />
+                ))}
+            </>
+        );
+    };
+
     const commonProps: any = {
-        className: `${styles.element} ${type === 'text' ? styles.elementText : ''} ${type === 'image' ? styles.elementImage : ''} ${type === 'button' ? styles.elementButton : ''}`,
+        ref: elementRef,
+        className: `${styles.element} ${type === 'text' ? styles.elementText : ''} ${type === 'image' ? styles.elementImage : ''} ${type === 'button' ? styles.elementButton : ''} ${getAnimationClass()}`,
         style: {
             ...style,
             padding: elStyles.backgroundColor && type === 'text' ? '12px 16px' : undefined,
             display: type === 'text' && elStyles.backgroundColor ? 'flex' : undefined,
+            pointerEvents: mode === 'editor' ? 'auto' : undefined, // Ensure elements are clickable in editor mode
         },
         'data-type': type,
+        'data-element-id': element.id,
         onMouseDown: handleMouseDown,
-        onClick: handleInteraction
+        onClick: handleInteraction,
+        onTouchStart: handleTouchStart,
+        onTouchMove: handleTouchMove,
+        onTouchEnd: handleTouchEnd,
     };
 
     switch (type) {
         case 'text':
-            return <div {...commonProps}>{content}</div>;
+            const hasBackground = !!elStyles.backgroundColor;
+            const showBorderWrapper = isSelected && mode === 'editor';
+            
+            // For text without background and not selected, keep original layout but remove visible box
+            if (!hasBackground && !showBorderWrapper) {
+                // Use original commonProps structure but override className to exclude elementText
+                // and ensure no visible border/background/boxShadow
+                const noBoxTextClassName = `${styles.element} ${type === 'image' ? styles.elementImage : ''} ${type === 'button' ? styles.elementButton : ''} ${getAnimationClass()}`;
+                
+                const noBoxTextStyle = {
+                    ...commonProps.style,
+                    border: 'none',
+                    outline: 'none',
+                    boxShadow: 'none',
+                    backgroundColor: 'transparent',
+                    // Use flex for proper alignment like elementText class, but without the class
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                };
+                
+                return (
+                    <div 
+                        ref={elementRef}
+                        className={noBoxTextClassName}
+                        contentEditable={isSelected && mode === 'editor'}
+                        onInput={handleTextChange}
+                        suppressContentEditableWarning
+                        style={noBoxTextStyle}
+                        data-type={type}
+                        data-element-id={element.id}
+                        onMouseDown={handleMouseDown}
+                        onClick={handleInteraction}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        {content}
+                        {renderResizeHandles()}
+                    </div>
+                );
+            }
+            
+            // For text with background or when selected, use wrapper for border/padding
+            return (
+                <div 
+                    {...commonProps}
+                    style={{
+                        ...commonProps.style,
+                        border: 'none', // Border will be on inner wrapper if selected
+                        display: hasBackground ? 'flex' : (showBorderWrapper ? 'flex' : undefined),
+                        alignItems: hasBackground || showBorderWrapper ? 'center' : undefined,
+                        justifyContent: hasBackground || showBorderWrapper ? (elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start') : undefined,
+                    }}
+                >
+                    <div
+                        contentEditable={isSelected && mode === 'editor'}
+                        onInput={handleTextChange}
+                        suppressContentEditableWarning
+                        style={{
+                            outline: 'none',
+                            border: showBorderWrapper ? '2px solid var(--color-primary)' : 'none',
+                            padding: showBorderWrapper ? '4px 8px' : (hasBackground ? '12px 16px' : '0'),
+                            backgroundColor: elStyles.backgroundColor,
+                            borderRadius: elStyles.borderRadius,
+                            display: 'inline-block',
+                            width: showBorderWrapper ? 'fit-content' : undefined,
+                            minWidth: showBorderWrapper ? 'fit-content' : undefined,
+                            maxWidth: '100%',
+                        }}
+                    >
+                        {content}
+                    </div>
+                    {renderResizeHandles()}
+                </div>
+            );
 
         case 'image':
-            return <img src={content} alt="Element" {...commonProps} style={{ ...style, objectFit: 'cover' }} draggable={false} />;
+            const hasTitle = element.metadata?.title && element.metadata.title.trim() !== '';
+            const hasSubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
+            if (hasTitle || hasSubtitle || elStyles.frameColor) {
+                return (
+                    <div
+                        {...commonProps}
+                        style={{
+                            ...commonProps.style,
+                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                            padding: elStyles.frameColor ? '8px' : '0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        {hasTitle && (
+                            <div style={{
+                                padding: '4px 8px',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                textAlign: 'center',
+                                marginBottom: '4px',
+                            }}>
+                                {element.metadata.title}
+                            </div>
+                        )}
+                        <img
+                            src={content}
+                            alt="Element"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                            draggable={false}
+                        />
+                        {hasSubtitle && (
+                            <div style={{
+                                padding: '4px 8px',
+                                fontSize: '0.85rem',
+                                textAlign: 'center',
+                                marginTop: '4px',
+                            }}>
+                                {element.metadata.subtitle}
+                            </div>
+                        )}
+                        {renderResizeHandles()}
+                    </div>
+                );
+            }
+            return (
+                <div {...commonProps}>
+                    <img
+                        src={content}
+                        alt="Element"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        draggable={false}
+                    />
+                    {renderResizeHandles()}
+                </div>
+            );
 
         case 'button':
+            const buttonSticker = element.metadata?.sticker;
             return (
-                <button
+                <div
                     {...commonProps}
-                    className={`${styles.element} ${styles.elementButton} ${mode !== 'editor' ? 'animate-pulse' : ''}`}
+                    style={{
+                        ...commonProps.style,
+                        border: 'none', // Border will be on inner button
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
                 >
-                    {content}
-                </button>
+                    <button
+                        className={`${styles.elementButton} ${getAnimationClass()}`}
+                        style={{
+                            border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : undefined,
+                            padding: '12px 24px',
+                            width: 'fit-content',
+                            minWidth: 'fit-content',
+                            margin: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}
+                    >
+                        {content}
+                        {buttonSticker && <span>{buttonSticker}</span>}
+                    </button>
+                    {renderResizeHandles()}
+                </div>
             );
 
         case 'sticker':
-            return <div {...commonProps} style={{ ...style, fontSize: `${elStyles.fontSize || 40}px`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{content}</div>;
+            return (
+                <div {...commonProps} style={{ ...commonProps.style, fontSize: `${elStyles.fontSize || 40}px`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {content}
+                    {renderResizeHandles()}
+                </div>
+            );
 
         case 'gallery':
             let images: string[] = [];
@@ -168,62 +624,189 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 images = JSON.parse(content);
                 if (!Array.isArray(images)) images = [content];
             } catch (e) {
-                images = [content]; // Fallback if single URL
+                images = [content];
             }
+
+            const galleryTitle = element.metadata?.title && element.metadata.title.trim() !== '';
+            const gallerySubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
 
             return (
                 <div
-                    className={styles.element}
+                    {...commonProps}
                     style={{
-                        ...style,
+                        ...commonProps.style,
+                        display: galleryTitle || gallerySubtitle || elStyles.frameColor ? 'flex' : 'grid',
+                        flexDirection: galleryTitle || gallerySubtitle || elStyles.frameColor ? 'column' : undefined,
+                        gridTemplateColumns: !galleryTitle && !gallerySubtitle && !elStyles.frameColor ? 'repeat(2, 1fr)' : undefined,
+                        gap: '4px',
+                        overflow: 'hidden',
+                        border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                        padding: elStyles.frameColor ? '8px' : (galleryTitle || gallerySubtitle ? '4px' : '4px'),
+                    }}
+                >
+                    {galleryTitle && (
+                        <div style={{
+                            padding: '4px 8px',
+                            fontSize: '0.9rem',
+                            fontWeight: '600',
+                            textAlign: 'center',
+                            marginBottom: '4px',
+                        }}>
+                            {element.metadata.title}
+                        </div>
+                    )}
+                    <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(2, 1fr)',
                         gap: '4px',
                         overflow: 'hidden',
-                        padding: '4px',
-                        background: 'rgba(255,255,255,0.5)'
-                    }}
-                    onMouseDown={handleMouseDown}
-                    onClick={handleInteraction}
-                >
-                    {images.slice(0, 4).map((src, i) => (
-                        <img
-                            key={i}
-                            src={src}
-                            alt={`Gallery ${i}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
-                            draggable={false}
-                        />
-                    ))}
+                        flex: galleryTitle || gallerySubtitle || elStyles.frameColor ? 1 : undefined,
+                    }}>
+                        {images.slice(0, 4).map((src, i) => (
+                            <img
+                                key={i}
+                                src={src}
+                                alt={`Gallery ${i}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                                draggable={false}
+                            />
+                        ))}
+                    </div>
                     {images.length > 4 && (
                         <div style={{
-                            position: 'absolute', bottom: 4, right: 4,
+                            position: 'absolute', bottom: gallerySubtitle ? '24px' : '4px', right: '4px',
                             background: 'rgba(0,0,0,0.6)', color: 'white',
                             padding: '2px 6px', borderRadius: 4, fontSize: '0.8rem'
                         }}>
                             +{images.length - 4}
                         </div>
                     )}
+                    {gallerySubtitle && (
+                        <div style={{
+                            padding: '4px 8px',
+                            fontSize: '0.85rem',
+                            textAlign: 'center',
+                            marginTop: '4px',
+                        }}>
+                            {element.metadata.subtitle}
+                        </div>
+                    )}
+                    {renderResizeHandles()}
                 </div>
             );
 
         case 'video':
+            const videoTitle = element.metadata?.title && element.metadata.title.trim() !== '';
+            const videoSubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
+            if (videoTitle || videoSubtitle || elStyles.frameColor) {
+                return (
+                    <div
+                        {...commonProps}
+                        style={{
+                            ...commonProps.style,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                            padding: elStyles.frameColor ? '8px' : '0',
+                        }}
+                    >
+                        {videoTitle && (
+                            <div style={{
+                                padding: '4px 8px',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                textAlign: 'center',
+                                marginBottom: '4px',
+                            }}>
+                                {element.metadata.title}
+                            </div>
+                        )}
+                        <video
+                            src={content}
+                            controls
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4 }}
+                            draggable={false}
+                        />
+                        {videoSubtitle && (
+                            <div style={{
+                                padding: '4px 8px',
+                                fontSize: '0.85rem',
+                                textAlign: 'center',
+                                marginTop: '4px',
+                            }}>
+                                {element.metadata.subtitle}
+                            </div>
+                        )}
+                        {renderResizeHandles()}
+                    </div>
+                );
+            }
             return (
-                <video
-                    src={content}
-                    controls
-                    {...commonProps}
-                    style={{ ...style, objectFit: 'cover' }}
-                    draggable={false}
-                />
+                <div {...commonProps}>
+                    <video
+                        src={content}
+                        controls
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        draggable={false}
+                    />
+                    {renderResizeHandles()}
+                </div>
             );
 
         case 'long-text':
+            const longTextTitle = element.metadata?.title && element.metadata.title.trim() !== '';
+            const longTextSubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
+            if (longTextTitle || longTextSubtitle || elStyles.frameColor) {
+                return (
+                    <div
+                        {...commonProps}
+                        style={{
+                            ...commonProps.style,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                            padding: elStyles.frameColor ? '8px' : '12px',
+                        }}
+                    >
+                        {longTextTitle && (
+                            <div style={{
+                                padding: '4px 8px',
+                                fontSize: '0.9rem',
+                                fontWeight: '600',
+                                textAlign: 'center',
+                                marginBottom: '4px',
+                            }}>
+                                {element.metadata.title}
+                            </div>
+                        )}
+                        <LongTextElement
+                            element={element}
+                            style={style}
+                            mode={mode}
+                            isSelected={isSelected}
+                            onMouseDown={handleMouseDown}
+                            onClick={handleInteraction}
+                        />
+                        {longTextSubtitle && (
+                            <div style={{
+                                padding: '4px 8px',
+                                fontSize: '0.85rem',
+                                textAlign: 'center',
+                                marginTop: '4px',
+                            }}>
+                                {element.metadata.subtitle}
+                            </div>
+                        )}
+                        {renderResizeHandles()}
+                    </div>
+                );
+            }
             return (
                 <LongTextElement
                     element={element}
                     style={style}
                     mode={mode}
+                    isSelected={isSelected}
                     onMouseDown={handleMouseDown}
                     onClick={handleInteraction}
                 />
@@ -235,11 +818,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 <div
                     {...commonProps}
                     style={{
-                        ...style,
+                        ...commonProps.style,
                         backgroundColor: elStyles.backgroundColor || '#ccc',
                         borderRadius: isCircle ? '50%' : `${elStyles.borderRadius || 0}px`,
                     }}
-                />
+                >
+                    {renderResizeHandles()}
+                </div>
             );
 
         default:

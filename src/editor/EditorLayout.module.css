@@ -208,8 +208,8 @@
 /* Allow desktop toggle in editor too later? For now, focused on Mobile Gift */
 
 .editorRenderer {
-    pointer-events: none;
-    /* Let the wrapper handle interactions? Or pass click handlers */
+    /* pointer-events: none; - REMOVED: This was blocking element clicks in editor mode */
+    /* Elements need pointer-events: auto to be clickable */
 }
 
 /* Override pointer events for Renderer in Editor mode so we can select elements?

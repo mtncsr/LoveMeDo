@@ -1,0 +1,240 @@
+.menu {
+    position: absolute;
+    background: white;
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    min-width: 200px;
+    flex-wrap: wrap;
+}
+
+.menuButton {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--color-text);
+    transition: background 0.2s;
+}
+
+.menuButton:hover {
+    background: #f0f0f0;
+}
+
+.menuButton.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+.deleteButton {
+    color: #ef233c;
+}
+
+.deleteButton:hover {
+    background: #fff0f3;
+}
+
+.fontSizeControl {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 4px;
+}
+
+.fontSizeValue {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+    min-width: 35px;
+    text-align: center;
+}
+
+.dropdownContainer {
+    position: relative;
+}
+
+.dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    min-width: 120px;
+    z-index: 10001;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dropdownItem {
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    transition: background 0.2s;
+}
+
+.dropdownItem:hover {
+    background: #f0f0f0;
+}
+
+.dropdownItem.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+.colorPicker {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 12px;
+    z-index: 10001;
+    min-width: 200px;
+}
+
+.colorPickerHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.colorPickerHeader button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.colorPickerHeader button:hover {
+    background: #f0f0f0;
+}
+
+.colorSwatches {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.colorSwatch {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.colorSwatch:hover {
+    transform: scale(1.1);
+    border-color: var(--color-primary);
+}
+
+.colorInput {
+    width: 100%;
+    height: 40px;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.stickerPicker {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 12px;
+    z-index: 10001;
+    min-width: 200px;
+}
+
+.stickerPickerHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.stickerPickerHeader button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.stickerPickerHeader button:hover {
+    background: #f0f0f0;
+}
+
+.stickerGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.stickerButton {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.stickerButton:hover {
+    border-color: var(--color-primary);
+    transform: scale(1.1);
+}
+
+.textInput {
+    padding: 6px 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    width: 100%;
+    min-width: 120px;
+}
+
+.textInput:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+

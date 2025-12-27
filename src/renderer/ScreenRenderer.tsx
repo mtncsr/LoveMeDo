@@ -13,12 +13,20 @@ interface Props {
     onElementUpdate?: (elementId: string, changes: Partial<ScreenElement>) => void;
     allScreens?: Screen[]; // For navigation grid
     currentScreenIndex?: number; // For next button
+    selectedElementId?: string; // Selected element ID for editor mode
 }
 
-export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, allScreens = [], currentScreenIndex }) => {
+export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, allScreens = [], currentScreenIndex, selectedElementId }) => {
     if (!isActive) return null;
 
     const { background, elements, type, title } = screen;
+    
+    // Sort elements by zIndex (background is always 0)
+    const sortedElements = [...elements].sort((a, b) => {
+        const aZ = a.styles?.zIndex || 10;
+        const bZ = b.styles?.zIndex || 10;
+        return aZ - bZ;
+    });
     
     // Check if there's a next screen (including navigation screen)
     const hasNextScreen = currentScreenIndex !== undefined && 
@@ -35,10 +43,15 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
         return (
             <div className={styles.background} style={style}>
                 {background.type === 'image' && <img src={background.value} alt="bg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                {background.overlay === 'confetti' && <div className={styles.backgroundOverlay}>🎉</div>}
-                {background.overlay === 'hearts' && <div className={styles.backgroundOverlay}>❤️</div>}
-                {background.overlay === 'stars' && <div className={styles.backgroundOverlay}>⭐</div>}
-                {background.overlay === 'fireworks' && <div className={styles.backgroundOverlay}>🎆</div>}
+                {background.overlay && background.overlay !== 'none' && (
+                    <div className={styles.backgroundOverlay}>
+                        {background.overlay === 'confetti' ? '🎉' :
+                         background.overlay === 'hearts' ? '❤️' :
+                         background.overlay === 'stars' ? '⭐' :
+                         background.overlay === 'fireworks' ? '🎆' :
+                         background.overlay} {/* Custom emoji string or predefined type */}
+                    </div>
+                )}
             </div>
         );
     };
@@ -59,8 +72,15 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
         }
     };
 
+    const handleScreenClick = (e: React.MouseEvent) => {
+        if (mode === 'editor' && e.target === e.currentTarget) {
+            // Deselect when clicking on screen background
+            onElementClick?.('');
+        }
+    };
+
     return (
-        <div className={styles.screenContainer}>
+        <div className={styles.screenContainer} onClick={handleScreenClick}>
             {renderBackground()}
 
             {/* Navigation Bar (Middle screens only) */}
@@ -105,13 +125,15 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
             )}
 
             {/* Elements */}
-            {elements.map(el => (
+            {sortedElements.map(el => (
                 <ElementRenderer
                     key={el.id}
                     element={el}
                     mode={mode}
+                    isSelected={selectedElementId === el.id}
                     onClick={() => handleElementClick(el)}
                     onUpdate={onElementUpdate}
+                    screenType={type}
                 />
             ))}
 

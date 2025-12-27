@@ -13,6 +13,7 @@ interface Props {
     onElementUpdate?: (elementId: string, changes: any) => void; // Using any for partial Element
     className?: string;
     device?: 'mobile' | 'desktop'; // For template preview mode
+    selectedElementId?: string; // Selected element ID for editor mode
 }
 
 export const Renderer: React.FC<Props> = ({
@@ -22,7 +23,8 @@ export const Renderer: React.FC<Props> = ({
     onElementSelect,
     onElementUpdate,
     className,
-    device
+    device,
+    selectedElementId
 }) => {
     // State for internal navigation (Preview/Export)
     const [internalActiveId, setInternalActiveId] = useState<string>(
@@ -40,7 +42,16 @@ export const Renderer: React.FC<Props> = ({
 
     // Determine which screen to show
     const activeId = mode === 'editor' && propScreenId ? propScreenId : internalActiveId;
-    const activeScreen = project.screens.find(s => s.id === activeId);
+    let activeScreen = project.screens.find(s => s.id === activeId);
+    
+    // Fallback: if active screen not found, use first screen (safety check)
+    if (!activeScreen && project.screens.length > 0) {
+        activeScreen = project.screens[0];
+        // Sync the internal state if in preview mode
+        if (mode !== 'editor' && internalActiveId !== activeScreen.id) {
+            setInternalActiveId(activeScreen.id);
+        }
+    }
 
     // Sync internal state if prop changes in editor (though usually unused)
     useEffect(() => {
@@ -211,6 +222,7 @@ export const Renderer: React.FC<Props> = ({
                 onElementUpdate={onElementUpdate}
                 allScreens={project.screens}
                 currentScreenIndex={project.screens.findIndex(s => s.id === activeId)}
+                selectedElementId={selectedElementId}
                 key={activeScreen.id}
             />
 

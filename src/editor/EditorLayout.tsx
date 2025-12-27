@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
@@ -8,6 +8,7 @@ import styles from './EditorLayout.module.css';
 import ElementsMenu from './ElementsMenu';
 import Toolbar from './Toolbar';
 import MediaLibraryModal from './MediaLibraryModal';
+import { ElementEditingMenu } from './ElementEditingMenu';
 
 const EditorLayout: React.FC = () => {
     const { project, updateScreen, updateElement, addScreen } = useProjectStore();
@@ -20,9 +21,18 @@ const EditorLayout: React.FC = () => {
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
 
     // If no active screen, set to first one
+    // Also validate that activeScreenId still exists in project after updates
     useEffect(() => {
-        if (project && project.screens.length > 0 && !activeScreenId) {
-            setActiveScreenId(project.screens[0].id);
+        if (project && project.screens.length > 0) {
+            if (!activeScreenId) {
+                setActiveScreenId(project.screens[0].id);
+            } else {
+                // Validate that the active screen still exists
+                const screenExists = project.screens.some(s => s.id === activeScreenId);
+                if (!screenExists) {
+                    setActiveScreenId(project.screens[0].id);
+                }
+            }
         }
     }, [project, activeScreenId, setActiveScreenId]);
 
@@ -165,7 +175,17 @@ const EditorLayout: React.FC = () => {
                     <div 
                         className={styles.canvasWrapper} 
                         data-device={deviceView}
-                        style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}
+                        style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center', position: 'relative' }}
+                        onClick={(e) => {
+                            // Deselect if clicking on canvas wrapper (not on element or menu)
+                            const target = e.target as HTMLElement;
+                            const isElement = target.closest('[data-element-id]');
+                            const isMenu = target.closest('[data-editing-menu]');
+                            
+                            if (!isElement && !isMenu && selectedElementId) {
+                                setSelectedElementId(null);
+                            }
+                        }}
                     >
                         <Renderer
                             project={project}
@@ -173,14 +193,26 @@ const EditorLayout: React.FC = () => {
                             activeScreenId={activeScreenId || undefined}
                             className={styles.editorRenderer}
                             device={deviceView}
-                            onElementSelect={setSelectedElementId}
+                            onElementSelect={(id) => setSelectedElementId(id || null)}
                             onElementUpdate={(id, changes) => activeScreenId && updateElement(activeScreenId, id, changes)}
+                            selectedElementId={selectedElementId || undefined}
                         />
+                        
+                        {/* Element Editing Menu */}
+                        {selectedElementId && activeScreenId && (() => {
+                            const currentScreen = project.screens.find(s => s.id === activeScreenId);
+                            const selectedElement = currentScreen?.elements.find(e => e.id === selectedElementId);
+                            if (selectedElement) {
+                                return (
+                                    <ElementEditingMenu
+                                        element={selectedElement}
+                                    />
+                                );
+                            }
+                            return null;
+                        })()}
                     </div>
                 </div>
-
-                {/* Toolbar */}
-                <Toolbar />
             </div>
 
             {/* Bottom Elements Menu */}

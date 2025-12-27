@@ -30,6 +30,10 @@ export interface ElementStyles {
   rotation?: number;
   zIndex?: number;
   shadow?: boolean;
+  animation?: string; // e.g., 'float', 'pulse', 'fade', 'bounce', 'slide', 'rotate', 'none'
+  textDecoration?: 'none' | 'underline';
+  fontStyle?: 'normal' | 'italic';
+  frameColor?: string; // For gallery item frames
 }
 
 export interface ScreenElement {
@@ -45,7 +49,7 @@ export interface ScreenElement {
 export interface BackgroundConfig {
   type: 'solid' | 'gradient' | 'image' | 'video' | 'preset';
   value: string; // Color, gradient string, or media ID / preset name
-  overlay?: 'confetti' | 'hearts' | 'stars' | 'fireworks' | 'none';
+  overlay?: 'confetti' | 'hearts' | 'stars' | 'fireworks' | 'none' | string; // Can be predefined type or custom emoji string
   animation?: 'fade' | 'slide' | 'none';
 }
 
