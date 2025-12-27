@@ -87,8 +87,8 @@ const createLongText = (content: string, y: number, bgColor: string = 'rgba(255,
 });
 
 const createScreen = (title: string, type: Screen['type'], backgroundValue: string, elements: ScreenElement[] = [], overlay?: Screen['background']['overlay']): Screen => {
-    // Apply layout calculation for content screens to prevent overlaps
-    const processedElements = type === 'content' ? calculateLayout(elements) : elements;
+    // Layout calculation is now done at render time in ScreenRenderer based on device
+    // Templates are created with original element positions
     
     return {
         id: uuidv4(),
@@ -100,35 +100,129 @@ const createScreen = (title: string, type: Screen['type'], backgroundValue: stri
             animation: 'fade',
             overlay
         },
-        elements: processedElements
+        elements: elements
     };
+};
+
+// Estimate actual rendered height for text elements
+// Returns height as percentage (0-100%)
+const estimateTextHeight = (
+    content: string,
+    fontSize: number,
+    width: number,
+    device: 'mobile' | 'desktop'
+): number => {
+    // Base line height factor (typically 1.2-1.5x font size)
+    const lineHeightFactor = 1.3;
+    
+    // Account for device scaling - use same scale as ElementRenderer (0.7 for mobile)
+    // This ensures layout calculation matches actual rendered font sizes
+    const deviceScale = device === 'mobile' ? 0.7 : 1.0;
+    const scaledFontSize = fontSize * deviceScale;
+    
+    // Count line breaks in content
+    const lineBreaks = (content.match(/\n/g) || []).length;
+    
+    // Estimate characters per line based on width
+    // Rough estimate: ~50-60 characters per 100% width at 24px font
+    // Adjust based on actual font size
+    const charsPerLine = Math.max(20, Math.floor((width / 100) * (60 * (24 / scaledFontSize))));
+    
+    // Calculate number of lines needed
+    const textLines = Math.max(1, Math.ceil(content.length / charsPerLine));
+    const totalLines = textLines + lineBreaks;
+    
+    // Calculate height: lines * line height, converted to percentage
+    // For mobile (9:16 aspect ratio): typical viewport height is ~667-800px
+    // For desktop (16:9 aspect ratio): typical viewport height is ~600-900px
+    // We need to convert pixel height to percentage of the safe area (0-100% template space)
+    const lineHeightPx = scaledFontSize * lineHeightFactor;
+    const estimatedHeightPx = lineHeightPx * totalLines;
+    
+    // Convert to percentage based on actual viewport height
+    // Mobile: ~667px viewport height (iPhone standard)
+    // Desktop: ~720px viewport height for 16:9
+    const viewportHeightPx = device === 'mobile' ? 667 : 720;
+    
+    // Convert pixel height to percentage of viewport
+    // Then scale to template space (0-100%)
+    const heightPercent = (estimatedHeightPx / viewportHeightPx) * 100;
+    
+    // Add padding for text elements (more padding for larger fonts)
+    // Minimum padding: 3%, additional padding based on font size
+    const fontSizePadding = Math.max(0, (scaledFontSize - 20) / 5); // Extra 0.2% per px above 20px
+    const totalPadding = 3 + fontSizePadding;
+    
+    // Ensure minimum height based on font size (at least 2.5x line height for single line)
+    // This accounts for actual rendered height which is often larger than calculated
+    // For larger fonts, we need even more space
+    const minHeightMultiplier = scaledFontSize > 30 ? 3.0 : 2.5;
+    const minHeightPercent = (scaledFontSize * lineHeightFactor * minHeightMultiplier) / viewportHeightPx * 100;
+    
+    const result = Math.max(minHeightPercent, Math.min(95, heightPercent + totalPadding));
+    return result;
 };
 
 // Layout helper: Calculate non-overlapping positions for content screens
 // Works in 0-100% space which maps to 10-85% safe area in renderer
-const calculateLayout = (elements: ScreenElement[]): ScreenElement[] => {
-    // Safe area bounds: 0-100% in template space maps to 10-85% on screen
+const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop' = 'mobile'): ScreenElement[] => {
+    // Safe area bounds: 0-99% in template space maps to 10-85% on screen
+    // Use 99% to leave 1% buffer at bottom for next button
     const safeAreaTop = 0;
-    const safeAreaBottom = 100;  // 100% in template = 85% on screen (safe area bottom)
-    const minSpacing = 3;        // Minimum 3% spacing between elements
-    const mobileSizeReduction = 0.85; // Reduce element sizes by 15% for mobile
+    const safeAreaBottom = 99;  // 99% in template = ~84% on screen (leaves space for next button)
+    
+    // Device-aware scaling factors
+    const isMobile = device === 'mobile';
+    const contentScale = isMobile ? 0.85 : 1.0; // Scale down content on mobile
+    const spacingFactor = isMobile ? 1.5 : 1.0; // More spacing on mobile for better readability
+    const baseMinSpacing = 4; // Base minimum spacing between elements (increased from 3)
+    const minSpacing = baseMinSpacing * spacingFactor; // Minimum spacing between elements
     
     // Separate layout-constrained elements from stickers (free-floating)
     const layoutElements: ScreenElement[] = [];
     const stickers: ScreenElement[] = [];
+    const galleries: ScreenElement[] = [];
     
     elements.forEach(el => {
         if (el.type === 'sticker') {
             stickers.push(el); // Stickers can overlap, keep original position
+        } else if (el.type === 'gallery') {
+            galleries.push(el); // Handle galleries separately
+            layoutElements.push({ ...el }); // Also include in layout calculation
         } else {
             layoutElements.push({ ...el }); // Copy for layout calculation
         }
     });
     
     // Sort layout elements by intended Y position (top to bottom)
+    // Special handling: process yellow wish card first, then hero, then blue wish card, then red wish card
     layoutElements.sort((a, b) => {
         const aY = a.position.y;
         const bY = b.position.y;
+        
+        // Detect wish cards
+        const aIsWish = a.type === 'text' && a.styles?.backgroundColor && a.styles?.borderRadius;
+        const bIsWish = b.type === 'text' && b.styles?.backgroundColor && b.styles?.borderRadius;
+        
+        // Yellow wish card (y:5) comes first
+        if (aIsWish && aY === 5) return -1;
+        if (bIsWish && bY === 5) return 1;
+        
+        // Hero image comes after yellow, before blue
+        if (a.type === 'image' && aY >= 50 && aIsWish && bY === 5) return 1;
+        if (b.type === 'image' && bY >= 50 && aIsWish && aY === 5) return -1;
+        if (a.type === 'image' && aY >= 50 && bIsWish && bY === 31) return -1;
+        if (b.type === 'image' && bY >= 50 && aIsWish && aY === 31) return 1;
+        
+        // Blue wish card (y:31) comes after hero
+        if (aIsWish && aY === 31 && b.type === 'image' && bY >= 50) return 1;
+        if (bIsWish && bY === 31 && a.type === 'image' && aY >= 50) return -1;
+        
+        // Red wish card (y:18) comes after yellow, before blue
+        if (aIsWish && aY === 18 && bIsWish && bY === 31) return -1;
+        if (bIsWish && bY === 18 && aIsWish && aY === 31) return 1;
+        
+        // Default: sort by Y position
         if (Math.abs(aY - bY) < 5) {
             // If Y positions are close (within 5%), sort by X (left to right)
             return a.position.x - b.position.x;
@@ -142,18 +236,53 @@ const calculateLayout = (elements: ScreenElement[]): ScreenElement[] => {
     for (let i = 0; i < layoutElements.length; i++) {
         const current = layoutElements[i];
         let adjustedY = current.position.y;
-        let adjustedHeight = (current.size.height || 10) * mobileSizeReduction; // Reduce size for mobile
+        
+        
+        // Calculate accurate height based on element type
+        let adjustedHeight: number;
+        
+        if (current.type === 'text' || current.type === 'long-text') {
+            // Use estimated height for text elements
+            const fontSize = current.styles?.fontSize || 24;
+            const width = current.size.width || 80;
+            adjustedHeight = estimateTextHeight(current.content || '', fontSize, width, device);
+            // Don't apply content scaling to heights - heights are already device-aware in estimateTextHeight
+            // Content scaling should only affect spacing, not element dimensions
+        } else if (current.type === 'gallery') {
+            // For galleries, use defined height (will be adjusted later for desktop)
+            adjustedHeight = (current.size.height || 50) * contentScale;
+        } else {
+            // For other elements (images, buttons), use defined height with scaling
+            adjustedHeight = (current.size.height || 10) * contentScale;
+        }
+        
         
         // Check for overlaps with ALL previous elements (not just immediately previous)
         let maxBottom = safeAreaTop;
         for (let j = 0; j < adjustedElements.length; j++) {
             const previous = adjustedElements[j];
-            const prevBottom = previous.position.y + (previous.size.height || 10);
             
-            // Check if elements overlap horizontally (same column/area)
-            const horizontalOverlap = 
-                (current.position.x < previous.position.x + (previous.size.width || 80) &&
-                 current.position.x + (current.size.width || 80) > previous.position.x);
+            // Get actual height of previous element
+            let prevHeight: number;
+            if (previous.type === 'text' || previous.type === 'long-text') {
+                const prevFontSize = previous.styles?.fontSize || 24;
+                const prevWidth = previous.size.width || 80;
+                prevHeight = estimateTextHeight(previous.content || '', prevFontSize, prevWidth, device) * contentScale;
+            } else {
+                prevHeight = (previous.size.height || 10) * contentScale;
+            }
+            
+            const prevBottom = previous.position.y + prevHeight;
+            
+            // Improved horizontal overlap detection - use actual element widths
+            const currentLeft = current.position.x;
+            const currentRight = current.position.x + (current.size.width || 80);
+            const prevLeft = previous.position.x;
+            const prevRight = previous.position.x + (previous.size.width || 80);
+            
+            // Check if elements overlap horizontally (more precise check)
+            const horizontalOverlap = currentLeft < prevRight && currentRight > prevLeft;
+            
             
             // If horizontally overlapping, track the bottom position
             if (horizontalOverlap) {
@@ -162,13 +291,135 @@ const calculateLayout = (elements: ScreenElement[]): ScreenElement[] => {
         }
         
         // Position element below all overlapping previous elements with spacing
-        if (adjustedY < maxBottom + minSpacing) {
-            adjustedY = maxBottom + minSpacing;
+        // Detect wish cards (text elements with background color and border radius)
+        const isWishCard = (el: ScreenElement) => 
+            el.type === 'text' && 
+            el.styles?.backgroundColor && 
+            el.styles?.borderRadius;
+        
+        const currentIsWish = isWishCard(current);
+        const currentIsImage = current.type === 'image';
+        
+        // Add spacing based on element types
+        let requiredSpacing = minSpacing;
+        if ((current.type === 'text' || current.type === 'long-text') && 
+            adjustedElements.length > 0) {
+            const previous = adjustedElements[adjustedElements.length - 1];
+            if (previous.type === 'text' || previous.type === 'long-text') {
+                const prevIsWish = isWishCard(previous);
+                
+                if (currentIsWish && prevIsWish) {
+                    // Wish cards should have consistent small spacing between them
+                    // Use a fixed small padding (1.5% on mobile, 1.0% on desktop) for consistent stacking
+                    requiredSpacing = isMobile ? 1.5 : 1.0; // Small consistent spacing for wish cards
+                } else {
+                    // Extra spacing between regular text elements (especially on mobile)
+                    const extraTextSpacing = isMobile ? 2.5 : 1.5;
+                    requiredSpacing = minSpacing + extraTextSpacing;
+                }
+            }
         }
         
+        // Special handling: if current is image and previous is wish card, add minimal spacing
+        if (currentIsImage && adjustedElements.length > 0) {
+            const previous = adjustedElements[adjustedElements.length - 1];
+            if (isWishCard(previous)) {
+                // Minimal spacing between last wish card and hero image
+                requiredSpacing = isMobile ? 2.0 : 1.5;
+            }
+        }
+        
+        // For wish cards: special layout - yellow at top, blue at bottom, red centered between them
+        // This must run BEFORE the general overlap adjustment to ensure positioning takes precedence
+        if (currentIsWish) {
+            
+            const wishCardSpacing = isMobile ? 1.5 : 1.0; // Small spacing for wish cards
+            
+            // Find hero image in layoutElements
+            let heroImage: ScreenElement | null = null;
+            for (let j = 0; j < layoutElements.length; j++) {
+                if (layoutElements[j].type === 'image' && layoutElements[j].position.y >= 50) {
+                    heroImage = layoutElements[j];
+                    break;
+                }
+            }
+            
+            // Identify which wish card this is (by original Y position: 5=yellow, 18=red, 31=blue)
+            const isYellow = current.position.y === 5;
+            const isRed = current.position.y === 18;
+            const isBlue = current.position.y === 31;
+            
+            if (isYellow) {
+                // Yellow card: small space from top line
+                adjustedY = wishCardSpacing; // Start with small padding from top
+            } else if (isBlue) {
+                // Blue card: small space from hero (position above hero with small padding)
+                if (heroImage) {
+                    // Check if hero has already been processed (in adjustedElements)
+                    let heroY = heroImage.position.y; // Default to original position
+                    for (const el of adjustedElements) {
+                        if (el.type === 'image' && el.id === heroImage.id) {
+                            heroY = el.position.y; // Use adjusted position if available
+                            break;
+                        }
+                    }
+                    
+                    adjustedY = heroY - adjustedHeight - wishCardSpacing - 3; // Position above hero with small padding, move up 3 tics (2% more than before)
+                }
+            } else if (isRed) {
+                // Red card: centered between yellow and blue with small space from each
+                // Find yellow and blue cards from adjustedElements or calculate from known positions
+                let yellowBottom = wishCardSpacing + adjustedHeight; // Yellow at top + its height
+                let blueTop = safeAreaBottom - adjustedHeight - wishCardSpacing; // Blue near bottom
+                
+                // Try to get actual positions from already processed elements
+                for (const el of adjustedElements) {
+                    if (isWishCard(el)) {
+                        if (el.position.y < 10) {
+                            yellowBottom = el.position.y + (el.size.height || adjustedHeight);
+                        }
+                        if (el.position.y > 20) {
+                            blueTop = el.position.y;
+                        }
+                    }
+                }
+                
+                // If we have hero, use it to calculate blue position
+                if (heroImage && blueTop > heroImage.position.y - adjustedHeight) {
+                    blueTop = heroImage.position.y - adjustedHeight - wishCardSpacing;
+                }
+                
+                // Center red between yellow bottom and blue top
+                const availableSpace = blueTop - yellowBottom;
+                const redHeight = adjustedHeight;
+                const totalSpaceNeeded = redHeight + (wishCardSpacing * 2); // Red height + padding on both sides
+                
+                if (availableSpace >= totalSpaceNeeded) {
+                    adjustedY = yellowBottom + wishCardSpacing; // Small space from yellow
+                    // Center it in remaining space
+                    const extraSpace = availableSpace - totalSpaceNeeded;
+                    adjustedY += extraSpace / 2;
+                } else {
+                    // Not enough space, just stack with small padding from yellow
+                    adjustedY = yellowBottom + wishCardSpacing;
+                }
+                
+                // Move red card up by 2 tics
+                adjustedY -= 2;
+                
+            }
+        }
+        
+        // Now apply general overlap adjustment (but skip for wish cards that already handled stacking)
+        // Don't override wish card stacking - only apply general adjustment if not a wish card or if it's the first wish card
+        if (!currentIsWish || adjustedElements.length === 0) {
+            if (adjustedY < maxBottom + requiredSpacing) {
+                adjustedY = maxBottom + requiredSpacing;
+            }
+        }
+        
+        
         // CRITICAL: Ensure element doesn't exceed safe area bottom (100% = 85% on screen)
-        // After mapping: y: 100% → 85%, height: 20% → 15%, so bottom = 100% (overlaps!)
-        // Solution: Keep elements within 0-100% template space, but ensure bottom ≤ 100%
         const elementBottom = adjustedY + adjustedHeight;
         if (elementBottom > safeAreaBottom) {
             // Reduce height to fit within safe area
@@ -187,7 +438,7 @@ const calculateLayout = (elements: ScreenElement[]): ScreenElement[] => {
         const finalHeight = Math.min(adjustedHeight, safeAreaBottom - finalY - 0.5);
         
         // Create adjusted element
-        adjustedElements.push({
+        const adjustedElement = {
             ...current,
             position: {
                 ...current.position,
@@ -197,7 +448,54 @@ const calculateLayout = (elements: ScreenElement[]): ScreenElement[] => {
                 ...current.size,
                 height: finalHeight
             }
-        });
+        };
+        
+        
+        adjustedElements.push(adjustedElement);
+    }
+    
+    // Gallery-specific responsive behavior: Expand galleries on desktop
+    if (!isMobile) {
+        // Find all gallery elements and expand them to use available space
+        for (let i = 0; i < adjustedElements.length; i++) {
+            if (adjustedElements[i].type === 'gallery') {
+                const gallery = adjustedElements[i];
+                
+                // Calculate used vertical space by all elements below this gallery
+                let spaceUsedBelow = 0;
+                const galleryBottom = gallery.position.y + gallery.size.height;
+                
+                for (let j = 0; j < adjustedElements.length; j++) {
+                    if (j !== i && adjustedElements[j].position.y > galleryBottom) {
+                        const otherElement = adjustedElements[j];
+                        let otherHeight: number;
+                        if (otherElement.type === 'text' || otherElement.type === 'long-text') {
+                            const otherFontSize = otherElement.styles?.fontSize || 24;
+                            const otherWidth = otherElement.size.width || 80;
+                            otherHeight = estimateTextHeight(otherElement.content || '', otherFontSize, otherWidth, device);
+                        } else {
+                            otherHeight = otherElement.size.height || 10;
+                        }
+                        spaceUsedBelow += otherHeight + minSpacing;
+                    }
+                }
+                
+                // Calculate available space for gallery expansion
+                const availableSpace = safeAreaBottom - gallery.position.y - spaceUsedBelow - minSpacing;
+                const maxGalleryHeight = Math.min(availableSpace * 0.9, 70); // Max 70% height, use 90% of available
+                
+                // Expand gallery if there's more space available
+                if (maxGalleryHeight > gallery.size.height) {
+                    adjustedElements[i] = {
+                        ...gallery,
+                        size: {
+                            ...gallery.size,
+                            height: Math.max(gallery.size.height, maxGalleryHeight)
+                        }
+                    };
+                }
+            }
+        }
     }
     
     // Combine adjusted layout elements with stickers (preserving original positions)
@@ -279,18 +577,19 @@ const templates: Template[] = [
             ]);
 
             // Screen 4: Wishes with Hero Image - Bright playful background
+            // Wish cards at top (close to top line), hero image at bottom
             const s4 = createScreen('Wishes', 'content', 'linear-gradient(to bottom, #fff0f3, #ffe0e6)', [
+                createWishCard('Happy Birthday! We love you!', 5, '#FFD93D', '#FFFFFF'), // Start close to top
+                createWishCard('Wishing you endless joy and fun!', 18, '#FF4D6D', '#FFFFFF'), // Stacked with minimal spacing
+                createWishCard('So proud of you!', 31, '#4CC9F0', '#FFFFFF'), // Stacked with minimal spacing, close to hero
                 {
                     id: uuidv4(),
                     type: 'image' as const,
                     content: '/images/templates/heroes/birthday-kids-hero.png',
-                    position: { x: 10, y: 10 },
-                    size: { width: 80, height: 40 },
+                    position: { x: 10, y: 50 }, // Position at bottom, close to last wish card
+                    size: { width: 80, height: 49 }, // Height adjusted to fit within 99% (50 + 49 = 99)
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
-                },
-                createWishCard('Happy Birthday! We love you!', 55, '#FFD93D', '#FFFFFF'),
-                createWishCard('Wishing you endless joy and fun!', 68, '#FF4D6D', '#FFFFFF'),
-                createWishCard('So proud of you!', 87, '#4CC9F0', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
+                }
             ]);
 
             // Screen 5: Video Standalone - Bright cyan background
@@ -1037,3 +1336,4 @@ const templates: Template[] = [
 
 export const getTemplate = (id: string) => templates.find(t => t.id === id);
 export const getAllTemplates = () => templates;
+export { calculateLayout }; // Export for use in renderer

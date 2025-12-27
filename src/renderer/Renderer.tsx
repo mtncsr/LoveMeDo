@@ -283,6 +283,7 @@ export const Renderer: React.FC<Props> = ({
                 allScreens={project.screens}
                 currentScreenIndex={project.screens.findIndex(s => s.id === activeId)}
                 selectedElementId={selectedElementId}
+                device={device}
                 key={activeScreen.id}
             />
 

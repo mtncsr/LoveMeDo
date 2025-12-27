@@ -62,10 +62,17 @@ interface Props {
     onClick?: (e: React.MouseEvent) => void;
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
     screenType?: 'overlay' | 'content' | 'navigation'; // Screen type for safe area calculation
+    device?: 'mobile' | 'desktop'; // Device type for responsive font sizing
 }
 
-export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay' }) => {
+export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile' }) => {
     const { type, position, size, content, styles: elStyles } = element;
+    
+    // Scale font sizes for mobile (9:16) to fit content better
+    // Mobile needs smaller fonts to prevent overflow
+    const isMobile = device === 'mobile';
+    const fontScaleFactor = isMobile ? 0.7 : 1.0; // Scale down 30% on mobile
+    const scaledFontSize = elStyles.fontSize ? elStyles.fontSize * fontScaleFactor : undefined;
     const elementRef = useRef<HTMLDivElement>(null);
     const [isEditingText, setIsEditingText] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
@@ -279,7 +286,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         if (type !== 'text' || !elementRef.current || !onUpdateRef.current || mode !== 'editor' || isResizingRef.current) return;
         
         // Create a trigger key from the values that should trigger recalculation
-        const triggerKey = `${content}-${elStyles.fontSize}-${elStyles.fontFamily}`;
+        const triggerKey = `${content}-${scaledFontSize}-${elStyles.fontFamily}`;
         
         // Skip if this exact combination was already processed
         if (lastTriggerRef.current === triggerKey) return;
@@ -292,7 +299,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         measureDiv.style.position = 'absolute';
         measureDiv.style.visibility = 'hidden';
         measureDiv.style.whiteSpace = 'pre-wrap';
-        measureDiv.style.fontSize = elStyles.fontSize ? `${elStyles.fontSize}px` : '24px';
+        measureDiv.style.fontSize = scaledFontSize ? `${scaledFontSize}px` : '24px';
         measureDiv.style.fontFamily = elStyles.fontFamily || 'inherit';
         measureDiv.style.width = '200px';
         measureDiv.textContent = content;
@@ -323,7 +330,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             // Even if size didn't change, mark this trigger as processed
             lastTriggerRef.current = triggerKey;
         }
-    }, [content, elStyles.fontSize, elStyles.fontFamily, type, element.id, mode]);
+    }, [content, scaledFontSize, elStyles.fontFamily, type, element.id, mode, device]);
 
     // Safe area calculation for content screens
     // Navigation bar: 60px ≈ 10% on mobile (accounts for nav bar)
@@ -357,7 +364,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         height: adjustedHeight ? `${adjustedHeight}%` : 'auto',
         color: elStyles.color,
         backgroundColor: elStyles.backgroundColor,
-        fontSize: elStyles.fontSize ? `${elStyles.fontSize}px` : undefined,
+        fontSize: scaledFontSize ? `${scaledFontSize}px` : undefined,
         fontWeight: elStyles.fontWeight,
         fontFamily: elStyles.fontFamily,
         textAlign: elStyles.textAlign,

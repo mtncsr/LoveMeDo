@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { Screen, ScreenElement } from '../types/model';
 import { ElementRenderer } from './ElementRenderer';
 import { ArrowLeft, Menu } from 'lucide-react';
 import styles from './styles.module.css';
+import { calculateLayout } from '../templates/registry';
 
 interface Props {
     screen: Screen;
@@ -14,15 +15,26 @@ interface Props {
     allScreens?: Screen[]; // For navigation grid
     currentScreenIndex?: number; // For next button
     selectedElementId?: string; // Selected element ID for editor mode
+    device?: 'mobile' | 'desktop'; // Device type for responsive layout
 }
 
-export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, allScreens = [], currentScreenIndex, selectedElementId }) => {
+export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, allScreens = [], currentScreenIndex, selectedElementId, device = 'mobile' }) => {
     if (!isActive) return null;
 
     const { background, elements, type, title } = screen;
     
+    // Recalculate layout for content screens based on device
+    // This ensures responsive behavior (mobile vs desktop)
+    const processedElements = useMemo(() => {
+        if (type === 'content') {
+            const result = calculateLayout(elements, device);
+            return result;
+        }
+        return elements;
+    }, [elements, type, device]);
+    
     // Sort elements by zIndex (background is always 0)
-    const sortedElements = [...elements].sort((a, b) => {
+    const sortedElements = [...processedElements].sort((a, b) => {
         const aZ = a.styles?.zIndex || 10;
         const bZ = b.styles?.zIndex || 10;
         return aZ - bZ;
@@ -128,17 +140,20 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
             )}
 
             {/* Elements */}
-            {sortedElements.map(el => (
-                <ElementRenderer
-                    key={el.id}
-                    element={el}
-                    mode={mode}
-                    isSelected={selectedElementId === el.id}
-                    onClick={() => handleElementClick(el)}
-                    onUpdate={onElementUpdate}
-                    screenType={type}
-                />
-            ))}
+            {processedElements.map(el => {
+                return (
+                    <ElementRenderer
+                        key={el.id}
+                        element={el}
+                        mode={mode}
+                        isSelected={selectedElementId === el.id}
+                        onClick={() => handleElementClick(el)}
+                        onUpdate={onElementUpdate}
+                        screenType={type}
+                        device={device}
+                    />
+                );
+            })}
 
             {/* Next Button (for content screens only, at bottom) */}
             {type === 'content' && hasNextScreen && mode !== 'editor' && (
