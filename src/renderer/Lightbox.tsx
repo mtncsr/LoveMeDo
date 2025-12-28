@@ -2,18 +2,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './styles.module.css';
 
+interface LightboxItem {
+    type: 'image' | 'text';
+    content: string;
+}
+
 interface Props {
-    imageSrc: string;
-    images: string[];
+    items: LightboxItem[];
     currentIndex: number;
     onClose: () => void;
     onNavigate: (index: number) => void;
 }
 
-export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onClose, onNavigate }) => {
+export const Lightbox: React.FC<Props> = ({ items, currentIndex, onClose, onNavigate }) => {
     const [touchStart, setTouchStart] = useState<number | null>(null);
     const [touchEnd, setTouchEnd] = useState<number | null>(null);
     const imageRef = useRef<HTMLImageElement>(null);
+
+    const currentItem = items[currentIndex];
 
     // Swipe detection
     const minSwipeDistance = 50;
@@ -33,7 +39,7 @@ export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onCl
         const isLeftSwipe = distance > minSwipeDistance;
         const isRightSwipe = distance < -minSwipeDistance;
 
-        if (isLeftSwipe && currentIndex < images.length - 1) {
+        if (isLeftSwipe && currentIndex < items.length - 1) {
             onNavigate(currentIndex + 1);
         }
         if (isRightSwipe && currentIndex > 0) {
@@ -50,7 +56,7 @@ export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onCl
 
     const handleNext = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (currentIndex < images.length - 1) {
+        if (currentIndex < items.length - 1) {
             onNavigate(currentIndex + 1);
         }
     };
@@ -60,7 +66,7 @@ export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onCl
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'ArrowLeft' && currentIndex > 0) {
                 onNavigate(currentIndex - 1);
-            } else if (e.key === 'ArrowRight' && currentIndex < images.length - 1) {
+            } else if (e.key === 'ArrowRight' && currentIndex < items.length - 1) {
                 onNavigate(currentIndex + 1);
             } else if (e.key === 'Escape') {
                 onClose();
@@ -69,7 +75,9 @@ export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onCl
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex, images.length, onNavigate, onClose]);
+    }, [currentIndex, items.length, onNavigate, onClose]);
+
+    if (!currentItem) return null;
 
     return (
         <div
@@ -82,42 +90,73 @@ export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onCl
             <button className={styles.lightboxClose} onClick={onClose}>
                 <X size={32} />
             </button>
-            
-            {images.length > 1 && currentIndex > 0 && (
+
+            {items.length > 1 && currentIndex > 0 && (
                 <button
                     className={styles.lightboxNav}
                     style={{ left: '20px' }}
                     onClick={handlePrev}
-                    aria-label="Previous image"
+                    aria-label="Previous item"
                 >
                     <ChevronLeft size={32} />
                 </button>
             )}
-            
-            {images.length > 1 && currentIndex < images.length - 1 && (
+
+            {items.length > 1 && currentIndex < items.length - 1 && (
                 <button
                     className={styles.lightboxNav}
                     style={{ right: '20px' }}
                     onClick={handleNext}
-                    aria-label="Next image"
+                    aria-label="Next item"
                 >
                     <ChevronRight size={32} />
                 </button>
             )}
-            
-            <img
-                ref={imageRef}
-                src={imageSrc}
-                className={styles.lightboxImage}
-                alt="Fullscreen"
-                loading="eager"
-                decoding="async"
+
+            <div
+                className={styles.lightboxContent}
                 onClick={e => e.stopPropagation()}
-            />
-            
-            {images.length > 1 && (
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    width: '100%',
+                    height: '100%'
+                }}
+            >
+                {currentItem.type === 'image' ? (
+                    <img
+                        ref={imageRef}
+                        src={currentItem.content}
+                        className={styles.lightboxImage}
+                        alt="Fullscreen"
+                        loading="eager"
+                        decoding="async"
+                    />
+                ) : (
+                    <div style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        padding: '40px',
+                        borderRadius: '16px',
+                        maxWidth: '90%',
+                        maxHeight: '80vh',
+                        overflowY: 'auto',
+                        fontSize: '24px',
+                        lineHeight: '1.6',
+                        color: '#333',
+                        whiteSpace: 'pre-wrap',
+                        textAlign: 'center',
+                        fontFamily: 'var(--font-body, sans-serif)',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+                    }}>
+                        {currentItem.content}
+                    </div>
+                )}
+            </div>
+
+            {items.length > 1 && (
                 <div className={styles.lightboxCounter}>
-                    {currentIndex + 1} / {images.length}
+                    {currentIndex + 1} / {items.length}
                 </div>
             )}
         </div>

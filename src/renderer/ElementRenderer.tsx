@@ -10,9 +10,7 @@ const LongTextElement: React.FC<{
     isSelected: boolean;
     onMouseDown: (e: React.MouseEvent) => void;
     onClick: (e: React.MouseEvent) => void;
-    onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
 }> = ({ element, style, mode, isSelected, onMouseDown, onClick }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
     const { content, styles: elStyles } = element;
 
     return (
@@ -20,37 +18,21 @@ const LongTextElement: React.FC<{
             className={styles.element}
             style={{
                 ...style,
-                maxHeight: isExpanded ? 'none' : '200px',
-                overflowY: isExpanded ? 'auto' : 'hidden',
-                padding: '12px',
+                padding: '16px',
                 backgroundColor: elStyles.backgroundColor || 'rgba(255,255,255,0.9)',
-                borderRadius: elStyles.borderRadius || 8,
+                borderRadius: elStyles.borderRadius || 16,
                 border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
+                cursor: mode !== 'editor' ? 'pointer' : 'default',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
             }}
             onMouseDown={onMouseDown}
             onClick={onClick}
         >
-            <div style={{ whiteSpace: 'pre-wrap' }}>{content}</div>
-            {mode !== 'editor' && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setIsExpanded(!isExpanded);
-                    }}
-                    style={{
-                        marginTop: '8px',
-                        padding: '4px 12px',
-                        background: 'var(--color-primary)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        fontSize: '0.8rem',
-                    }}
-                >
-                    {isExpanded ? 'Collapse' : 'Expand'}
-                </button>
-            )}
+            <div className={styles.longTextPlaceholder}>
+                {content}
+            </div>
         </div>
     );
 };
@@ -67,14 +49,13 @@ interface Props {
 
 export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile' }) => {
     const { type, position, size, content, styles: elStyles } = element;
-    
+
     // Scale font sizes for mobile (9:16) to fit content better
     // Mobile needs smaller fonts to prevent overflow
     const isMobile = device === 'mobile';
     const fontScaleFactor = isMobile ? 0.7 : 1.0; // Scale down 30% on mobile
     const scaledFontSize = elStyles.fontSize ? elStyles.fontSize * fontScaleFactor : undefined;
     const elementRef = useRef<HTMLDivElement>(null);
-    const [isEditingText, setIsEditingText] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const resizeHandleRef = useRef<string | null>(null);
     const pinchStartDistanceRef = useRef<number | null>(null);
@@ -112,15 +93,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
         const parentWidth = parent.clientWidth;
         const parentHeight = parent.clientHeight;
-        let hasMoved = false;
 
         const handleMouseMove = (mv: MouseEvent) => {
             const dx = Math.abs(mv.clientX - startX);
             const dy = Math.abs(mv.clientY - startY);
-            
+
             // Only start dragging if mouse moved more than 3px (to distinguish from click)
             if (dx > 3 || dy > 3) {
-                hasMoved = true;
                 mv.preventDefault();
                 const dxPl = ((mv.clientX - startX) / parentWidth) * 100;
                 const dyPl = ((mv.clientY - startY) / parentHeight) * 100;
@@ -276,21 +255,21 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     const lastTriggerRef = useRef<string>('');
     const isResizingRef = useRef(false);
     const onUpdateRef = useRef(onUpdate);
-    
+
     // Keep onUpdate ref up to date
     useEffect(() => {
         onUpdateRef.current = onUpdate;
     }, [onUpdate]);
-    
+
     useEffect(() => {
         if (type !== 'text' || !elementRef.current || !onUpdateRef.current || mode !== 'editor' || isResizingRef.current) return;
-        
+
         // Create a trigger key from the values that should trigger recalculation
         const triggerKey = `${content}-${scaledFontSize}-${elStyles.fontFamily}`;
-        
+
         // Skip if this exact combination was already processed
         if (lastTriggerRef.current === triggerKey) return;
-        
+
         const element = elementRef.current;
         const textElement = element.querySelector('[contenteditable]') as HTMLElement;
         if (!textElement || !element.offsetParent) return;
@@ -315,7 +294,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         // Only update if different from current size (with small threshold to avoid unnecessary updates)
         const currentWidth = size.width || 0;
         const currentHeight = size.height || 0;
-        if (Math.abs(calculatedWidth - currentWidth) > 0.5 || 
+        if (Math.abs(calculatedWidth - currentWidth) > 0.5 ||
             Math.abs(calculatedHeight - currentHeight) > 0.5) {
             lastTriggerRef.current = triggerKey;
             isResizingRef.current = true;
@@ -344,13 +323,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     // Adjust position and size for content screens
     let adjustedY = position.y;
     let adjustedHeight = size.height;
-    
+
     if (isContentScreen) {
         // Map element's y position (0-100%) to safe area (10-85%)
         // Element at y: 0% → renders at y: 10% (top of safe area)
         // Element at y: 100% → renders at y: 85% (bottom of safe area)
         adjustedY = safeAreaTop + (position.y / 100) * safeAreaHeight;
-        
+
         // Scale element height proportionally to safe area
         if (adjustedHeight) {
             adjustedHeight = (adjustedHeight / 100) * safeAreaHeight;
@@ -375,7 +354,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         boxShadow: elStyles.shadow ? 'var(--shadow-md)' : undefined,
         textDecoration: elStyles.textDecoration,
         fontStyle: elStyles.fontStyle,
-        cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery') ? 'pointer' : 'default',
+        cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery' || type === 'long-text') ? 'pointer' : 'default',
         border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
     };
 
@@ -451,13 +430,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         case 'text':
             const hasBackground = !!elStyles.backgroundColor;
             const showBorderWrapper = isSelected && mode === 'editor';
-            
+
             // For text without background and not selected, keep original layout but remove visible box
             if (!hasBackground && !showBorderWrapper) {
                 // Use original commonProps structure but override className to exclude elementText
                 // and ensure no visible border/background/boxShadow
-                const noBoxTextClassName = `${styles.element} ${type === 'image' ? styles.elementImage : ''} ${type === 'button' ? styles.elementButton : ''} ${getAnimationClass()}`;
-                
+                const noBoxTextClassName = `${styles.element} ${getAnimationClass()}`;
+
                 const noBoxTextStyle = {
                     ...commonProps.style,
                     border: 'none',
@@ -469,10 +448,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     alignItems: 'center',
                     justifyContent: elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start',
                 };
-                
+
                 return (
-                    <div 
+                    <div
                         ref={elementRef}
+                        id={`element-${element.id}`}
+                        role="textbox"
+                        aria-label="Text Element"
                         className={noBoxTextClassName}
                         contentEditable={isSelected && mode === 'editor'}
                         onInput={handleTextChange}
@@ -491,10 +473,10 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     </div>
                 );
             }
-            
+
             // For text with background or when selected, use wrapper for border/padding
             return (
-                <div 
+                <div
                     {...commonProps}
                     style={{
                         ...commonProps.style,
@@ -505,6 +487,9 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     }}
                 >
                     <div
+                        id={`element-${element.id}`}
+                        role="textbox"
+                        aria-label="Text Element"
                         contentEditable={isSelected && mode === 'editor'}
                         onInput={handleTextChange}
                         suppressContentEditableWarning
@@ -533,16 +518,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 return (
                     <div
                         {...commonProps}
-                    style={{
-                        ...commonProps.style,
-                        border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
-                        padding: elStyles.frameColor ? '8px' : '0',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: elStyles.backgroundColor || 'transparent',
-                    }}
+                        style={{
+                            ...commonProps.style,
+                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                            padding: elStyles.frameColor ? '8px' : '0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: elStyles.backgroundColor || 'transparent',
+                        }}
                     >
                         {hasTitle && (
                             <div style={{
@@ -552,7 +537,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 textAlign: 'center',
                                 marginBottom: '4px',
                             }}>
-                                {element.metadata.title}
+                                {element.metadata?.title}
                             </div>
                         )}
                         <img
@@ -560,12 +545,12 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             alt="Element"
                             loading="eager"
                             decoding="async"
-                            style={{ 
-                                width: '100%', 
-                                height: '100%', 
-                                objectFit: 'contain', 
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
                                 objectPosition: 'center',
-                                borderRadius: 4 
+                                borderRadius: 4
                             }}
                             draggable={false}
                             onLoad={(e) => {
@@ -574,7 +559,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                     const img = e.currentTarget;
                                     const naturalWidth = img.naturalWidth;
                                     const naturalHeight = img.naturalHeight;
-                                    
+
                                     if (naturalWidth > 0 && naturalHeight > 0) {
                                         const aspectRatio = naturalWidth / naturalHeight;
                                         const parent = elementRef.current.offsetParent as HTMLElement;
@@ -583,12 +568,12 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                             const parentHeight = parent.clientHeight;
                                             const currentWidthPercent = size.width || 80;
                                             const currentHeightPercent = size.height || 45;
-                                            
+
                                             // Calculate what height would maintain aspect ratio
                                             const currentWidthPx = (currentWidthPercent / 100) * parentWidth;
                                             const idealHeightPx = currentWidthPx / aspectRatio;
                                             const idealHeightPercent = (idealHeightPx / parentHeight) * 100;
-                                            
+
                                             // Only update if the difference is significant (more than 5%)
                                             if (Math.abs(idealHeightPercent - currentHeightPercent) > 5) {
                                                 // Don't auto-resize, let user manually adjust if needed
@@ -606,7 +591,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 textAlign: 'center',
                                 marginTop: '4px',
                             }}>
-                                {element.metadata.subtitle}
+                                {element.metadata?.subtitle}
                             </div>
                         )}
                         {renderResizeHandles()}
@@ -626,9 +611,9 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         alt="Element"
                         loading="eager"
                         decoding="async"
-                        style={{ 
-                            width: '100%', 
-                            height: '100%', 
+                        style={{
+                            width: '100%',
+                            height: '100%',
                             objectFit: 'contain',
                             objectPosition: 'center',
                         }}
@@ -678,6 +663,21 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     {content}
                     {renderResizeHandles()}
                 </div>
+            );
+
+        case 'long-text':
+            return (
+                <>
+                    <LongTextElement
+                        element={element}
+                        style={commonProps.style}
+                        mode={mode}
+                        isSelected={isSelected}
+                        onMouseDown={handleMouseDown}
+                        onClick={handleInteraction}
+                    />
+                    {renderResizeHandles()}
+                </>
             );
 
         case 'gallery':
@@ -751,10 +751,10 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             textAlign: 'center',
                             marginBottom: '4px',
                         }}>
-                            {element.metadata.title}
+                            {element.metadata?.title}
                         </div>
                     )}
-                    
+
                     {/* Hero Image with Navigation */}
                     <div style={{
                         position: 'relative',
@@ -784,7 +784,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 draggable={false}
                             />
                         )}
-                        
+
                         {/* Navigation Arrows */}
                         {isInteractive && images.length > 1 && (
                             <>
@@ -922,7 +922,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             textAlign: 'center',
                             marginTop: '4px',
                         }}>
-                            {element.metadata.subtitle}
+                            {element.metadata?.subtitle}
                         </div>
                     )}
                     {renderResizeHandles()}
@@ -936,16 +936,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 return (
                     <div
                         {...commonProps}
-                    style={{
-                        ...commonProps.style,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
-                        padding: elStyles.frameColor ? '8px' : '0',
-                        backgroundColor: elStyles.backgroundColor || 'transparent',
-                    }}
+                        style={{
+                            ...commonProps.style,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: elStyles.frameColor ? `4px solid ${elStyles.frameColor}` : 'none',
+                            padding: elStyles.frameColor ? '8px' : '0',
+                            backgroundColor: elStyles.backgroundColor || 'transparent',
+                        }}
                     >
                         {videoTitle && (
                             <div style={{
@@ -955,19 +955,19 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 textAlign: 'center',
                                 marginBottom: '4px',
                             }}>
-                                {element.metadata.title}
+                                {element.metadata?.title}
                             </div>
                         )}
                         <video
                             src={content}
                             controls
                             preload="metadata"
-                            style={{ 
-                                width: '100%', 
-                                height: '100%', 
+                            style={{
+                                width: '100%',
+                                height: '100%',
                                 objectFit: 'contain',
                                 objectPosition: 'center',
-                                borderRadius: 4 
+                                borderRadius: 4
                             }}
                             draggable={false}
                         />
@@ -978,7 +978,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 textAlign: 'center',
                                 marginTop: '4px',
                             }}>
-                                {element.metadata.subtitle}
+                                {element.metadata?.subtitle}
                             </div>
                         )}
                         {renderResizeHandles()}
@@ -997,9 +997,9 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         src={content}
                         controls
                         preload="metadata"
-                        style={{ 
-                            width: '100%', 
-                            height: '100%', 
+                        style={{
+                            width: '100%',
+                            height: '100%',
                             objectFit: 'contain',
                             objectPosition: 'center',
                         }}
@@ -1032,7 +1032,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 textAlign: 'center',
                                 marginBottom: '4px',
                             }}>
-                                {element.metadata.title}
+                                {element.metadata?.title}
                             </div>
                         )}
                         <LongTextElement
@@ -1050,7 +1050,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 textAlign: 'center',
                                 marginTop: '4px',
                             }}>
-                                {element.metadata.subtitle}
+                                {element.metadata?.subtitle}
                             </div>
                         )}
                         {renderResizeHandles()}

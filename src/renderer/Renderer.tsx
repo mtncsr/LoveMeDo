@@ -32,10 +32,9 @@ export const Renderer: React.FC<Props> = ({
     );
     const [navHistory, setNavHistory] = useState<string[]>([]);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-    const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+    const [lightboxItems, setLightboxItems] = useState<{ type: 'image' | 'text', content: string }[]>([]);
     const [lightboxIndex, setLightboxIndex] = useState<number>(0);
-    
+
     // Music playback refs
     const globalAudioRef = useRef<HTMLAudioElement | null>(null);
     const screenAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -43,7 +42,7 @@ export const Renderer: React.FC<Props> = ({
     // Determine which screen to show
     const activeId = mode === 'editor' && propScreenId ? propScreenId : internalActiveId;
     let activeScreen = project.screens.find(s => s.id === activeId);
-    
+
     // Fallback: if active screen not found, use first screen (safety check)
     if (!activeScreen && project.screens.length > 0) {
         activeScreen = project.screens[0];
@@ -63,7 +62,7 @@ export const Renderer: React.FC<Props> = ({
     // Handle global music
     useEffect(() => {
         if (mode === 'editor') return; // No music in editor
-        
+
         if (project.config.globalMusic) {
             const audioItem = project.mediaLibrary[project.config.globalMusic];
             if (audioItem && audioItem.type === 'audio') {
@@ -72,7 +71,7 @@ export const Renderer: React.FC<Props> = ({
                     screenAudioRef.current.pause();
                     screenAudioRef.current = null;
                 }
-                
+
                 // Play global music
                 if (!globalAudioRef.current || globalAudioRef.current.src !== audioItem.data) {
                     if (globalAudioRef.current) {
@@ -92,7 +91,7 @@ export const Renderer: React.FC<Props> = ({
                 globalAudioRef.current = null;
             }
         }
-        
+
         return () => {
             if (globalAudioRef.current) {
                 globalAudioRef.current.pause();
@@ -105,7 +104,7 @@ export const Renderer: React.FC<Props> = ({
     useEffect(() => {
         if (mode === 'editor') return; // No music in editor
         if (project.config.globalMusic) return; // No per-screen music if global exists
-        
+
         const currentScreen = project.screens.find(s => s.id === activeId);
         if (currentScreen?.music) {
             const audioItem = project.mediaLibrary[currentScreen.music];
@@ -115,7 +114,7 @@ export const Renderer: React.FC<Props> = ({
                     screenAudioRef.current.pause();
                     screenAudioRef.current = null;
                 }
-                
+
                 // Play current screen music
                 const audio = new Audio(audioItem.data);
                 audio.loop = true;
@@ -130,7 +129,7 @@ export const Renderer: React.FC<Props> = ({
                 screenAudioRef.current = null;
             }
         }
-        
+
         return () => {
             if (screenAudioRef.current) {
                 screenAudioRef.current.pause();
@@ -187,23 +186,24 @@ export const Renderer: React.FC<Props> = ({
 
     const handleElementClick = (elementId: string) => {
         const el = activeScreen?.elements.find(e => e.id === elementId);
-        
-        // Handle image clicks - open lightbox with hero + gallery images
-        if (el?.type === 'image') {
-            // Hero image clicked - collect hero image + all gallery images from same screen
-            const allImages: string[] = [];
-            let clickedImageIndex = 0;
-            
-            // Add the clicked hero image first
-            const heroImageUrl = resolveMediaUrl(el.content);
-            if (heroImageUrl && heroImageUrl.trim() !== '') {
-                allImages.push(heroImageUrl);
-                clickedImageIndex = 0;
-            }
-            
-            // Then, collect all gallery images from the same screen
+
+        // Handle lightbox interactions (Images, Galleries, Expandable Text)
+        // Check if element is media or expandable text
+        const isClickable = el?.type === 'image' ||
+            el?.type === 'gallery' ||
+            (el?.type === 'long-text' && el.metadata?.expandable);
+
+        if (isClickable) {
+            // Collect all displayable items from the screen
+            const allItems: { type: 'image' | 'text', content: string, id: string }[] = [];
+
             activeScreen?.elements.forEach((elem) => {
-                if (elem.type === 'gallery') {
+                if (elem.type === 'image') {
+                    const heroImageUrl = resolveMediaUrl(elem.content);
+                    if (heroImageUrl && heroImageUrl.trim() !== '') {
+                        allItems.push({ type: 'image', content: heroImageUrl, id: elem.id });
+                    }
+                } else if (elem.type === 'gallery') {
                     let galleryImages: string[] = [];
                     try {
                         galleryImages = JSON.parse(elem.content);
@@ -211,45 +211,42 @@ export const Renderer: React.FC<Props> = ({
                     } catch {
                         galleryImages = [elem.content];
                     }
-                    
+
                     galleryImages.forEach((imgId) => {
                         const imageUrl = resolveMediaUrl(imgId);
                         if (imageUrl && imageUrl.trim() !== '') {
-                            allImages.push(imageUrl);
+                            // Add images as belonging to this gallery ID but they are individual items in lightbox
+                            // Note: if clicked gallery, we want to start at first image of gallery
+                            // But we just linearize everything for the lightbox playlist
+                            allItems.push({ type: 'image', content: imageUrl, id: elem.id });
                         }
                     });
+                } else if (elem.type === 'long-text' && elem.metadata?.expandable) {
+                    allItems.push({ type: 'text', content: elem.content, id: elem.id });
                 }
             });
-            
-            if (allImages.length > 0) {
-                setLightboxImages(allImages);
-                setLightboxIndex(clickedImageIndex);
-                setLightboxSrc(allImages[clickedImageIndex]);
+
+            // Find starting index
+            let startIndex = 0;
+
+            // If clicked explicit element, find it in the list
+            if (el?.type === 'image' || (el?.type === 'long-text' && el.metadata?.expandable)) {
+                // Determine index by matching ID
+                // Note: duplicates (like multiple images from same gallery ID) need care, 
+                // but direct "image" or "long-text" usually maps 1:1
+                const index = allItems.findIndex(item => item.id === el.id);
+                if (index !== -1) startIndex = index;
+            } else if (el?.type === 'gallery') {
+                // If clicked a gallery, find the first item belonging to that gallery
+                const index = allItems.findIndex(item => item.id === el.id);
+                if (index !== -1) startIndex = index;
             }
-            
-            // In editor mode, still select the element for editing
-            if (mode === 'editor') {
-                onElementSelect?.(elementId);
+
+            if (allItems.length > 0) {
+                setLightboxItems(allItems);
+                setLightboxIndex(startIndex);
             }
-        } else if (el?.type === 'gallery') {
-            // Gallery clicked - show gallery images only (existing behavior)
-            let images: string[] = [];
-            try {
-                images = JSON.parse(el.content);
-                if (!Array.isArray(images)) images = [el.content];
-            } catch {
-                images = [el.content];
-            }
-            
-            // Resolve media IDs to URLs
-            const resolvedImages = images.map(imgId => resolveMediaUrl(imgId)).filter(url => url && url.trim() !== '');
-            
-            if (resolvedImages.length > 0) {
-                setLightboxImages(resolvedImages);
-                setLightboxIndex(0);
-                setLightboxSrc(resolvedImages[0]);
-            }
-            
+
             // In editor mode, still select the element for editing
             if (mode === 'editor') {
                 onElementSelect?.(elementId);
@@ -268,7 +265,7 @@ export const Renderer: React.FC<Props> = ({
     if (!activeScreen) return <div className={styles.error}>No Screen Found</div>;
 
     return (
-        <div 
+        <div
             className={`${styles.rendererContainer} ${className || ''}`}
             data-mode={mode}
             data-device={device}
@@ -324,20 +321,17 @@ export const Renderer: React.FC<Props> = ({
                 </div>
             )}
 
-            {lightboxSrc && (
+            {lightboxItems.length > 0 && (
                 <Lightbox
-                    imageSrc={lightboxSrc}
-                    images={lightboxImages}
+                    items={lightboxItems}
                     currentIndex={lightboxIndex}
                     onClose={() => {
-                        setLightboxSrc(null);
-                        setLightboxImages([]);
+                        setLightboxItems([]);
                         setLightboxIndex(0);
                     }}
                     onNavigate={(index) => {
-                        if (index >= 0 && index < lightboxImages.length) {
+                        if (index >= 0 && index < lightboxItems.length) {
                             setLightboxIndex(index);
-                            setLightboxSrc(lightboxImages[index]);
                         }
                     }}
                 />

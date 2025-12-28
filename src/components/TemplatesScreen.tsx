@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useUIStore } from '../store/uiStore';
 import { useProjectStore } from '../store/projectStore';
 import { getAllTemplates } from '../templates/registry';
@@ -20,16 +20,16 @@ const TemplatesScreen: React.FC = () => {
         input.onchange = async (e) => {
             const file = (e.target as HTMLInputElement).files?.[0];
             if (!file) return;
-            
+
             try {
                 const text = await file.text();
                 const project = JSON.parse(text);
-                
+
                 // Validate project structure
                 if (!project.version || !project.screens || !Array.isArray(project.screens)) {
                     throw new Error('Invalid project file format');
                 }
-                
+
                 // Load project into store
                 setProject(project);
                 setMode('editor');
@@ -66,7 +66,7 @@ const TemplatesScreen: React.FC = () => {
                         const styles: Record<string, { bg: string; accent: string; text: string }> = {
                             'birthday-kids': { bg: 'linear-gradient(135deg, #FFD93D, #FF4D6D, #4CC9F0)', accent: '#FF4D6D', text: '#2D2D2D' },
                             'birthday-partner': { bg: 'linear-gradient(135deg, #590d22, #800f2f, #9d4edd)', accent: '#C9184A', text: '#590d22' },
-                            'anniversary-timeline': { bg: 'linear-gradient(to right, #4a4e69, #9a8c98)', accent: '#22223b', text: '#22223b' },
+                            'anniversary-timeline': { bg: 'linear-gradient(135deg, #FFB4A2, #E5989B, #FFFFFF)', accent: '#A4161A', text: '#660708' },
                             'one-screen': { bg: 'linear-gradient(135deg, #222, #444)', accent: '#666', text: '#2D2D2D' },
                             'baby-birth': { bg: 'linear-gradient(to bottom, #d8f3dc, #fefae0)', accent: '#95d5b2', text: '#555' },
                             'graduation': { bg: 'linear-gradient(to bottom, #001d3d, #003566)', accent: '#ffc300', text: '#ffc300' },
@@ -91,18 +91,18 @@ const TemplatesScreen: React.FC = () => {
                                 borderColor: templateStyle.accent,
                             }}
                         >
-                            <div 
+                            <div
                                 className={styles.cardThumbnail}
                                 style={{ background: templateStyle.bg }}
                             >
                                 <span className={styles.emoji}>{template.thumbnail}</span>
                             </div>
                             <div className={styles.cardContent}>
-                                <div 
+                                <div
                                     className={styles.catBadge}
-                                    style={{ 
+                                    style={{
                                         background: `${templateStyle.accent}20`,
-                                        color: templateStyle.accent 
+                                        color: templateStyle.accent
                                     }}
                                 >
                                     {template.category}

@@ -33,8 +33,8 @@ const createButton = (content: string, y: number, color: string = 'var(--color-p
         shadow: true,
         zIndex: 20,
     },
-    metadata: { 
-        target: 'next', 
+    metadata: {
+        target: 'next',
         action: 'navigate',
         sticker: emoji // Store emoji in metadata for separate rendering
     }
@@ -89,7 +89,7 @@ const createLongText = (content: string, y: number, bgColor: string = 'rgba(255,
 const createScreen = (title: string, type: Screen['type'], backgroundValue: string, elements: ScreenElement[] = [], overlay?: Screen['background']['overlay']): Screen => {
     // Layout calculation is now done at render time in ScreenRenderer based on device
     // Templates are created with original element positions
-    
+
     return {
         id: uuidv4(),
         title,
@@ -114,51 +114,51 @@ const estimateTextHeight = (
 ): number => {
     // Base line height factor (typically 1.2-1.5x font size)
     const lineHeightFactor = 1.3;
-    
+
     // Account for device scaling - use same scale as ElementRenderer (0.7 for mobile)
     // This ensures layout calculation matches actual rendered font sizes
     const deviceScale = device === 'mobile' ? 0.7 : 1.0;
     const scaledFontSize = fontSize * deviceScale;
-    
+
     // Count line breaks in content
     const lineBreaks = (content.match(/\n/g) || []).length;
-    
+
     // Estimate characters per line based on width
     // Rough estimate: ~50-60 characters per 100% width at 24px font
     // Adjust based on actual font size
     const charsPerLine = Math.max(20, Math.floor((width / 100) * (60 * (24 / scaledFontSize))));
-    
+
     // Calculate number of lines needed
     const textLines = Math.max(1, Math.ceil(content.length / charsPerLine));
     const totalLines = textLines + lineBreaks;
-    
+
     // Calculate height: lines * line height, converted to percentage
     // For mobile (9:16 aspect ratio): typical viewport height is ~667-800px
     // For desktop (16:9 aspect ratio): typical viewport height is ~600-900px
     // We need to convert pixel height to percentage of the safe area (0-100% template space)
     const lineHeightPx = scaledFontSize * lineHeightFactor;
     const estimatedHeightPx = lineHeightPx * totalLines;
-    
+
     // Convert to percentage based on actual viewport height
     // Mobile: ~667px viewport height (iPhone standard)
     // Desktop: ~720px viewport height for 16:9
     const viewportHeightPx = device === 'mobile' ? 667 : 720;
-    
+
     // Convert pixel height to percentage of viewport
     // Then scale to template space (0-100%)
     const heightPercent = (estimatedHeightPx / viewportHeightPx) * 100;
-    
+
     // Add padding for text elements (more padding for larger fonts)
     // Minimum padding: 3%, additional padding based on font size
     const fontSizePadding = Math.max(0, (scaledFontSize - 20) / 5); // Extra 0.2% per px above 20px
     const totalPadding = 3 + fontSizePadding;
-    
+
     // Ensure minimum height based on font size (at least 2.5x line height for single line)
     // This accounts for actual rendered height which is often larger than calculated
     // For larger fonts, we need even more space
     const minHeightMultiplier = scaledFontSize > 30 ? 3.0 : 2.5;
     const minHeightPercent = (scaledFontSize * lineHeightFactor * minHeightMultiplier) / viewportHeightPx * 100;
-    
+
     const result = Math.max(minHeightPercent, Math.min(95, heightPercent + totalPadding));
     return result;
 };
@@ -170,19 +170,19 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
     // Use 99% to leave 1% buffer at bottom for next button
     const safeAreaTop = 0;
     const safeAreaBottom = 99;  // 99% in template = ~84% on screen (leaves space for next button)
-    
+
     // Device-aware scaling factors
     const isMobile = device === 'mobile';
     const contentScale = isMobile ? 0.85 : 1.0; // Scale down content on mobile
     const spacingFactor = isMobile ? 1.5 : 1.0; // More spacing on mobile for better readability
     const baseMinSpacing = 4; // Base minimum spacing between elements (increased from 3)
     const minSpacing = baseMinSpacing * spacingFactor; // Minimum spacing between elements
-    
+
     // Separate layout-constrained elements from stickers (free-floating)
     const layoutElements: ScreenElement[] = [];
     const stickers: ScreenElement[] = [];
     const galleries: ScreenElement[] = [];
-    
+
     elements.forEach(el => {
         if (el.type === 'sticker') {
             stickers.push(el); // Stickers can overlap, keep original position
@@ -193,35 +193,35 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             layoutElements.push({ ...el }); // Copy for layout calculation
         }
     });
-    
+
     // Sort layout elements by intended Y position (top to bottom)
     // Special handling: process yellow wish card first, then hero, then blue wish card, then red wish card
     layoutElements.sort((a, b) => {
         const aY = a.position.y;
         const bY = b.position.y;
-        
+
         // Detect wish cards
         const aIsWish = a.type === 'text' && a.styles?.backgroundColor && a.styles?.borderRadius;
         const bIsWish = b.type === 'text' && b.styles?.backgroundColor && b.styles?.borderRadius;
-        
+
         // Yellow wish card (y:5) comes first
         if (aIsWish && aY === 5) return -1;
         if (bIsWish && bY === 5) return 1;
-        
+
         // Hero image comes after yellow, before blue
         if (a.type === 'image' && aY >= 50 && aIsWish && bY === 5) return 1;
         if (b.type === 'image' && bY >= 50 && aIsWish && aY === 5) return -1;
         if (a.type === 'image' && aY >= 50 && bIsWish && bY === 31) return -1;
         if (b.type === 'image' && bY >= 50 && aIsWish && aY === 31) return 1;
-        
+
         // Blue wish card (y:31) comes after hero
         if (aIsWish && aY === 31 && b.type === 'image' && bY >= 50) return 1;
         if (bIsWish && bY === 31 && a.type === 'image' && aY >= 50) return -1;
-        
+
         // Red wish card (y:18) comes after yellow, before blue
         if (aIsWish && aY === 18 && bIsWish && bY === 31) return -1;
         if (bIsWish && bY === 18 && aIsWish && aY === 31) return 1;
-        
+
         // Default: sort by Y position
         if (Math.abs(aY - bY) < 5) {
             // If Y positions are close (within 5%), sort by X (left to right)
@@ -229,18 +229,18 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
         }
         return aY - bY;
     });
-    
+
     // Calculate adjusted positions to prevent overlaps
     const adjustedElements: ScreenElement[] = [];
-    
+
     for (let i = 0; i < layoutElements.length; i++) {
         const current = layoutElements[i];
         let adjustedY = current.position.y;
-        
-        
+
+
         // Calculate accurate height based on element type
         let adjustedHeight: number;
-        
+
         if (current.type === 'text' || current.type === 'long-text') {
             // Use estimated height for text elements
             const fontSize = current.styles?.fontSize || 24;
@@ -255,13 +255,13 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             // For other elements (images, buttons), use defined height with scaling
             adjustedHeight = (current.size.height || 10) * contentScale;
         }
-        
-        
+
+
         // Check for overlaps with ALL previous elements (not just immediately previous)
         let maxBottom = safeAreaTop;
         for (let j = 0; j < adjustedElements.length; j++) {
             const previous = adjustedElements[j];
-            
+
             // Get actual height of previous element
             let prevHeight: number;
             if (previous.type === 'text' || previous.type === 'long-text') {
@@ -271,43 +271,43 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             } else {
                 prevHeight = (previous.size.height || 10) * contentScale;
             }
-            
+
             const prevBottom = previous.position.y + prevHeight;
-            
+
             // Improved horizontal overlap detection - use actual element widths
             const currentLeft = current.position.x;
             const currentRight = current.position.x + (current.size.width || 80);
             const prevLeft = previous.position.x;
             const prevRight = previous.position.x + (previous.size.width || 80);
-            
+
             // Check if elements overlap horizontally (more precise check)
             const horizontalOverlap = currentLeft < prevRight && currentRight > prevLeft;
-            
-            
+
+
             // If horizontally overlapping, track the bottom position
             if (horizontalOverlap) {
                 maxBottom = Math.max(maxBottom, prevBottom);
             }
         }
-        
+
         // Position element below all overlapping previous elements with spacing
         // Detect wish cards (text elements with background color and border radius)
-        const isWishCard = (el: ScreenElement) => 
-            el.type === 'text' && 
-            el.styles?.backgroundColor && 
+        const isWishCard = (el: ScreenElement) =>
+            el.type === 'text' &&
+            el.styles?.backgroundColor &&
             el.styles?.borderRadius;
-        
+
         const currentIsWish = isWishCard(current);
         const currentIsImage = current.type === 'image';
-        
+
         // Add spacing based on element types
         let requiredSpacing = minSpacing;
-        if ((current.type === 'text' || current.type === 'long-text') && 
+        if ((current.type === 'text' || current.type === 'long-text') &&
             adjustedElements.length > 0) {
             const previous = adjustedElements[adjustedElements.length - 1];
             if (previous.type === 'text' || previous.type === 'long-text') {
                 const prevIsWish = isWishCard(previous);
-                
+
                 if (currentIsWish && prevIsWish) {
                     // Wish cards should have consistent small spacing between them
                     // Use a fixed small padding (1.5% on mobile, 1.0% on desktop) for consistent stacking
@@ -319,7 +319,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 }
             }
         }
-        
+
         // Special handling: if current is image and previous is wish card, add minimal spacing
         if (currentIsImage && adjustedElements.length > 0) {
             const previous = adjustedElements[adjustedElements.length - 1];
@@ -328,13 +328,13 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 requiredSpacing = isMobile ? 2.0 : 1.5;
             }
         }
-        
+
         // For wish cards: special layout - yellow at top, blue at bottom, red centered between them
         // This must run BEFORE the general overlap adjustment to ensure positioning takes precedence
         if (currentIsWish) {
-            
+
             const wishCardSpacing = isMobile ? 1.5 : 1.0; // Small spacing for wish cards
-            
+
             // Find hero image in layoutElements
             let heroImage: ScreenElement | null = null;
             for (let j = 0; j < layoutElements.length; j++) {
@@ -343,12 +343,12 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                     break;
                 }
             }
-            
+
             // Identify which wish card this is (by original Y position: 5=yellow, 18=red, 31=blue)
             const isYellow = current.position.y === 5;
             const isRed = current.position.y === 18;
             const isBlue = current.position.y === 31;
-            
+
             if (isYellow) {
                 // Yellow card: small space from top line
                 adjustedY = wishCardSpacing; // Start with small padding from top
@@ -363,7 +363,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                             break;
                         }
                     }
-                    
+
                     adjustedY = heroY - adjustedHeight - wishCardSpacing - 3; // Position above hero with small padding, move up 3 tics (2% more than before)
                 }
             } else if (isRed) {
@@ -371,7 +371,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 // Find yellow and blue cards from adjustedElements or calculate from known positions
                 let yellowBottom = wishCardSpacing + adjustedHeight; // Yellow at top + its height
                 let blueTop = safeAreaBottom - adjustedHeight - wishCardSpacing; // Blue near bottom
-                
+
                 // Try to get actual positions from already processed elements
                 for (const el of adjustedElements) {
                     if (isWishCard(el)) {
@@ -383,17 +383,17 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                         }
                     }
                 }
-                
+
                 // If we have hero, use it to calculate blue position
                 if (heroImage && blueTop > heroImage.position.y - adjustedHeight) {
                     blueTop = heroImage.position.y - adjustedHeight - wishCardSpacing;
                 }
-                
+
                 // Center red between yellow bottom and blue top
                 const availableSpace = blueTop - yellowBottom;
                 const redHeight = adjustedHeight;
                 const totalSpaceNeeded = redHeight + (wishCardSpacing * 2); // Red height + padding on both sides
-                
+
                 if (availableSpace >= totalSpaceNeeded) {
                     adjustedY = yellowBottom + wishCardSpacing; // Small space from yellow
                     // Center it in remaining space
@@ -403,13 +403,13 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                     // Not enough space, just stack with small padding from yellow
                     adjustedY = yellowBottom + wishCardSpacing;
                 }
-                
+
                 // Move red card up by 2 tics
                 adjustedY -= 2;
-                
+
             }
         }
-        
+
         // Now apply general overlap adjustment (but skip for wish cards that already handled stacking)
         // Don't override wish card stacking - only apply general adjustment if not a wish card or if it's the first wish card
         if (!currentIsWish || adjustedElements.length === 0) {
@@ -417,8 +417,8 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 adjustedY = maxBottom + requiredSpacing;
             }
         }
-        
-        
+
+
         // CRITICAL: Ensure element doesn't exceed safe area bottom (100% = 85% on screen)
         const elementBottom = adjustedY + adjustedHeight;
         if (elementBottom > safeAreaBottom) {
@@ -432,11 +432,11 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 adjustedY = safeAreaBottom - adjustedHeight - 1;
             }
         }
-        
+
         // Final clamp: ensure element fits within 0-100% template space
         const finalY = Math.max(safeAreaTop, Math.min(safeAreaBottom - adjustedHeight - 0.5, adjustedY));
         const finalHeight = Math.min(adjustedHeight, safeAreaBottom - finalY - 0.5);
-        
+
         // Create adjusted element
         const adjustedElement = {
             ...current,
@@ -449,22 +449,22 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 height: finalHeight
             }
         };
-        
-        
+
+
         adjustedElements.push(adjustedElement);
     }
-    
+
     // Gallery-specific responsive behavior: Expand galleries on desktop
     if (!isMobile) {
         // Find all gallery elements and expand them to use available space
         for (let i = 0; i < adjustedElements.length; i++) {
             if (adjustedElements[i].type === 'gallery') {
                 const gallery = adjustedElements[i];
-                
+
                 // Calculate used vertical space by all elements below this gallery
                 let spaceUsedBelow = 0;
                 const galleryBottom = gallery.position.y + gallery.size.height;
-                
+
                 for (let j = 0; j < adjustedElements.length; j++) {
                     if (j !== i && adjustedElements[j].position.y > galleryBottom) {
                         const otherElement = adjustedElements[j];
@@ -479,11 +479,11 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                         spaceUsedBelow += otherHeight + minSpacing;
                     }
                 }
-                
+
                 // Calculate available space for gallery expansion
                 const availableSpace = safeAreaBottom - gallery.position.y - spaceUsedBelow - minSpacing;
                 const maxGalleryHeight = Math.min(availableSpace * 0.9, 70); // Max 70% height, use 90% of available
-                
+
                 // Expand gallery if there's more space available
                 if (maxGalleryHeight > gallery.size.height) {
                     adjustedElements[i] = {
@@ -497,7 +497,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             }
         }
     }
-    
+
     // Combine adjusted layout elements with stickers (preserving original positions)
     return [...adjustedElements, ...stickers];
 };
@@ -507,10 +507,10 @@ const createNavScreen = (bg: string): Screen => ({
     id: uuidv4(),
     title: 'All Screens',
     type: 'navigation',
-    background: { 
-        type: bg.includes('gradient') ? 'gradient' : 'solid', 
-        value: bg, 
-        animation: 'none' 
+    background: {
+        type: bg.includes('gradient') ? 'gradient' : 'solid',
+        value: bg,
+        animation: 'none'
     },
     elements: []
 });
@@ -699,30 +699,42 @@ const templates: Template[] = [
         id: 'anniversary-timeline',
         category: 'Anniversary',
         name: 'Anniversary Timeline',
-        description: ['Warm, mature, story-driven', 'Timeline style', 'Deep purple & rose'],
-        thumbnail: '⏳',
+        description: ['Warm, mature, loving', 'Timeline style', 'Ruby & Cream'],
+        thumbnail: '🥂',
         screens: 6,
-        tags: ['anniversary', 'timeline', 'story'],
-        defaultConfig: { primaryColor: '#9a8c98', fontHeading: 'Playfair Display', fontBody: 'Outfit' },
+        tags: ['anniversary', 'timeline', 'love'],
+        defaultConfig: { primaryColor: '#A4161A', fontHeading: 'Playfair Display', fontBody: 'Outfit' },
         initialProjectData: (title) => {
-            // Screen 1: Overlay with calm gradient, hourglass
-            const s1 = createScreen('Cover', 'overlay', 'linear-gradient(to right, #4a4e69, #9a8c98, #c9ada7)', [
-                createSticker('⏳', 50, 15, 56, 0), // Moved up from 25 to avoid title overlap (large sticker)
-                createText('Our Story', 35, 48, true, '#FFF'),
-                createText('Since [Year]', 55, 24, false, '#f2e9e4'),
-                createButton('Begin Journey', 75, '#22223b')
-            ], '⏳'); // Use template thumbnail
+            // Screen 1: Overlay with warm sunset gradient
+            const s1 = createScreen('Cover', 'overlay', 'linear-gradient(135deg, #FFB4A2, #E5989B, #FFFFFF)', [
+                createSticker('🥂', 50, 20, 56, 0), // Swapped to Champagne glasses
+                createSticker('⏳', 15, 25, 30, -15), // Hourglass on left side
+                createSticker('💕', 85, 25, 30, 15), // Floating hearts above/side of title
+                createText('Our Story', 35, 48, true, '#FFFFFF'),
+                createText('Since [Year]', 55, 24, false, '#FFF0F3'),
+                createButton('Begin Journey', 75, '#A4161A')
+            ], '🥂'); // Use template thumbnail
 
             // Screen 2: Intro Text - Warm purple/rose theme
-            const s2 = createScreen('Intro', 'content', 'linear-gradient(135deg, #f2e9e4, #e9d8d6, #FFFFFF)', [
-                createSticker('💑', 50, 15, 44, 0),
-                createText('It all started with one moment, and slowly became a lifetime of memories.', 12, 24, false, '#22223b')
+            // Screen 2: Intro Text - Deeper Rose theme
+            const s2 = createScreen('Intro', 'content', 'linear-gradient(135deg, #E5989B, #B5838D, #6D6875)', [ // Darker
+                createText('It all started with one moment, and slowly became a lifetime of memories.', 20, 24, false, '#FFFFFF'), // Raised slightly
+                {
+                    id: uuidv4(),
+                    type: 'image' as const,
+                    content: '/images/templates/heroes/one-screen-hero.webp',
+                    position: { x: 10, y: 50 },
+                    size: { width: 80, height: 45 },
+                    styles: { zIndex: 5, borderRadius: 16, shadow: true }
+                },
+                createSticker('💑', 85, 35, 40, -10), // Moved to side between text and image
             ]);
 
             // Screen 3: Timeline Gallery - Mature purple tones
-            const s3 = createScreen('Timeline', 'content', 'linear-gradient(to bottom, #c9ada7, #e9d8d6)', [
-                createSticker('📅', 88, 8, 32, 0),
-                createText('Every step brought us closer', 12, 26, true, '#22223b'),
+            // Screen 3: Timeline Gallery - Warm Sunset
+            const s3 = createScreen('Timeline', 'content', 'linear-gradient(to bottom, #FFB4A2, #E5989B)', [ // Darker
+                createSticker('⏳', 50, 8, 40, 0), // Hourglass centered above text
+                createText('Every step brought us closer', 25, 26, true, '#FFFFFF'), // Lowered text more
                 {
                     id: uuidv4(),
                     type: 'gallery' as const,
@@ -739,15 +751,35 @@ const templates: Template[] = [
             ]);
 
             // Screen 4: Wishes - Warm elegant background
-            const s4 = createScreen('Wishes', 'content', 'linear-gradient(135deg, #f2e9e4, #FFFFFF)', [
-                createSticker('💝', 12, 10, 36, 5),
-                createWishCard('So inspiring to see your love', 15, '#9a8c98', '#FFFFFF'),
-                createWishCard('Here\'s to many more years', 87, '#4a4e69', '#FFFFFF'), // Adjusted to end at 99% (87 + 12 = 99)
+            // Screen 4: Wishes - Warm Rose
+            const s4 = createScreen('Wishes', 'content', 'linear-gradient(135deg, #FFB4A2, #FFCDB2, #E5989B)', [ // Darker
+                createSticker('💝', 90, 5, 36, 15),
+                createWishCard('So inspiring to see your love', 10, '#A4161A', '#FFFFFF'), // Top wish
+                // Expandable Wish Container - Centered and filling space
+                {
+                    id: uuidv4(),
+                    type: 'long-text' as const,
+                    content: 'Click here to write a long, heartfelt wish or memory. \n\nThis message will open in fullscreen for easy reading. Share your favorite moments, lessons learned, or hopes for the future.',
+                    position: { x: 10, y: 24 },
+                    size: { width: 80, height: 52 },
+                    styles: {
+                        borderRadius: 16,
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        color: '#660708',
+                        fontSize: 18,
+                        zIndex: 10,
+                        shadow: true,
+                        textAlign: 'left',
+                    },
+                    metadata: { expandable: true } // Opens in lightbox
+                },
+                createWishCard('Here\'s to many more years', 78, '#660708', '#FFFFFF'), // Bottom wish
             ]);
 
             // Screen 5: Video Standalone - Deep purple background
-            const s5 = createScreen('Video', 'content', 'linear-gradient(135deg, #22223b, #4a4e69)', [
-                createSticker('💜', 88, 10, 40, 0),
+            // Screen 5: Video Standalone - Deep Warm Ruby
+            const s5 = createScreen('Video', 'content', 'linear-gradient(135deg, #660708, #A4161A)', [
+                createSticker('💜', 88, 5, 40, 0), // Moved to corner
                 createText('Still choosing each other', 12, 24, true, '#FFF'),
                 {
                     id: uuidv4(),
@@ -765,8 +797,8 @@ const templates: Template[] = [
                 templateId: 'anniversary-timeline',
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
-                config: { title, primaryColor: '#9a8c98', fontHeading: 'Playfair Display', fontBody: 'Outfit' },
-                screens: [s1, s2, s3, s4, s5, createNavScreen('#f2e9e4')],
+                config: { title, primaryColor: '#A4161A', fontHeading: 'Playfair Display', fontBody: 'Outfit' },
+                screens: [s1, s2, s3, s4, s5, createNavScreen('#E5989B')],
                 mediaLibrary: {}
             };
         }
