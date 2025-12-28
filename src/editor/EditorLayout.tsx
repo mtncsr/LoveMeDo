@@ -10,7 +10,7 @@ import MediaLibraryModal from './MediaLibraryModal';
 import { ElementEditingMenu } from './ElementEditingMenu';
 
 const EditorLayout: React.FC = () => {
-    const { project, updateScreen, updateElement, addScreen } = useProjectStore();
+    const { project, updateScreen, updateElement, addScreen, addElement } = useProjectStore();
     const {
         setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
         selectedElementId, isMediaLibraryOpen, mediaLibraryMode, contentManagerContext
@@ -242,6 +242,22 @@ const EditorLayout: React.FC = () => {
                             device={deviceView}
                             onElementSelect={(id) => setSelectedElementId(id || null)}
                             onElementUpdate={(id, changes) => activeScreenId && updateElement(activeScreenId, id, changes)}
+                            onAddElement={(element, callback) => {
+                                if (activeScreenId) {
+                                    console.log('Adding element:', element.id, 'to screen:', activeScreenId);
+                                    addElement(activeScreenId, element);
+                                    // Directly set the selected element ID after adding
+                                    // This ensures the design menu opens immediately
+                                    setTimeout(() => {
+                                        console.log('Setting selectedElementId to:', element.id);
+                                        setSelectedElementId(element.id);
+                                        // Also call the callback if provided
+                                        if (callback) {
+                                            callback(element.id);
+                                        }
+                                    }, 50);
+                                }
+                            }}
                             selectedElementId={selectedElementId || undefined}
                         />
 
@@ -249,6 +265,7 @@ const EditorLayout: React.FC = () => {
                         {selectedElementId && activeScreenId && (() => {
                             const currentScreen = project.screens.find(s => s.id === activeScreenId);
                             const selectedElement = currentScreen?.elements.find(e => e.id === selectedElementId);
+                            console.log('Rendering menu check - selectedElementId:', selectedElementId, 'activeScreenId:', activeScreenId, 'element found:', !!selectedElement, 'screen elements count:', currentScreen?.elements.length);
                             if (selectedElement) {
                                 return (
                                     <ElementEditingMenu

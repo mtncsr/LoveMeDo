@@ -12,6 +12,7 @@ interface Props {
     onScreenChange?: (screenId: string) => void;
     onElementSelect?: (elementId: string) => void;
     onElementUpdate?: (elementId: string, changes: any) => void; // Using any for partial Element
+    onAddElement?: (element: import('../types/model').ScreenElement, callback?: (elementId: string) => void) => void; // For creating elements in editor mode, with optional callback
     className?: string;
     device?: 'mobile' | 'desktop'; // For template preview mode
     selectedElementId?: string; // Selected element ID for editor mode
@@ -23,6 +24,7 @@ export const Renderer: React.FC<Props> = ({
     activeScreenId: propScreenId,
     onElementSelect,
     onElementUpdate,
+    onAddElement,
     className,
     device,
     selectedElementId
@@ -189,9 +191,11 @@ export const Renderer: React.FC<Props> = ({
 
     const handleElementClick = (elementId: string) => {
         const el = activeScreen?.elements.find(e => e.id === elementId);
+        console.log('handleElementClick called with elementId:', elementId, 'element found:', !!el, 'mode:', mode);
 
         // In editor mode, just select the element (content manager opens via Contents button in menu)
         if (mode === 'editor') {
+            console.log('Calling onElementSelect with:', elementId);
             onElementSelect?.(elementId);
             return;
         }
@@ -281,10 +285,12 @@ export const Renderer: React.FC<Props> = ({
                 onNavigate={handleNavigate}
                 onElementClick={handleElementClick}
                 onElementUpdate={onElementUpdate}
+                onAddElement={onAddElement}
                 allScreens={project.screens}
                 currentScreenIndex={project.screens.findIndex(s => s.id === activeId)}
                 selectedElementId={selectedElementId}
                 device={device}
+                project={project}
                 key={activeScreen.id}
             />
 

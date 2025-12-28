@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { ScreenElement } from '../types/model';
+import type { ScreenElement, Project } from '../types/model';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './styles.module.css';
 
@@ -234,10 +234,22 @@ interface Props {
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
     screenType?: 'overlay' | 'content' | 'navigation'; // Screen type for safe area calculation
     device?: 'mobile' | 'desktop'; // Device type for responsive font sizing
+    project?: Project; // Project for media resolution
 }
 
-export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile' }) => {
+export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile', project }) => {
     const { type, position, size, content, styles: elStyles } = element;
+
+    // Resolve media URL from content (media ID or placeholder URL)
+    const resolveMediaUrl = (contentValue: string): string => {
+        if (!project || !contentValue) return contentValue;
+        // Check if content is a media ID in mediaLibrary
+        if (project.mediaLibrary[contentValue]) {
+            return project.mediaLibrary[contentValue].data;
+        }
+        // Otherwise, it's a placeholder URL or direct URL
+        return contentValue;
+    };
 
     // Scale font sizes for mobile (9:16) to fit content better
     // Mobile needs smaller fonts to prevent overflow
@@ -677,7 +689,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             </div>
                         )}
                         <img
-                            src={content}
+                            src={resolveMediaUrl(content)}
                             alt="Element"
                             loading="eager"
                             decoding="async"
@@ -743,7 +755,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     backgroundColor: elStyles.backgroundColor || 'transparent',
                 }}>
                     <img
-                        src={content}
+                        src={resolveMediaUrl(content)}
                         alt="Element"
                         loading="eager"
                         decoding="async"
@@ -761,12 +773,49 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
         case 'button':
             const buttonSticker = element.metadata?.sticker;
+            const frameShape = element.metadata?.frameShape;
+            const frameColor = elStyles.frameColor || '#000000';
+            
+            // Calculate frame shape clip-path or border-radius
+            const getFrameStyle = () => {
+                if (!frameShape) return {};
+                
+                switch (frameShape) {
+                    case 'heart':
+                        return {
+                            clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+                            borderRadius: 0
+                        };
+                    case 'star':
+                        return {
+                            clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+                            borderRadius: 0
+                        };
+                    case 'circle':
+                        return {
+                            borderRadius: '50%'
+                        };
+                    case 'diamond':
+                        return {
+                            clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                            borderRadius: 0
+                        };
+                    default:
+                        return {};
+                }
+            };
+            
+            const frameStyle = getFrameStyle();
+            const hasFrame = frameShape && elStyles.frameColor;
+            
             return (
                 <div
                     {...commonProps}
                     style={{
                         ...commonProps.style,
-                        border: 'none', // Border will be on inner button
+                        border: hasFrame ? `4px solid ${frameColor}` : 'none',
+                        padding: hasFrame ? '4px' : '0',
+                        ...(hasFrame && frameStyle),
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -784,6 +833,14 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             flexDirection: 'column',
                             alignItems: 'center',
                             gap: '4px',
+                        }}
+                        onClick={(e) => {
+                            // In editor mode, prevent default button behavior and let parent handle click
+                            if (mode === 'editor') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleInteraction(e);
+                            }
                         }}
                     >
                         {content}
@@ -824,16 +881,19 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             } catch (e) {
                 images = [content];
             }
+            
+            // Resolve media URLs for all gallery images
+            const resolvedImages = images.map(imgId => resolveMediaUrl(imgId));
 
             // Initialize current index to middle image
             const [currentImageIndex, setCurrentImageIndex] = useState<number>(
-                Math.floor(images.length / 2)
+                Math.floor(resolvedImages.length / 2)
             );
             const thumbnailCarouselRef = useRef<HTMLDivElement>(null);
 
             // Scroll carousel to center current image
             useEffect(() => {
-                if (thumbnailCarouselRef.current && images.length > 0) {
+                if (thumbnailCarouselRef.current && resolvedImages.length > 0) {
                     const thumbnailWidth = 60; // Approximate thumbnail width + gap
                     const scrollPosition = (currentImageIndex - 2) * thumbnailWidth;
                     thumbnailCarouselRef.current.scrollTo({
@@ -841,19 +901,19 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         behavior: 'smooth'
                     });
                 }
-            }, [currentImageIndex, images.length]);
+            }, [currentImageIndex, resolvedImages.length]);
 
             const handlePrev = (e: React.MouseEvent) => {
                 e.stopPropagation();
-                if (images.length > 0) {
-                    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+                if (resolvedImages.length > 0) {
+                    setCurrentImageIndex((prev) => (prev - 1 + resolvedImages.length) % resolvedImages.length);
                 }
             };
 
             const handleNext = (e: React.MouseEvent) => {
                 e.stopPropagation();
-                if (images.length > 0) {
-                    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+                if (resolvedImages.length > 0) {
+                    setCurrentImageIndex((prev) => (prev + 1) % resolvedImages.length);
                 }
             };
 
@@ -905,9 +965,9 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         overflow: 'hidden',
                         marginBottom: '8px',
                     }}>
-                        {images.length > 0 && (
+                        {resolvedImages.length > 0 && (
                             <img
-                                src={images[currentImageIndex]}
+                                src={resolvedImages[currentImageIndex]}
                                 alt={`Gallery ${currentImageIndex + 1}`}
                                 loading="eager"
                                 decoding="async"
@@ -922,7 +982,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         )}
 
                         {/* Navigation Arrows */}
-                        {isInteractive && images.length > 1 && (
+                        {isInteractive && resolvedImages.length > 1 && (
                             <>
                                 <button
                                     onClick={handlePrev}
@@ -987,7 +1047,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     </div>
 
                     {/* Thumbnail Carousel */}
-                    {images.length > 1 && (
+                    {resolvedImages.length > 1 && (
                         <div
                             ref={thumbnailCarouselRef}
                             style={{
@@ -1095,7 +1155,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             </div>
                         )}
                         <video
-                            src={content}
+                            src={resolveMediaUrl(content)}
                             controls
                             preload="metadata"
                             style={{
@@ -1130,7 +1190,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     backgroundColor: elStyles.backgroundColor || 'transparent',
                 }}>
                     <video
-                        src={content}
+                        src={resolveMediaUrl(content)}
                         controls
                         preload="metadata"
                         style={{

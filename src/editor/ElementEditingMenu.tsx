@@ -39,7 +39,7 @@ const COMMON_COLORS = [
     '#2ECC71', '#F39C12', '#E67E22', '#95A5A6', '#34495E',
 ];
 
-const STICKERS = ['⭐', '❤️', '🎉', '🎈', '🎁', '💝', '💖', '✨', '🌟', '🎊', '🎂', '🍰', '🎵', '🎶', '💕', '💗'];
+const STICKERS = ['⭐', '❤️', '🎉', '🎈', '🎁', '💝', '💖', '✨', '🌟', '🎊', '🎂', '🍰', '🎵', '🎶', '💕', '💗', '→', '←', '↑', '↓', '➜', '➤', '➔', '➨'];
 
 export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const { activeScreenId, setSelectedElementId, setMediaLibraryOpen } = useUIStore();
@@ -48,6 +48,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const [showAnimationPicker, setShowAnimationPicker] = useState(false);
     const [showFontPicker, setShowFontPicker] = useState(false);
     const [showStickerPicker, setShowStickerPicker] = useState(false);
+    const [showFrameShapePicker, setShowFrameShapePicker] = useState(false);
     const [isEditingText, setIsEditingText] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -58,8 +59,15 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         setIsPositioned(false);
         
         const findElement = () => {
-            // Find the element by data attribute
-            const elementEl = document.querySelector(`[data-element-id="${element.id}"]`) as HTMLElement;
+            // For hidden navigation button elements, find the automatic next button instead
+            let elementEl: HTMLElement | null = null;
+            if (element.type === 'button' && element.metadata?.action === 'navigate' && element.metadata?.target === 'next' && element.metadata?.hidden) {
+                // Find the automatic next button by data attribute
+                elementEl = document.querySelector(`[data-automatic-next-button="true"][data-nav-button-id="${element.id}"]`) as HTMLElement;
+            } else {
+                // Find the element by data attribute
+                elementEl = document.querySelector(`[data-element-id="${element.id}"]`) as HTMLElement;
+            }
             if (elementEl && menuRef.current) {
                 // Find the canvas wrapper (parent container)
                 const canvasWrapper = elementEl.closest('[data-device]') as HTMLElement;
@@ -69,16 +77,55 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 const wrapperRect = canvasWrapper.getBoundingClientRect();
                 const menuRect = menuRef.current.getBoundingClientRect();
                 
-                // Calculate position relative to canvas wrapper
-                const relativeTop = elementRect.bottom - wrapperRect.top;
-                const relativeLeft = elementRect.left - wrapperRect.left + (elementRect.width / 2) - (menuRect.width / 2);
+                const padding = 8; // Padding between element and menu
+                const relativeElementTop = elementRect.top - wrapperRect.top;
+                const relativeElementBottom = elementRect.bottom - wrapperRect.top;
+                const relativeElementLeft = elementRect.left - wrapperRect.left;
+                const relativeElementRight = elementRect.right - wrapperRect.left;
+                
+                // Check available space
+                const spaceBelow = wrapperRect.height - relativeElementBottom;
+                const spaceAbove = relativeElementTop;
+                const spaceRight = wrapperRect.width - relativeElementRight;
+                const spaceLeft = relativeElementLeft;
+                
+                let top: number;
+                let left: number;
+                
+                // Smart positioning: prefer below, but use side if no room
+                if (spaceBelow >= menuRect.height + padding) {
+                    // Enough space below - position below element
+                    top = relativeElementBottom + padding;
+                    left = relativeElementLeft + (elementRect.width / 2) - (menuRect.width / 2);
+                } else if (spaceAbove >= menuRect.height + padding) {
+                    // Not enough space below, but enough above - position above element
+                    top = relativeElementTop - menuRect.height - padding;
+                    left = relativeElementLeft + (elementRect.width / 2) - (menuRect.width / 2);
+                } else {
+                    // Not enough space above or below - position to the side
+                    if (spaceRight >= menuRect.width + padding) {
+                        // Position to the right
+                        top = relativeElementTop + (elementRect.height / 2) - (menuRect.height / 2);
+                        left = relativeElementRight + padding;
+                    } else if (spaceLeft >= menuRect.width + padding) {
+                        // Position to the left
+                        top = relativeElementTop + (elementRect.height / 2) - (menuRect.height / 2);
+                        left = relativeElementLeft - menuRect.width - padding;
+                    } else {
+                        // Fallback: position below (will cause scroll but better than off-screen)
+                        top = relativeElementBottom + padding;
+                        left = relativeElementLeft + (elementRect.width / 2) - (menuRect.width / 2);
+                    }
+                }
                 
                 // Keep menu within bounds
                 const maxLeft = wrapperRect.width - menuRect.width;
-                const clampedLeft = Math.max(0, Math.min(maxLeft, relativeLeft));
+                const maxTop = wrapperRect.height - menuRect.height;
+                const clampedLeft = Math.max(0, Math.min(maxLeft, left));
+                const clampedTop = Math.max(0, Math.min(maxTop, top));
                 
                 setMenuPosition({
-                    top: relativeTop + 8,
+                    top: clampedTop,
                     left: clampedLeft
                 });
                 setIsPositioned(true);
@@ -418,7 +465,125 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                             <input
                                 type="color"
                                 value={element.styles.frameColor || '#000000'}
-                                onChange={(e) => handleColorChange(e.target.value)}
+                                onChange={(e) => {
+                                    setShowColorPicker('frameColor');
+                                    handleColorChange(e.target.value);
+                                }}
+                                className={styles.colorInput}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Frame Shape (for buttons) */}
+            {element.type === 'button' && (
+                <div className={styles.dropdownContainer}>
+                    <button
+                        className={styles.menuButton}
+                        onClick={() => setShowFrameShapePicker(!showFrameShapePicker)}
+                        title="Frame Shape"
+                    >
+                        <ImageIcon size={18} />
+                    </button>
+                    {showFrameShapePicker && (
+                        <div className={styles.dropdown}>
+                            <button
+                                className={`${styles.dropdownItem} ${!element.metadata?.frameShape ? styles.active : ''}`}
+                                onClick={() => {
+                                    const newMetadata = { ...element.metadata };
+                                    delete newMetadata.frameShape;
+                                    updateElement(activeScreenId!, element.id, { metadata: newMetadata });
+                                    setShowFrameShapePicker(false);
+                                }}
+                            >
+                                None
+                            </button>
+                            <button
+                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'heart' ? styles.active : ''}`}
+                                onClick={() => {
+                                    updateElement(activeScreenId!, element.id, { 
+                                        metadata: { ...element.metadata, frameShape: 'heart' }
+                                    });
+                                    setShowFrameShapePicker(false);
+                                }}
+                            >
+                                ❤️ Heart
+                            </button>
+                            <button
+                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'star' ? styles.active : ''}`}
+                                onClick={() => {
+                                    updateElement(activeScreenId!, element.id, { 
+                                        metadata: { ...element.metadata, frameShape: 'star' }
+                                    });
+                                    setShowFrameShapePicker(false);
+                                }}
+                            >
+                                ⭐ Star
+                            </button>
+                            <button
+                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'circle' ? styles.active : ''}`}
+                                onClick={() => {
+                                    updateElement(activeScreenId!, element.id, { 
+                                        metadata: { ...element.metadata, frameShape: 'circle' }
+                                    });
+                                    setShowFrameShapePicker(false);
+                                }}
+                            >
+                                ⭕ Circle
+                            </button>
+                            <button
+                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'diamond' ? styles.active : ''}`}
+                                onClick={() => {
+                                    updateElement(activeScreenId!, element.id, { 
+                                        metadata: { ...element.metadata, frameShape: 'diamond' }
+                                    });
+                                    setShowFrameShapePicker(false);
+                                }}
+                            >
+                                💎 Diamond
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Frame Color (for buttons with frames) */}
+            {element.type === 'button' && element.metadata?.frameShape && (
+                <div className={styles.dropdownContainer}>
+                    <button
+                        className={styles.menuButton}
+                        onClick={() => setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor')}
+                        title="Frame Color"
+                    >
+                        <Palette size={18} />
+                    </button>
+                    {showColorPicker === 'frameColor' && (
+                        <div className={styles.colorPicker}>
+                            <div className={styles.colorPickerHeader}>
+                                <span>Frame Color</span>
+                                <button onClick={() => setShowColorPicker(null)}>
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            <div className={styles.colorSwatches}>
+                                {COMMON_COLORS.map(color => (
+                                    <button
+                                        key={color}
+                                        className={styles.colorSwatch}
+                                        style={{ backgroundColor: color }}
+                                        onClick={() => handleColorChange(color)}
+                                        title={color}
+                                    />
+                                ))}
+                            </div>
+                            <input
+                                type="color"
+                                value={element.styles.frameColor || '#000000'}
+                                onChange={(e) => {
+                                    setShowColorPicker('frameColor');
+                                    handleColorChange(e.target.value);
+                                }}
                                 className={styles.colorInput}
                             />
                         </div>
