@@ -54,7 +54,7 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
 
         return (
             <div className={styles.background} style={style}>
-                {background.type === 'image' && <img src={background.value} alt="bg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                {background.type === 'image' && <img src={background.value} alt="bg" loading="eager" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                 {background.overlay && background.overlay !== 'none' && (
                     <div className={styles.backgroundOverlay}>
                         {background.overlay === 'confetti' ? '🎉' :

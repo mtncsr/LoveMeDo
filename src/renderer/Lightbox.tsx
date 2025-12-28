@@ -110,6 +110,8 @@ export const Lightbox: React.FC<Props> = ({ imageSrc, images, currentIndex, onCl
                 src={imageSrc}
                 className={styles.lightboxImage}
                 alt="Fullscreen"
+                loading="eager"
+                decoding="async"
                 onClick={e => e.stopPropagation()}
             />
             

@@ -550,7 +550,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '/images/templates/heroes/birthday-kids-hero.png',
+                    content: '/images/templates/heroes/birthday-kids-hero.webp',
                     position: { x: 10, y: 54 }, // Adjusted to end at 99% (54 + 45 = 99)
                     size: { width: 80, height: 45 },
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
@@ -565,10 +565,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 20 },
                     size: { width: 80, height: 79 }, // Adjusted to end at 99% (20 + 79 = 99), leaving small padding for next button
@@ -585,7 +585,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '/images/templates/heroes/birthday-kids-hero.png',
+                    content: '/images/templates/heroes/birthday-kids-hero.webp',
                     position: { x: 10, y: 50 }, // Position at bottom, close to last wish card
                     size: { width: 80, height: 49 }, // Height adjusted to fit within 99% (50 + 49 = 99)
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
@@ -656,10 +656,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -727,10 +727,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -788,7 +788,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '/images/templates/heroes/one-screen-hero.png',
+                    content: '/images/templates/heroes/one-screen-hero.webp',
                     position: { x: 0, y: 0 },
                     size: { width: 100, height: 100 },
                     styles: { zIndex: 1 }
@@ -835,7 +835,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '/images/templates/heroes/baby-birth-hero.png',
+                    content: '/images/templates/heroes/baby-birth-hero.webp',
                     position: { x: 20, y: 12 },
                     size: { width: 60, height: 45 },
                     styles: { zIndex: 5, borderRadius: 16 }
@@ -852,10 +852,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -917,10 +917,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -995,10 +995,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -1047,7 +1047,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '/images/templates/heroes/memorial-hero.png',
+                    content: '/images/templates/heroes/memorial-hero.webp',
                     position: { x: 25, y: 15 },
                     size: { width: 50, height: 50 },
                     styles: { zIndex: 5, borderRadius: 8 }
@@ -1062,10 +1062,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -1126,10 +1126,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -1192,10 +1192,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
@@ -1261,7 +1261,7 @@ const templates: Template[] = [
                 {
                     id: uuidv4(),
                     type: 'image' as const,
-                    content: '/images/templates/heroes/cny-hero.png',
+                    content: '/images/templates/heroes/cny-hero.webp',
                     position: { x: 20, y: 15 },
                     size: { width: 60, height: 50 },
                     styles: { zIndex: 5 }
@@ -1283,10 +1283,10 @@ const templates: Template[] = [
                     id: uuidv4(),
                     type: 'gallery' as const,
                     content: JSON.stringify([
-                        '/images/templates/galleries/gallery-1.png',
-                        '/images/templates/galleries/gallery-2.png',
-                        '/images/templates/galleries/gallery-3.png',
-                        '/images/templates/galleries/gallery-4.png'
+                        '/images/templates/galleries/gallery-1.webp',
+                        '/images/templates/galleries/gallery-2.webp',
+                        '/images/templates/galleries/gallery-3.webp',
+                        '/images/templates/galleries/gallery-4.webp'
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },

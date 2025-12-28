@@ -558,6 +558,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         <img
                             src={content}
                             alt="Element"
+                            loading="eager"
+                            decoding="async"
                             style={{ 
                                 width: '100%', 
                                 height: '100%', 
@@ -622,6 +624,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     <img
                         src={content}
                         alt="Element"
+                        loading="eager"
+                        decoding="async"
                         style={{ 
                             width: '100%', 
                             height: '100%', 
@@ -769,6 +773,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             <img
                                 src={images[currentImageIndex]}
                                 alt={`Gallery ${currentImageIndex + 1}`}
+                                loading="eager"
+                                decoding="async"
                                 style={{
                                     width: '100%',
                                     height: '100%',
@@ -895,6 +901,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                     <img
                                         src={src}
                                         alt={`Thumbnail ${index + 1}`}
+                                        loading="eager"
+                                        decoding="async"
                                         style={{
                                             width: '100%',
                                             height: '100%',
@@ -953,6 +961,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         <video
                             src={content}
                             controls
+                            preload="metadata"
                             style={{ 
                                 width: '100%', 
                                 height: '100%', 
@@ -987,6 +996,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     <video
                         src={content}
                         controls
+                        preload="metadata"
                         style={{ 
                             width: '100%', 
                             height: '100%', 
