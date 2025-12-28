@@ -722,7 +722,7 @@ const templates: Template[] = [
                 createText('Our Story', 35, 48, true, '#FFFFFF'),
                 createText('Since [Year]', 55, 24, false, '#FFF0F3'),
                 createButton('Begin Journey', 75, '#A4161A')
-            ], '🥂'); // Use template thumbnail
+            ], 'stars'); // Use template thumbnail
 
             // Screen 2: Intro Text - Warm purple/rose theme
             // Screen 2: Intro Text - Deeper Rose theme
@@ -1086,7 +1086,7 @@ const templates: Template[] = [
             const s1 = createScreen('Cover', 'overlay', 'linear-gradient(to bottom, #2b2d42, #8d99ae, #cbc0d3)', [
                 createText('In Loving Memory', 35, 36, true, '#edf2f4'),
                 createButton('Light Candle', 70, '#8d99ae', '🕯️')
-            ], 'stars'); // Use template thumbnail
+            ], '🕯️'); // Use template thumbnail
 
             // Screen 2: Portrait + Short Text
             const s2 = createScreen('Portrait', 'content', '#edf2f4', [

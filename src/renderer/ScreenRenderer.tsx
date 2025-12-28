@@ -4,6 +4,7 @@ import { ElementRenderer } from './ElementRenderer';
 import { ArrowLeft, Menu } from 'lucide-react';
 import styles from './styles.module.css';
 import { calculateLayout } from '../templates/registry';
+import { OverlayManager } from './Overlays';
 
 interface Props {
     screen: Screen;
@@ -61,9 +62,11 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                             background.overlay === 'hearts' ? '❤️' :
                                 background.overlay === 'stars' ? '⭐' :
                                     background.overlay === 'fireworks' ? '🎆' :
-                                        background.overlay} {/* Custom emoji string or predefined type */}
+                                        background.overlay === 'bubbles' ? '🫧' :
+                                            background.overlay}
                     </div>
                 )}
+                <OverlayManager type={background.overlay} />
             </div>
         );
     };
