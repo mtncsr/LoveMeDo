@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useUIStore } from '../store/uiStore';
 import { useProjectStore } from '../store/projectStore';
 import { fileToBase64, resizeImage } from '../utils/fileHelpers';
-import { X, Upload as UploadIcon, Image as ImageIcon } from 'lucide-react';
+import { X, Upload as UploadIcon } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './MediaLibraryModal.module.css';
 
@@ -33,7 +33,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
             // 3. Create Item
             const newItem = {
                 id: uuidv4(),
-                type: file.type.startsWith('video/') ? 'video' : 'image',
+                type: (file.type.startsWith('video/') ? 'video' : 'image') as 'image' | 'video' | 'audio',
                 originalName: file.name,
                 mimeType: file.type,
                 data: base64,

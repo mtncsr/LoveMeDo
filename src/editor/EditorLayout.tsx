@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
@@ -6,7 +6,6 @@ import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn } from 'l
 import { v4 as uuidv4 } from 'uuid';
 import styles from './EditorLayout.module.css';
 import ElementsMenu from './ElementsMenu';
-import Toolbar from './Toolbar';
 import MediaLibraryModal from './MediaLibraryModal';
 import { ElementEditingMenu } from './ElementEditingMenu';
 
@@ -14,7 +13,7 @@ const EditorLayout: React.FC = () => {
     const { project, updateScreen, updateElement, addScreen } = useProjectStore();
     const {
         setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
-        selectedElementId, isMediaLibraryOpen, mediaLibraryMode, setMediaLibraryOpen
+        selectedElementId, isMediaLibraryOpen, mediaLibraryMode
     } = useUIStore();
     const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('mobile');
     const [zoom, setZoom] = useState(100);
@@ -100,7 +99,6 @@ const EditorLayout: React.FC = () => {
                         onClick={() => {
                             const type = prompt('Screen type (overlay/content/navigation):', 'content') as 'overlay' | 'content' | 'navigation' | null;
                             if (type && ['overlay', 'content', 'navigation'].includes(type)) {
-                                const { v4: uuidv4 } = require('uuid');
                                 const newScreen = {
                                     id: uuidv4(),
                                     title: `Screen ${project.screens.length + 1}`,
@@ -135,7 +133,7 @@ const EditorLayout: React.FC = () => {
                 </button>
 
                 {/* Floating Zoom Control - Bottom Side */}
-                <div 
+                <div
                     className={`${styles.zoomControl} ${isZoomExpanded ? styles.expanded : ''}`}
                     onMouseEnter={() => setIsZoomExpanded(true)}
                     onMouseLeave={() => setIsZoomExpanded(false)}
@@ -147,7 +145,7 @@ const EditorLayout: React.FC = () => {
                     >
                         <ZoomIn size={18} />
                     </button>
-                    <button 
+                    <button
                         className={styles.zoomBtn}
                         onClick={() => setZoom(Math.max(25, zoom - 10))}
                         title="Zoom Out"
@@ -162,7 +160,7 @@ const EditorLayout: React.FC = () => {
                         onChange={(e) => setZoom(Number(e.target.value))}
                         className={styles.zoomSlider}
                     />
-                    <button 
+                    <button
                         className={styles.zoomBtn}
                         onClick={() => setZoom(Math.min(200, zoom + 10))}
                         title="Zoom In"
@@ -172,8 +170,8 @@ const EditorLayout: React.FC = () => {
                 </div>
 
                 <div className={styles.canvasContainer}>
-                    <div 
-                        className={styles.canvasWrapper} 
+                    <div
+                        className={styles.canvasWrapper}
                         data-device={deviceView}
                         style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center', position: 'relative' }}
                         onClick={(e) => {
@@ -181,7 +179,7 @@ const EditorLayout: React.FC = () => {
                             const target = e.target as HTMLElement;
                             const isElement = target.closest('[data-element-id]');
                             const isMenu = target.closest('[data-editing-menu]');
-                            
+
                             if (!isElement && !isMenu && selectedElementId) {
                                 setSelectedElementId(null);
                             }
@@ -197,7 +195,7 @@ const EditorLayout: React.FC = () => {
                             onElementUpdate={(id, changes) => activeScreenId && updateElement(activeScreenId, id, changes)}
                             selectedElementId={selectedElementId || undefined}
                         />
-                        
+
                         {/* Element Editing Menu */}
                         {selectedElementId && activeScreenId && (() => {
                             const currentScreen = project.screens.find(s => s.id === activeScreenId);

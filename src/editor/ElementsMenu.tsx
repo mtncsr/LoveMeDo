@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import styles from './ElementsMenu.module.css';
 
 const ElementsMenu: React.FC = () => {
-    const { activeScreenId, setMode } = useUIStore();
+    const { activeScreenId } = useUIStore();
     const { addElement } = useProjectStore();
 
     if (!activeScreenId) return null;

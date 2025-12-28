@@ -22,7 +22,7 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
     if (!isActive) return null;
 
     const { background, elements, type, title } = screen;
-    
+
     // Recalculate layout for content screens based on device
     // This ensures responsive behavior (mobile vs desktop)
     const processedElements = useMemo(() => {
@@ -32,18 +32,18 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
         }
         return elements;
     }, [elements, type, device]);
-    
+
     // Sort elements by zIndex (background is always 0)
     const sortedElements = [...processedElements].sort((a, b) => {
         const aZ = a.styles?.zIndex || 10;
         const bZ = b.styles?.zIndex || 10;
         return aZ - bZ;
     });
-    
+
     // Check if there's a next screen (including navigation screen)
-    const hasNextScreen = currentScreenIndex !== undefined && 
-                         allScreens.length > 0 && 
-                         currentScreenIndex < allScreens.length - 1;
+    const hasNextScreen = currentScreenIndex !== undefined &&
+        allScreens.length > 0 &&
+        currentScreenIndex < allScreens.length - 1;
 
     // Render Background
     const renderBackground = () => {
@@ -58,10 +58,10 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                 {background.overlay && background.overlay !== 'none' && (
                     <div className={styles.backgroundOverlay}>
                         {background.overlay === 'confetti' ? '🎉' :
-                         background.overlay === 'hearts' ? '❤️' :
-                         background.overlay === 'stars' ? '⭐' :
-                         background.overlay === 'fireworks' ? '🎆' :
-                         background.overlay} {/* Custom emoji string or predefined type */}
+                            background.overlay === 'hearts' ? '❤️' :
+                                background.overlay === 'stars' ? '⭐' :
+                                    background.overlay === 'fireworks' ? '🎆' :
+                                        background.overlay} {/* Custom emoji string or predefined type */}
                     </div>
                 )}
             </div>
@@ -105,8 +105,8 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                         <ArrowLeft size={24} />
                     </button>
                     <div className={styles.screenTitle}>{title}</div>
-                    <button 
-                        className={styles.navButton} 
+                    <button
+                        className={styles.navButton}
                         onClick={() => {
                             // Hamburger menu should navigate to navigation screen
                             const navScreen = allScreens[allScreens.length - 1];
@@ -140,7 +140,7 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
             )}
 
             {/* Elements */}
-            {processedElements.map(el => {
+            {sortedElements.map(el => {
                 return (
                     <ElementRenderer
                         key={el.id}
@@ -158,7 +158,7 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
             {/* Next Button (for content screens only, at bottom) */}
             {type === 'content' && hasNextScreen && mode !== 'editor' && (
                 <div className={styles.nextButtonContainer}>
-                    <button 
+                    <button
                         className={styles.nextButton}
                         onClick={() => onNavigate('next')}
                     >
