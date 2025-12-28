@@ -538,8 +538,10 @@ const templates: Template[] = [
                 createText('Happy Birthday!', 30, 48, true, '#FFFFFF'),
                 createText('Let\'s celebrate your special day!', 50, 24, false, '#FFFFFF'),
                 createButton('Start Experience', 70, '#FF4D6D', '🎁')
-            ], '🎈'); // Use template thumbnail
+            ], 'confetti'); // Use template thumbnail
             s1.elements[3].styles.shadow = true; // Title shadow
+            s1.elements[0].styles.animation = 'float';
+            s1.elements[1].styles.animation = 'pulse';
 
             // Screen 2: Hero Image + Short Text - Bright playful design
             const s2 = createScreen('Hero', 'content', 'linear-gradient(135deg, #FFD93D, #FFE66D, #FFFFFF)', [
@@ -572,7 +574,8 @@ const templates: Template[] = [
                     ]),
                     position: { x: 10, y: 20 },
                     size: { width: 80, height: 79 }, // Adjusted to end at 99% (20 + 79 = 99), leaving small padding for next button
-                    styles: { zIndex: 5, borderRadius: 12, shadow: true }
+                    styles: { zIndex: 5, borderRadius: 12, shadow: true },
+                    metadata: { galleryLayout: 'gridWithZoom' }
                 }
             ]);
 
@@ -591,6 +594,11 @@ const templates: Template[] = [
                     styles: { zIndex: 5, borderRadius: 16, shadow: true }
                 }
             ]);
+
+            // Random playful rotation for wish cards
+            s4.elements[0].styles.rotation = -2;
+            s4.elements[1].styles.rotation = 1;
+            s4.elements[2].styles.rotation = -1;
 
             // Screen 5: Video Standalone - Bright cyan background
             const s5 = createScreen('Video', 'content', 'linear-gradient(135deg, #4CC9F0, #7DD3FC, #FFFFFF)', [
@@ -638,7 +646,7 @@ const templates: Template[] = [
                 createText('For You', 35, 48, true, '#FFF'),
                 createText('A small journey of our love', 55, 20, false, 'rgba(255,255,255,0.9)'),
                 createButton('Open', 75, '#C9184A', '❤️')
-            ], '🌹'); // Use template thumbnail
+            ], 'hearts'); // Use template thumbnail
 
             // Screen 2: Long Love Text - Romantic burgundy/purple theme
             const s2 = createScreen('Message', 'content', 'linear-gradient(135deg, #FDF0F5, #F8E8EE, #FFF)', [
@@ -663,7 +671,8 @@ const templates: Template[] = [
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
-                    styles: { zIndex: 5, borderRadius: 12, shadow: true }
+                    styles: { zIndex: 5, borderRadius: 12, shadow: true },
+                    metadata: { galleryLayout: 'fullscreenSlideshow' }
                 }
             ]);
 
@@ -677,7 +686,7 @@ const templates: Template[] = [
                     content: '/images/templates/videos/video-placeholder.mp4',
                     position: { x: 10, y: 44 }, // Adjusted to end at 99% (44 + 55 = 99)
                     size: { width: 80, height: 55 },
-                    styles: { zIndex: 5, borderRadius: 16, shadow: true }
+                    styles: { zIndex: 5, borderRadius: 16, shadow: true, frameColor: '#C9184A' }
                 }
             ]);
 
@@ -746,7 +755,8 @@ const templates: Template[] = [
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
-                    styles: { zIndex: 5, borderRadius: 12, shadow: true }
+                    styles: { zIndex: 5, borderRadius: 12, shadow: true },
+                    metadata: { galleryLayout: 'timeline' }
                 }
             ]);
 
@@ -828,6 +838,8 @@ const templates: Template[] = [
                 createText('I needed you to know this.', 50, 28, true, '#FFF')
             ], '🎬'); // Use template thumbnail
             s1.elements[1].styles.zIndex = 20;
+            s1.elements[1].styles.animation = 'fade';
+            s1.elements[1].styles.shadow = true;
 
             return {
                 id: uuidv4(),
@@ -860,7 +872,7 @@ const templates: Template[] = [
                 createSticker('👶', 50, 10, 56, 0), // Moved up from 20 to avoid title overlap
                 createText('Welcome to the World', 30, 36, true, '#555'),
                 createButton('See Baby', 70, '#95d5b2', '👶')
-            ], '👶'); // Use template thumbnail
+            ], 'stars'); // Use template thumbnail
 
             // Screen 2: Baby Hero + Details
             const s2 = createScreen('Details', 'content', '#FFF', [
@@ -891,7 +903,8 @@ const templates: Template[] = [
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
-                    styles: { zIndex: 5 }
+                    styles: { zIndex: 5 },
+                    metadata: { galleryLayout: 'heroWithThumbnails' }
                 }
             ]);
 
@@ -930,7 +943,7 @@ const templates: Template[] = [
                 createSticker('🎓', 50, 15, 64, 0), // Moved up from 25 to avoid title overlap (large sticker)
                 createText('Graduation Day', 35, 42, true, '#ffc300'),
                 createButton('Celebrate', 70, '#ffc300', '🎓')
-            ], '🎓'); // Use template thumbnail
+            ], 'confetti'); // Use template thumbnail
             s1.elements[2].styles.color = '#001d3d';
 
             // Screen 2: Long Achievement Text - Gold/navy theme
@@ -1007,7 +1020,7 @@ const templates: Template[] = [
         initialProjectData: (title) => {
             // Screen 1: Overlay with soft warm background
             const s1 = createScreen('Cover', 'overlay', 'linear-gradient(120deg, #fdfcdc, #f0ebd8, #d4a574)', [
-                createText('Thank You', 40, 48, true, '#6d6875'),
+                { ...createText('Thank You', 40, 48, true, '#6d6875'), ...{ styles: { ...createText('Thank You', 40, 48, true, '#6d6875').styles, animation: 'fade' } } },
                 createButton('Read Note', 70, '#b5838d', '🙏')
             ], '🙏'); // Use template thumbnail
 
@@ -1018,6 +1031,7 @@ const templates: Template[] = [
                 createLongText('I wanted to take a moment to express my deepest gratitude.\n\nYour kindness, support, and generosity have meant more to me than words can convey. In a world that sometimes feels rushed, you took the time to be present, to care, and to make a difference.\n\nThank you for being you. Thank you for everything you\'ve done. Your impact will not be forgotten.\n\nWith sincere appreciation,', 34, 'rgba(255,255,255,0.95)', '#6d6875') // Adjusted to end at 99% (34 + 65 = 99)
             ]);
             s2.elements[2].size = { width: 80, height: 65 };
+            s2.elements[2].styles.shadow = true;
 
             // Screen 3: Gallery + Caption - Warm beige background
             const s3 = createScreen('Gallery', 'content', 'linear-gradient(to bottom, #f0ebd8, #FFFFFF)', [
@@ -1072,7 +1086,7 @@ const templates: Template[] = [
             const s1 = createScreen('Cover', 'overlay', 'linear-gradient(to bottom, #2b2d42, #8d99ae, #cbc0d3)', [
                 createText('In Loving Memory', 35, 36, true, '#edf2f4'),
                 createButton('Light Candle', 70, '#8d99ae', '🕯️')
-            ], '🕯️'); // Use template thumbnail
+            ], 'stars'); // Use template thumbnail
 
             // Screen 2: Portrait + Short Text
             const s2 = createScreen('Portrait', 'content', '#edf2f4', [
@@ -1082,7 +1096,7 @@ const templates: Template[] = [
                     content: '/images/templates/heroes/memorial-hero.webp',
                     position: { x: 25, y: 15 },
                     size: { width: 50, height: 50 },
-                    styles: { zIndex: 5, borderRadius: 8 }
+                    styles: { zIndex: 5, borderRadius: 8, shadow: true }
                 },
                 createText('Forever in our hearts', 89, 24, true, '#2b2d42') // Adjusted to end at 99% (89 + 10 = 99)
             ]);
@@ -1140,7 +1154,7 @@ const templates: Template[] = [
                 createText('[Name] & [Name]', 30, 36, true, '#590d22'),
                 createText('[Date]', 50, 24, false, '#800f2f'),
                 createButton('Open Invite', 70, '#ff4d6d', '💌')
-            ], '💍'); // Use template thumbnail
+            ], 'hearts'); // Use template thumbnail
 
             // Screen 2: Event Details - Elegant blush pink/rose
             const s2 = createScreen('Details', 'content', 'linear-gradient(135deg, #FFFFFF, #fff0f3, #ffccd5)', [
@@ -1165,7 +1179,8 @@ const templates: Template[] = [
                     ]),
                     position: { x: 10, y: 41 }, // Adjusted to end at 99% (41 + 58 = 99)
                     size: { width: 80, height: 58 },
-                    styles: { zIndex: 5, borderRadius: 12, shadow: true }
+                    styles: { zIndex: 5, borderRadius: 12, shadow: true },
+                    metadata: { galleryLayout: 'fullscreenSlideshow' }
                 }
             ]);
 
@@ -1204,7 +1219,7 @@ const templates: Template[] = [
             const s1 = createScreen('Cover', 'overlay', 'linear-gradient(to bottom, #000428, #004e92, #0077be)', [
                 createText('Welcome 202X', 35, 48, true, '#FFD700'),
                 createButton('Celebrate', 70, '#FFD700', '🎆')
-            ], '🎆'); // Use template thumbnail
+            ], 'fireworks'); // Use template thumbnail
             s1.elements[1].styles.color = '#000';
 
             // Screen 2: Reflection Text - Midnight blue/gold theme
@@ -1241,7 +1256,7 @@ const templates: Template[] = [
                 createWishCard('Health', 20, '#FFD700', '#000'),
                 createWishCard('Joy', 35, '#FFD700', '#000'),
                 createWishCard('New beginnings', 87, '#FFD700', '#000'), // Adjusted to end at 99% (87 + 12 = 99)
-            ]);
+            ], 'fireworks');
 
             // Screen 5: Video Standalone - Midnight blue
             const s5 = createScreen('Video', 'content', 'linear-gradient(135deg, #000428, #004e92)', [
@@ -1285,7 +1300,7 @@ const templates: Template[] = [
             const s1 = createScreen('Cover', 'overlay', 'linear-gradient(135deg, #d00000, #ff0000, #ffba08)', [
                 createText('Year of the [Animal]', 35, 42, true, '#ffba08'),
                 createButton('Open Envelope', 70, '#ffba08', '🧧')
-            ], '🧧'); // Use template thumbnail
+            ], 'fireworks'); // Use template thumbnail
             s1.elements[1].styles.color = '#d00000';
 
             // Screen 2: Zodiac Hero
@@ -1296,7 +1311,7 @@ const templates: Template[] = [
                     content: '/images/templates/heroes/cny-hero.webp',
                     position: { x: 20, y: 15 },
                     size: { width: 60, height: 50 },
-                    styles: { zIndex: 5 }
+                    styles: { zIndex: 5, frameColor: '#ffba08' }
                 },
                 createText('Strength, prosperity, and renewal', 89, 24, true, '#d00000') // Adjusted to end at 99% (89 + 10 = 99)
             ]);
