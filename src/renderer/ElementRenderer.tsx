@@ -37,6 +37,195 @@ const LongTextElement: React.FC<{
     );
 };
 
+// Internal component for safe contentEditable handling
+const EditableText: React.FC<{
+    element: ScreenElement;
+    mode: 'templatePreview' | 'editor' | 'export';
+    isSelected: boolean;
+    onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
+    commonProps: any;
+    renderResizeHandles: () => React.ReactNode;
+    getAnimationClass: () => string;
+}> = ({ element, mode, isSelected, onUpdate, commonProps, renderResizeHandles, getAnimationClass }) => {
+    const { content, styles: elStyles } = element;
+    const ref = useRef<HTMLDivElement>(null);
+    const contentRef = useRef(content);
+
+    // Sync contentRef
+    useEffect(() => {
+        contentRef.current = content;
+    }, [content]);
+
+    // Update DOM only if content changes externally (not from our own typing)
+    useEffect(() => {
+        if (ref.current && ref.current.textContent !== content) {
+            // Only update if not currently focused or if significantly different
+            // Ideally we trust the user's typing, but if undo/redo happens we need to sync.
+            // A simple check: if we are focused, we might want to be careful.
+            // But for now, let's trust that if the prop changes, it's authoritative.
+            // HOWEVER: If prop update comes from our own onInput, we must NOT touch DOM.
+            // But we don't know source. 
+            // Solution: check cursor position? No too complex.
+            // Best practice: The parent updates state, passed back down. 
+            // If we are typing, the prop update matches our DOM. 
+            // So checking textContent !== content should be safe IF the delay isn't huge.
+            ref.current.textContent = content;
+        }
+    }, [content]);
+
+    // Focus contentEditable when element becomes selected
+    useEffect(() => {
+        // Focus the contentEditable when element becomes selected
+        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true') {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+                if (ref.current && ref.current.contentEditable === 'true') {
+                    ref.current.focus();
+                    // Set cursor to end of text
+                    const range = document.createRange();
+                    const sel = window.getSelection();
+                    if (sel && ref.current.childNodes.length > 0) {
+                        range.selectNodeContents(ref.current);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            });
+        }
+    }, [isSelected, mode, element.id]);
+
+    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+        if (!onUpdate) return;
+        const newContent = e.currentTarget.textContent || '';
+        // Optimization: Don't trigger update if same
+        if (newContent !== contentRef.current) {
+            onUpdate(element.id, { content: newContent });
+        }
+    };
+
+    const hasBackground = !!elStyles.backgroundColor;
+    const showBorderWrapper = isSelected && mode === 'editor';
+
+    // No Box Style - use this when there's no background, even when selected
+    // Apply selection border directly to the main element
+    if (!hasBackground) {
+        const noBoxTextClassName = `${styles.element} ${getAnimationClass()}`;
+        const noBoxTextStyle = {
+            ...commonProps.style,
+            border: showBorderWrapper ? '2px solid var(--color-primary)' : 'none',
+            outline: 'none',
+            boxShadow: 'none',
+            backgroundColor: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start',
+            direction: 'ltr', // Force LTR
+            padding: showBorderWrapper ? '4px 8px' : undefined,
+        };
+
+        return (
+            <div
+                {...commonProps}
+                ref={(node) => {
+                    // Combine refs
+                    if (commonProps.ref) commonProps.ref.current = node;
+                    ref.current = node;
+                }}
+                className={noBoxTextClassName}
+                contentEditable={isSelected && mode === 'editor'}
+                onInput={handleInput}
+                onBlur={(e) => {
+                    // If element is still selected and blur wasn't caused by clicking on menu/controls, refocus
+                    if (isSelected && mode === 'editor' && ref.current) {
+                        const relatedTarget = e.relatedTarget as HTMLElement;
+                        // Don't refocus if user clicked on editing menu or resize handles
+                        const clickedOnMenu = relatedTarget?.closest('[data-editing-menu]');
+                        const clickedOnResizeHandle = relatedTarget?.closest('[class*="resizeHandle"]');
+                        if (!clickedOnMenu && !clickedOnResizeHandle) {
+                            // Use setTimeout to allow the blur to complete, then refocus
+                            setTimeout(() => {
+                                if (isSelected && ref.current && document.activeElement !== ref.current) {
+                                    ref.current.focus();
+                                }
+                            }, 0);
+                        }
+                    }
+                }}
+                suppressContentEditableWarning
+                style={noBoxTextStyle}
+            >
+                {/* Initial render only */}
+                {renderResizeHandles()}
+            </div>
+        );
+    }
+
+    // Box Style
+    return (
+        <div
+            {...commonProps} // Wrapper handles positioning
+            style={{
+                ...commonProps.style,
+                border: 'none',
+                display: hasBackground ? 'flex' : (showBorderWrapper ? 'flex' : undefined),
+                alignItems: hasBackground || showBorderWrapper ? 'center' : undefined,
+                justifyContent: hasBackground || showBorderWrapper ? (elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start') : undefined,
+                direction: 'ltr',
+            }}
+        >
+            <div
+                ref={ref}
+                id={`element-${element.id}`}
+                role="textbox"
+                aria-label="Text Element"
+                contentEditable={isSelected && mode === 'editor'}
+                onInput={handleInput}
+                onBlur={(e) => {
+                    // If element is still selected and blur wasn't caused by clicking on menu/controls, refocus
+                    if (isSelected && mode === 'editor' && ref.current) {
+                        const relatedTarget = e.relatedTarget as HTMLElement;
+                        // Don't refocus if user clicked on editing menu or resize handles
+                        const clickedOnMenu = relatedTarget?.closest('[data-editing-menu]');
+                        const clickedOnResizeHandle = relatedTarget?.closest('[class*="resizeHandle"]');
+                        if (!clickedOnMenu && !clickedOnResizeHandle) {
+                            // Use setTimeout to allow the blur to complete, then refocus
+                            setTimeout(() => {
+                                if (isSelected && ref.current && document.activeElement !== ref.current) {
+                                    ref.current.focus();
+                                }
+                            }, 0);
+                        }
+                    }
+                }}
+                onClick={(e) => {
+                    e.stopPropagation();
+                }}
+                suppressContentEditableWarning
+                style={{
+                    outline: 'none',
+                    border: showBorderWrapper ? '2px solid var(--color-primary)' : 'none',
+                    padding: showBorderWrapper ? '4px 8px' : (hasBackground ? '12px 16px' : '0'),
+                    backgroundColor: elStyles.backgroundColor,
+                    borderRadius: elStyles.borderRadius,
+                    display: 'inline-block',
+                    width: showBorderWrapper ? 'fit-content' : undefined,
+                    minWidth: showBorderWrapper ? 'fit-content' : undefined,
+                    maxWidth: '100%',
+                }}
+            />
+            {/* Note: Self-closing div for boxed text because content is managed by ref/effect, 
+                 BUT we need initial content. Actually the useEffect [content] will run on mount and populate it!
+                 Alternatively, we can use defaultValue if we were using a real input, but for div we can just
+                 set children initially? No, that causes the re-render issue.
+                 Let's stick to useEffect filling it. Reference: https://reactjs.org/docs/dom-elements.html#dangerouslysetinnerhtml
+                 Actually for contentEditable, suppressing children is key.
+              */}
+            {renderResizeHandles()}
+        </div>
+    );
+};
+
 interface Props {
     element: ScreenElement;
     mode: 'templatePreview' | 'editor' | 'export';
@@ -74,10 +263,32 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     const handleMouseDown = (e: React.MouseEvent) => {
         if (mode !== 'editor' || isResizing) return;
 
-        e.stopPropagation();
         // Select element immediately on mouse down (even if onUpdate is not available)
         onClick?.(e);
-
+        
+        // For text elements, check if we should allow the click to propagate to contentEditable
+        const target = e.target as HTMLElement;
+        const isTextElement = type === 'text';
+        
+        // For text elements that are already selected, allow clicks to reach contentEditable
+        if (isTextElement && isSelected) {
+            // Find the contentEditable element within this element
+            const currentTarget = e.currentTarget as HTMLElement;
+            const contentEditableEl = currentTarget.querySelector('[contenteditable="true"]') as HTMLElement;
+            
+            // If clicking on the wrapper but there's a contentEditable child, don't stop propagation
+            // so the click can reach the contentEditable for proper focus
+            if (contentEditableEl && target === currentTarget) {
+                // Click is on wrapper of selected text element, allow it to bubble to contentEditable
+                // Don't stop propagation so click can reach contentEditable
+                // Also don't set up drag handlers for text elements on wrapper clicks
+                return;
+            }
+        }
+        
+        // For non-text elements or unselected text elements, stop propagation
+        e.stopPropagation();
+        
         // Only enable dragging if onUpdate is available
         if (!onUpdate) return;
 
@@ -87,8 +298,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         const startTop = position.y;
         dragStartRef.current = { x: startX, y: startY };
 
-        const target = e.currentTarget as HTMLElement;
-        const parent = target.offsetParent as HTMLElement;
+        const currentTarget = e.currentTarget as HTMLElement;
+        const parent = currentTarget.offsetParent as HTMLElement;
         if (!parent) return;
 
         const parentWidth = parent.clientWidth;
@@ -244,12 +455,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         pinchStartSizeRef.current = null;
     };
 
-    // Handle text content change
-    const handleTextChange = (e: React.FormEvent<HTMLDivElement>) => {
-        if (!onUpdate) return;
-        const newContent = e.currentTarget.textContent || '';
-        onUpdate(element.id, { content: newContent });
-    };
+
 
     // Auto-resize text elements - only when content or styles change
     const lastTriggerRef = useRef<string>('');
@@ -356,6 +562,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         fontStyle: elStyles.fontStyle,
         cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery' || type === 'long-text') ? 'pointer' : 'default',
         border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
+        direction: 'ltr', // Fix: Ensure English text writes LTR by default
     };
 
     const handleInteraction = (e: React.MouseEvent) => {
@@ -428,87 +635,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
     switch (type) {
         case 'text':
-            const hasBackground = !!elStyles.backgroundColor;
-            const showBorderWrapper = isSelected && mode === 'editor';
-
-            // For text without background and not selected, keep original layout but remove visible box
-            if (!hasBackground && !showBorderWrapper) {
-                // Use original commonProps structure but override className to exclude elementText
-                // and ensure no visible border/background/boxShadow
-                const noBoxTextClassName = `${styles.element} ${getAnimationClass()}`;
-
-                const noBoxTextStyle = {
-                    ...commonProps.style,
-                    border: 'none',
-                    outline: 'none',
-                    boxShadow: 'none',
-                    backgroundColor: 'transparent',
-                    // Use flex for proper alignment like elementText class, but without the class
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start',
-                };
-
-                return (
-                    <div
-                        ref={elementRef}
-                        id={`element-${element.id}`}
-                        role="textbox"
-                        aria-label="Text Element"
-                        className={noBoxTextClassName}
-                        contentEditable={isSelected && mode === 'editor'}
-                        onInput={handleTextChange}
-                        suppressContentEditableWarning
-                        style={noBoxTextStyle}
-                        data-type={type}
-                        data-element-id={element.id}
-                        onMouseDown={handleMouseDown}
-                        onClick={handleInteraction}
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        {content}
-                        {renderResizeHandles()}
-                    </div>
-                );
-            }
-
-            // For text with background or when selected, use wrapper for border/padding
             return (
-                <div
-                    {...commonProps}
-                    style={{
-                        ...commonProps.style,
-                        border: 'none', // Border will be on inner wrapper if selected
-                        display: hasBackground ? 'flex' : (showBorderWrapper ? 'flex' : undefined),
-                        alignItems: hasBackground || showBorderWrapper ? 'center' : undefined,
-                        justifyContent: hasBackground || showBorderWrapper ? (elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start') : undefined,
-                    }}
-                >
-                    <div
-                        id={`element-${element.id}`}
-                        role="textbox"
-                        aria-label="Text Element"
-                        contentEditable={isSelected && mode === 'editor'}
-                        onInput={handleTextChange}
-                        suppressContentEditableWarning
-                        style={{
-                            outline: 'none',
-                            border: showBorderWrapper ? '2px solid var(--color-primary)' : 'none',
-                            padding: showBorderWrapper ? '4px 8px' : (hasBackground ? '12px 16px' : '0'),
-                            backgroundColor: elStyles.backgroundColor,
-                            borderRadius: elStyles.borderRadius,
-                            display: 'inline-block',
-                            width: showBorderWrapper ? 'fit-content' : undefined,
-                            minWidth: showBorderWrapper ? 'fit-content' : undefined,
-                            maxWidth: '100%',
-                        }}
-                    >
-                        {content}
-                    </div>
-                    {renderResizeHandles()}
-                </div>
+                <EditableText
+                    element={element}
+                    mode={mode}
+                    isSelected={isSelected}
+                    onUpdate={onUpdate}
+                    commonProps={commonProps}
+                    renderResizeHandles={renderResizeHandles}
+                    getAnimationClass={getAnimationClass}
+                />
             );
 
         case 'image':
