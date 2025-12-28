@@ -26,7 +26,26 @@
     transition: background 0.2s;
 }
 
-.menuButton:hover {
+.contentsButton {
+    width: auto;
+    min-width: auto;
+    padding: 8px 16px;
+    gap: 8px;
+    background: var(--color-primary);
+    color: white;
+    border-radius: var(--radius-full);
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.buttonLabel {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: white;
+}
+
+.menuButton:hover:not(.contentsButton) {
     background: #f0f0f0;
 }
 

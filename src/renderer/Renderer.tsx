@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Project } from '../types/model';
 import { ScreenRenderer } from './ScreenRenderer';
 import { Lightbox } from './Lightbox';
+import { useUIStore } from '../store/uiStore';
 import styles from './styles.module.css';
 
 interface Props {
@@ -26,6 +27,8 @@ export const Renderer: React.FC<Props> = ({
     device,
     selectedElementId
 }) => {
+    const { setMediaLibraryOpen } = useUIStore();
+    
     // State for internal navigation (Preview/Export)
     const [internalActiveId, setInternalActiveId] = useState<string>(
         project.screens[0]?.id || ''
@@ -187,7 +190,13 @@ export const Renderer: React.FC<Props> = ({
     const handleElementClick = (elementId: string) => {
         const el = activeScreen?.elements.find(e => e.id === elementId);
 
-        // Handle lightbox interactions (Images, Galleries, Expandable Text)
+        // In editor mode, just select the element (content manager opens via Contents button in menu)
+        if (mode === 'editor') {
+            onElementSelect?.(elementId);
+            return;
+        }
+
+        // Handle lightbox interactions (Images, Galleries, Expandable Text) for preview/export modes
         // Check if element is media or expandable text
         const isClickable = el?.type === 'image' ||
             el?.type === 'gallery' ||
@@ -245,11 +254,6 @@ export const Renderer: React.FC<Props> = ({
             if (allItems.length > 0) {
                 setLightboxItems(allItems);
                 setLightboxIndex(startIndex);
-            }
-
-            // In editor mode, still select the element for editing
-            if (mode === 'editor') {
-                onElementSelect?.(elementId);
             }
         } else if (mode === 'editor') {
             // For non-image elements in editor, just select

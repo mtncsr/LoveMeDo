@@ -1,25 +1,88 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../store/uiStore';
 import { useProjectStore } from '../store/projectStore';
 import { fileToBase64, resizeImage } from '../utils/fileHelpers';
-import { X, Upload as UploadIcon } from 'lucide-react';
+import { X, Upload as UploadIcon, Check, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './MediaLibraryModal.module.css';
 
 interface Props {
-    onSelect?: (mediaId: string) => void;
+    onSelect?: (mediaId: string | string[]) => void;
 }
 
+type TabType = 'images' | 'videos' | 'music';
+
 const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
-    const { setMediaLibraryOpen, mediaLibraryMode } = useUIStore();
+    const { setMediaLibraryOpen, contentManagerContext } = useUIStore();
     const { project, addMediaItem } = useProjectStore();
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [activeTab, setActiveTab] = useState<TabType>('images');
+    const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+    
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const videoInputRef = useRef<HTMLInputElement>(null);
+    const musicInputRef = useRef<HTMLInputElement>(null);
 
-    if (!project) return null;
+    if (!project || !contentManagerContext) return null;
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { elementId, screenId, elementType } = contentManagerContext;
+    
+    // Get the current element to determine assigned media
+    const currentElement = useMemo(() => {
+        if (!screenId || !elementId) return null;
+        const screen = project.screens.find(s => s.id === screenId);
+        return screen?.elements.find(e => e.id === elementId) || null;
+    }, [project, screenId, elementId]);
+
+    // Initialize selected items based on current element content
+    useEffect(() => {
+        if (!currentElement) return;
+        
+        const assignedIds = new Set<string>();
+        
+        if (elementType === 'image') {
+            // Single media ID for hero images
+            const content = currentElement.content;
+            if (content && project.mediaLibrary[content]) {
+                assignedIds.add(content);
+            }
+        } else if (elementType === 'gallery') {
+            // Array of media IDs for galleries
+            try {
+                const parsed = JSON.parse(currentElement.content);
+                const mediaIds = Array.isArray(parsed) ? parsed : [currentElement.content];
+                mediaIds.forEach((id: string) => {
+                    if (project.mediaLibrary[id]) {
+                        assignedIds.add(id);
+                    }
+                });
+            } catch {
+                // If not JSON, treat as single ID
+                if (currentElement.content && project.mediaLibrary[currentElement.content]) {
+                    assignedIds.add(currentElement.content);
+                }
+            }
+        }
+        
+        setSelectedMediaIds(assignedIds);
+    }, [currentElement, elementType, project.mediaLibrary]);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, expectedType: 'image' | 'video' | 'audio') => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        // Validate file type matches expected tab
+        if (expectedType === 'image' && !file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+        if (expectedType === 'video' && !file.type.startsWith('video/')) {
+            alert('Please select a video file');
+            return;
+        }
+        if (expectedType === 'audio' && !file.type.startsWith('audio/')) {
+            alert('Please select an audio file');
+            return;
+        }
 
         try {
             // 1. Convert to Base64
@@ -33,7 +96,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
             // 3. Create Item
             const newItem = {
                 id: uuidv4(),
-                type: (file.type.startsWith('video/') ? 'video' : 'image') as 'image' | 'video' | 'audio',
+                type: expectedType,
                 originalName: file.name,
                 mimeType: file.type,
                 data: base64,
@@ -42,9 +105,9 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
             };
 
             addMediaItem(newItem);
-
-            // If passing custom uploaded immediately
-            // onSelect?.(newItem.id); 
+            
+            // Reset file input
+            e.target.value = '';
         } catch (err) {
             console.error("Upload failed", err);
             alert("Failed to upload file.");
@@ -52,52 +115,195 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     };
 
     const handleItemClick = (mediaId: string) => {
-        if (mediaLibraryMode === 'select') {
-            onSelect?.(mediaId);
-            setMediaLibraryOpen(false);
+        if (elementType === 'image') {
+            // Single selection for hero images
+            setSelectedMediaIds(new Set([mediaId]));
+        } else if (elementType === 'gallery') {
+            // Multiple selection for galleries
+            const newSelection = new Set(selectedMediaIds);
+            if (newSelection.has(mediaId)) {
+                newSelection.delete(mediaId);
+            } else {
+                newSelection.add(mediaId);
+            }
+            setSelectedMediaIds(newSelection);
         }
     };
 
-    // Convert map to array
-    const mediaItems = Object.values(project.mediaLibrary);
+    const handleSave = () => {
+        if (elementType === 'image') {
+            // Single selection
+            const selectedId = Array.from(selectedMediaIds)[0] || '';
+            onSelect?.(selectedId);
+        } else if (elementType === 'gallery') {
+            // Multiple selection - return as array
+            const selectedArray = Array.from(selectedMediaIds);
+            onSelect?.(selectedArray);
+        }
+        setMediaLibraryOpen(false);
+    };
+
+    const handleClose = () => {
+        setMediaLibraryOpen(false);
+    };
+
+    // Filter media items by active tab
+    const filteredMediaItems = useMemo(() => {
+        const allItems = Object.values(project.mediaLibrary);
+        return allItems.filter(item => {
+            if (activeTab === 'images') return item.type === 'image';
+            if (activeTab === 'videos') return item.type === 'video';
+            if (activeTab === 'music') return item.type === 'audio';
+            return false;
+        });
+    }, [project.mediaLibrary, activeTab]);
+
+    // Check if media item is assigned (has checkmark)
+    const isAssigned = (mediaId: string) => {
+        if (!currentElement) return false;
+        
+        if (elementType === 'image') {
+            return currentElement.content === mediaId && project.mediaLibrary[mediaId];
+        } else if (elementType === 'gallery') {
+            try {
+                const parsed = JSON.parse(currentElement.content);
+                const mediaIds = Array.isArray(parsed) ? parsed : [currentElement.content];
+                return mediaIds.includes(mediaId) && project.mediaLibrary[mediaId];
+            } catch {
+                return currentElement.content === mediaId && project.mediaLibrary[mediaId];
+            }
+        }
+        return false;
+    };
+
+    // Check if music tab should be disabled (only for screen-level assignment)
+    const isMusicDisabled = elementType !== null; // Disable music tab when opened from element
+
+    const getFileInputRef = () => {
+        if (activeTab === 'images') return imageInputRef;
+        if (activeTab === 'videos') return videoInputRef;
+        return musicInputRef;
+    };
+
+    const getAcceptType = () => {
+        if (activeTab === 'images') return 'image/*';
+        if (activeTab === 'videos') return 'video/*';
+        return 'audio/*';
+    };
+
+    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Close if clicking on overlay (not on modal content)
+        if (e.target === e.currentTarget) {
+            handleClose();
+        }
+    };
 
     return (
-        <div className={styles.overlay}>
-            <div className={styles.modal}>
+        <div className={styles.overlay} onClick={handleOverlayClick}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.header}>
-                    <h3>Media Library</h3>
-                    <button className={styles.closeBtn} onClick={() => setMediaLibraryOpen(false)}>
+                    <button className={styles.saveBtn} onClick={handleSave}>
+                        <Save size={18} />
+                        <span>Save</span>
+                    </button>
+                    
+                    <div className={styles.tabs}>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'images' ? styles.activeTab : ''}`}
+                            onClick={() => setActiveTab('images')}
+                        >
+                            Images
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'videos' ? styles.activeTab : ''}`}
+                            onClick={() => setActiveTab('videos')}
+                        >
+                            Videos
+                        </button>
+                        <button
+                            className={`${styles.tab} ${activeTab === 'music' ? styles.activeTab : ''} ${isMusicDisabled ? styles.disabledTab : ''}`}
+                            onClick={() => !isMusicDisabled && setActiveTab('music')}
+                            disabled={isMusicDisabled}
+                        >
+                            Music
+                        </button>
+                    </div>
+
+                    <button className={styles.closeBtn} onClick={handleClose}>
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className={styles.content}>
-                    <div className={styles.grid}>
-                        {/* Upload Button */}
-                        <div className={styles.uploadArea} onClick={() => fileInputRef.current?.click()}>
+                    {/* Upload Section */}
+                    <div className={styles.uploadSection}>
+                        <div 
+                            className={styles.uploadArea} 
+                            onClick={() => getFileInputRef().current?.click()}
+                        >
                             <UploadIcon size={24} />
-                            <span>Upload</span>
+                            <span>Upload {activeTab === 'images' ? 'Image' : activeTab === 'videos' ? 'Video' : 'Audio'}</span>
                             <input
-                                ref={fileInputRef}
+                                ref={getFileInputRef()}
                                 type="file"
-                                accept="image/*,video/*" // audio later
+                                accept={getAcceptType()}
                                 style={{ display: 'none' }}
-                                onChange={handleFileChange}
+                                onChange={(e) => handleFileChange(e, activeTab === 'images' ? 'image' : activeTab === 'videos' ? 'video' : 'audio')}
                             />
                         </div>
-
-                        {/* Items */}
-                        {mediaItems.map(item => (
-                            <div
-                                key={item.id}
-                                className={styles.mediaItem}
-                                onClick={() => handleItemClick(item.id)}
-                            >
-                                {item.type === 'image' && <img src={item.data} alt="media" />}
-                                {item.type === 'video' && <div style={{ width: '100%', height: '100%', background: '#000', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Video</div>}
-                            </div>
-                        ))}
                     </div>
+
+                    {/* Media Grid */}
+                    <div className={styles.grid}>
+                        {filteredMediaItems.map(item => {
+                            const isSelected = selectedMediaIds.has(item.id);
+                            const hasCheckmark = isAssigned(item.id);
+                            
+                            return (
+                                <div
+                                    key={item.id}
+                                    className={`${styles.mediaItem} ${isSelected ? styles.selected : ''}`}
+                                    onClick={() => handleItemClick(item.id)}
+                                >
+                                    {item.type === 'image' && (
+                                        <img src={item.data} alt="media" className={styles.thumbnail} />
+                                    )}
+                                    {item.type === 'video' && (
+                                        <div className={styles.videoThumbnail}>
+                                            <div className={styles.videoIcon}>▶</div>
+                                            <span>Video</span>
+                                        </div>
+                                    )}
+                                    {item.type === 'audio' && (
+                                        <div className={styles.audioThumbnail}>
+                                            <div className={styles.audioIcon}>♪</div>
+                                            <span>Audio</span>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Checkmark overlay for assigned items */}
+                                    {hasCheckmark && (
+                                        <div className={styles.checkmarkOverlay}>
+                                            <Check size={16} />
+                                        </div>
+                                    )}
+                                    
+                                    {/* Selection indicator */}
+                                    {isSelected && !hasCheckmark && (
+                                        <div className={styles.selectionIndicator}>
+                                            <Check size={16} />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    
+                    {filteredMediaItems.length === 0 && (
+                        <div className={styles.emptyState}>
+                            <p>No {activeTab} uploaded yet. Click "Upload" to add your first {activeTab === 'images' ? 'image' : activeTab === 'videos' ? 'video' : 'audio'}.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

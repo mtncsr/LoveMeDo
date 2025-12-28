@@ -15,12 +15,17 @@ interface UIState {
 
     isMediaLibraryOpen: boolean;
     mediaLibraryMode: 'select' | 'manage'; // Select returns, Manage just views
+    contentManagerContext: {
+        elementId: string | null;
+        screenId: string | null;
+        elementType: 'image' | 'gallery' | 'video' | null;
+    } | null;
 
     // Actions
     setActiveScreenId: (id: string | null) => void;
     setSelectedElementId: (id: string | null) => void;
     setTemplatePreviewOpen: (isOpen: boolean, templateId?: string) => void;
-    setMediaLibraryOpen: (isOpen: boolean, mode?: 'select' | 'manage') => void;
+    setMediaLibraryOpen: (isOpen: boolean, mode?: 'select' | 'manage', context?: { elementId: string; screenId: string; elementType: 'image' | 'gallery' | 'video' }) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -33,6 +38,7 @@ export const useUIStore = create<UIState>((set) => ({
     previewTemplateId: null,
     isMediaLibraryOpen: false,
     mediaLibraryMode: 'manage',
+    contentManagerContext: null,
 
     setActiveScreenId: (id) => set({ activeScreenId: id }),
     setSelectedElementId: (id) => set({ selectedElementId: id }),
@@ -42,8 +48,13 @@ export const useUIStore = create<UIState>((set) => ({
         previewTemplateId: isOpen ? templateId || null : null
     }),
 
-    setMediaLibraryOpen: (isOpen, mode = 'manage') => set({
+    setMediaLibraryOpen: (isOpen, mode = 'manage', context) => set({
         isMediaLibraryOpen: isOpen,
-        mediaLibraryMode: mode
+        mediaLibraryMode: mode,
+        contentManagerContext: isOpen && context ? {
+            elementId: context.elementId,
+            screenId: context.screenId,
+            elementType: context.elementType
+        } : null
     }),
 }));

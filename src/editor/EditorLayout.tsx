@@ -13,7 +13,7 @@ const EditorLayout: React.FC = () => {
     const { project, updateScreen, updateElement, addScreen } = useProjectStore();
     const {
         setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
-        selectedElementId, isMediaLibraryOpen, mediaLibraryMode
+        selectedElementId, isMediaLibraryOpen, mediaLibraryMode, contentManagerContext
     } = useUIStore();
     const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('mobile');
     const [zoom, setZoom] = useState(100);
@@ -47,11 +47,38 @@ const EditorLayout: React.FC = () => {
         setMode('export');
     };
 
-    const handleMediaSelect = (mediaId: string) => {
-        if (mediaLibraryMode === 'select' && activeScreenId && selectedElementId) {
-            const mediaItem = project.mediaLibrary[mediaId];
-            if (mediaItem) {
-                updateElement(activeScreenId, selectedElementId, { content: mediaItem.data });
+    const handleMediaSelect = (mediaIdOrArray: string | string[]) => {
+        if (!contentManagerContext) {
+            // Legacy mode for backward compatibility
+            if (mediaLibraryMode === 'select' && activeScreenId && selectedElementId) {
+                const mediaId = typeof mediaIdOrArray === 'string' ? mediaIdOrArray : mediaIdOrArray[0];
+                const mediaItem = project.mediaLibrary[mediaId];
+                if (mediaItem) {
+                    updateElement(activeScreenId, selectedElementId, { content: mediaItem.data });
+                }
+            }
+            return;
+        }
+
+        const { elementId, screenId, elementType } = contentManagerContext;
+        if (!screenId || !elementId) return;
+
+        if (elementType === 'image') {
+            // Single selection for hero images - store media ID
+            const mediaId = typeof mediaIdOrArray === 'string' ? mediaIdOrArray : mediaIdOrArray[0];
+            if (mediaId && project.mediaLibrary[mediaId]) {
+                updateElement(screenId, elementId, { content: mediaId });
+            }
+        } else if (elementType === 'gallery') {
+            // Multiple selection for galleries - store as JSON array of media IDs
+            const mediaIds = Array.isArray(mediaIdOrArray) ? mediaIdOrArray : [mediaIdOrArray];
+            // Filter to only include valid media IDs from mediaLibrary
+            const validMediaIds = mediaIds.filter(id => project.mediaLibrary[id]);
+            if (validMediaIds.length > 0) {
+                updateElement(screenId, elementId, { content: JSON.stringify(validMediaIds) });
+            } else {
+                // If no valid selections, clear the gallery
+                updateElement(screenId, elementId, { content: JSON.stringify([]) });
             }
         }
     };
@@ -169,7 +196,29 @@ const EditorLayout: React.FC = () => {
                     </button>
                 </div>
 
-                <div className={styles.canvasContainer}>
+                <div 
+                    className={styles.canvasContainer}
+                    onClick={(e) => {
+                        // Deselect if clicking directly on canvas container (gray area)
+                        if (e.target === e.currentTarget) {
+                            if (selectedElementId) {
+                                setSelectedElementId(null);
+                            }
+                            return;
+                        }
+                        
+                        // Also check if clicking on canvas wrapper background (not on element or menu)
+                        const target = e.target as HTMLElement;
+                        const isElement = target.closest('[data-element-id]');
+                        const isMenu = target.closest('[data-editing-menu]');
+                        const isCanvasWrapper = target.closest(`.${styles.canvasWrapper}`);
+
+                        // If clicking on canvas wrapper background (not element/menu), deselect
+                        if (isCanvasWrapper && !isElement && !isMenu && selectedElementId) {
+                            setSelectedElementId(null);
+                        }
+                    }}
+                >
                     <div
                         className={styles.canvasWrapper}
                         data-device={deviceView}

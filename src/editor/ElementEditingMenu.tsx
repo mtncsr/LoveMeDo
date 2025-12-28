@@ -5,7 +5,7 @@ import type { ScreenElement } from '../types/model';
 import {
     Trash2, Type, Palette, MoveUp, MoveDown, 
     Bold, Underline, Italic, Minus, Plus,
-    Sparkles, Image as ImageIcon, X
+    Sparkles, Image as ImageIcon, X, FolderOpen
 } from 'lucide-react';
 import styles from './ElementEditingMenu.module.css';
 
@@ -42,7 +42,7 @@ const COMMON_COLORS = [
 const STICKERS = ['⭐', '❤️', '🎉', '🎈', '🎁', '💝', '💖', '✨', '🌟', '🎊', '🎂', '🍰', '🎵', '🎶', '💕', '💗'];
 
 export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
-    const { activeScreenId, setSelectedElementId } = useUIStore();
+    const { activeScreenId, setSelectedElementId, setMediaLibraryOpen } = useUIStore();
     const { updateElement, removeElement } = useProjectStore();
     const [showColorPicker, setShowColorPicker] = useState<string | null>(null); // 'color' | 'backgroundColor' | 'frameColor' | null
     const [showAnimationPicker, setShowAnimationPicker] = useState(false);
@@ -51,9 +51,12 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const [isEditingText, setIsEditingText] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+    const [isPositioned, setIsPositioned] = useState(false);
 
     // Position menu below element by finding it in the DOM
     useEffect(() => {
+        setIsPositioned(false);
+        
         const findElement = () => {
             // Find the element by data attribute
             const elementEl = document.querySelector(`[data-element-id="${element.id}"]`) as HTMLElement;
@@ -78,11 +81,17 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                     top: relativeTop + 8,
                     left: clampedLeft
                 });
+                setIsPositioned(true);
             }
         };
 
-        // Try to find element immediately and on resize
-        findElement();
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                findElement();
+            });
+        });
+        
         const interval = setInterval(findElement, 100);
         window.addEventListener('resize', findElement);
 
@@ -258,6 +267,8 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 position: 'absolute',
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
+                opacity: isPositioned ? 1 : 0,
+                pointerEvents: isPositioned ? 'auto' : 'none',
             }}
             onClick={(e) => e.stopPropagation()}
         >
@@ -353,6 +364,26 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Contents Button (for all content items: image, video, gallery) */}
+            {(element.type === 'image' || element.type === 'video' || element.type === 'gallery') && (
+                <button
+                    className={`${styles.menuButton} ${styles.contentsButton}`}
+                    onClick={() => {
+                        if (activeScreenId) {
+                            setMediaLibraryOpen(true, 'manage', {
+                                elementId: element.id,
+                                screenId: activeScreenId,
+                                elementType: element.type as 'image' | 'video' | 'gallery'
+                            });
+                        }
+                    }}
+                    title="Contents"
+                >
+                    <FolderOpen size={18} />
+                    <span className={styles.buttonLabel}>Contents</span>
+                </button>
             )}
 
             {/* Frame Color (for gallery items) */}
