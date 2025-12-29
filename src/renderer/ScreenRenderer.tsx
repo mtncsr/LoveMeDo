@@ -177,6 +177,7 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                         screenType={type}
                         device={device}
                         project={project}
+                        hasNextButton={type === 'content' && hasNextScreen && (mode === 'editor' || !hasNavigationButtons)}
                     />
                 );
             })}

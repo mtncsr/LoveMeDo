@@ -55,6 +55,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const [isPositioned, setIsPositioned] = useState(false);
 
     // Position menu below element by finding it in the DOM
+    // Menu can render anywhere on the canvas, not just within the preview window
     useEffect(() => {
         setIsPositioned(false);
         
@@ -69,25 +70,28 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 elementEl = document.querySelector(`[data-element-id="${element.id}"]`) as HTMLElement;
             }
             if (elementEl && menuRef.current) {
-                // Find the canvas wrapper (parent container)
-                const canvasWrapper = elementEl.closest('[data-device]') as HTMLElement;
-                if (!canvasWrapper) return;
+                // Get viewport dimensions to prevent scrolling
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
                 
                 const elementRect = elementEl.getBoundingClientRect();
-                const wrapperRect = canvasWrapper.getBoundingClientRect();
                 const menuRect = menuRef.current.getBoundingClientRect();
                 
                 const padding = 8; // Padding between element and menu
-                const relativeElementTop = elementRect.top - wrapperRect.top;
-                const relativeElementBottom = elementRect.bottom - wrapperRect.top;
-                const relativeElementLeft = elementRect.left - wrapperRect.left;
-                const relativeElementRight = elementRect.right - wrapperRect.left;
                 
-                // Check available space
-                const spaceBelow = wrapperRect.height - relativeElementBottom;
-                const spaceAbove = relativeElementTop;
-                const spaceRight = wrapperRect.width - relativeElementRight;
-                const spaceLeft = relativeElementLeft;
+                // Use viewport coordinates (getBoundingClientRect gives us viewport-relative positions)
+                const elementTop = elementRect.top;
+                const elementBottom = elementRect.bottom;
+                const elementLeft = elementRect.left;
+                const elementRight = elementRect.right;
+                const elementCenterX = elementRect.left + elementRect.width / 2;
+                const elementCenterY = elementRect.top + elementRect.height / 2;
+                
+                // Check available space in viewport
+                const spaceBelow = viewportHeight - elementBottom;
+                const spaceAbove = elementTop;
+                const spaceRight = viewportWidth - elementRight;
+                const spaceLeft = elementLeft;
                 
                 let top: number;
                 let left: number;
@@ -95,34 +99,37 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 // Smart positioning: prefer below, but use side if no room
                 if (spaceBelow >= menuRect.height + padding) {
                     // Enough space below - position below element
-                    top = relativeElementBottom + padding;
-                    left = relativeElementLeft + (elementRect.width / 2) - (menuRect.width / 2);
+                    top = elementBottom + padding;
+                    left = elementCenterX - (menuRect.width / 2);
                 } else if (spaceAbove >= menuRect.height + padding) {
                     // Not enough space below, but enough above - position above element
-                    top = relativeElementTop - menuRect.height - padding;
-                    left = relativeElementLeft + (elementRect.width / 2) - (menuRect.width / 2);
+                    top = elementTop - menuRect.height - padding;
+                    left = elementCenterX - (menuRect.width / 2);
                 } else {
                     // Not enough space above or below - position to the side
                     if (spaceRight >= menuRect.width + padding) {
                         // Position to the right
-                        top = relativeElementTop + (elementRect.height / 2) - (menuRect.height / 2);
-                        left = relativeElementRight + padding;
+                        top = elementCenterY - (menuRect.height / 2);
+                        left = elementRight + padding;
                     } else if (spaceLeft >= menuRect.width + padding) {
                         // Position to the left
-                        top = relativeElementTop + (elementRect.height / 2) - (menuRect.height / 2);
-                        left = relativeElementLeft - menuRect.width - padding;
+                        top = elementCenterY - (menuRect.height / 2);
+                        left = elementLeft - menuRect.width - padding;
                     } else {
-                        // Fallback: position below (will cause scroll but better than off-screen)
-                        top = relativeElementBottom + padding;
-                        left = relativeElementLeft + (elementRect.width / 2) - (menuRect.width / 2);
+                        // Fallback: position below element, but adjust to stay in viewport
+                        top = elementBottom + padding;
+                        left = elementCenterX - (menuRect.width / 2);
                     }
                 }
                 
-                // Keep menu within bounds
-                const maxLeft = wrapperRect.width - menuRect.width;
-                const maxTop = wrapperRect.height - menuRect.height;
-                const clampedLeft = Math.max(0, Math.min(maxLeft, left));
-                const clampedTop = Math.max(0, Math.min(maxTop, top));
+                // Clamp to viewport bounds to prevent scrolling
+                const minLeft = padding;
+                const maxLeft = viewportWidth - menuRect.width - padding;
+                const minTop = padding;
+                const maxTop = viewportHeight - menuRect.height - padding;
+                
+                const clampedLeft = Math.max(minLeft, Math.min(maxLeft, left));
+                const clampedTop = Math.max(minTop, Math.min(maxTop, top));
                 
                 setMenuPosition({
                     top: clampedTop,
@@ -311,30 +318,33 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             className={styles.menu}
             data-editing-menu="true"
             style={{
-                position: 'absolute',
+                position: 'fixed', // Use fixed positioning to render on top of entire canvas
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
                 opacity: isPositioned ? 1 : 0,
                 pointerEvents: isPositioned ? 'auto' : 'none',
+                zIndex: 10000, // High z-index to ensure it's on top
             }}
             onClick={(e) => e.stopPropagation()}
         >
-            {/* Text/Button Features */}
-            {(element.type === 'text' || element.type === 'button' || element.type === 'long-text') && renderTextFeatures()}
+            {/* Top Row: All Icon Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
+                {/* Text/Button Features */}
+                {(element.type === 'text' || element.type === 'button' || element.type === 'long-text') && renderTextFeatures()}
 
-            {/* Button Sticker Selector */}
-            {element.type === 'button' && (
-                <button
-                    className={styles.menuButton}
-                    onClick={() => setShowStickerPicker(!showStickerPicker)}
-                    title="Sticker"
-                >
-                    <Sparkles size={18} />
-                </button>
-            )}
+                {/* Button Sticker Selector */}
+                {element.type === 'button' && (
+                    <button
+                        className={styles.menuButton}
+                        onClick={() => setShowStickerPicker(!showStickerPicker)}
+                        title="Sticker"
+                    >
+                        <Sparkles size={18} />
+                    </button>
+                )}
 
-            {/* Text/Button Color Picker */}
-            {(element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
+                {/* Text/Button Color Picker */}
+                {(element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
@@ -371,10 +381,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </div>
                     )}
                 </div>
-            )}
+                )}
 
-            {/* Background Color (for text/button) */}
-            {(element.type === 'text' || element.type === 'button') && (
+                {/* Background Color (for text/button) */}
+                {(element.type === 'text' || element.type === 'button') && (
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
@@ -411,10 +421,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </div>
                     )}
                 </div>
-            )}
+                )}
 
-            {/* Contents Button (for all content items: image, video, gallery) */}
-            {(element.type === 'image' || element.type === 'video' || element.type === 'gallery') && (
+                {/* Contents Button (for all content items: image, video, gallery) */}
+                {(element.type === 'image' || element.type === 'video' || element.type === 'gallery') && (
                 <button
                     className={`${styles.menuButton} ${styles.contentsButton}`}
                     onClick={() => {
@@ -431,10 +441,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                     <FolderOpen size={18} />
                     <span className={styles.buttonLabel}>Contents</span>
                 </button>
-            )}
+                )}
 
-            {/* Frame Color (for gallery items) */}
-            {(element.type === 'image' || element.type === 'video' || element.type === 'gallery' || element.type === 'long-text') && (
+                {/* Frame Color (for gallery items) */}
+                {(element.type === 'image' || element.type === 'video' || element.type === 'gallery' || element.type === 'long-text') && (
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
@@ -474,10 +484,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </div>
                     )}
                 </div>
-            )}
+                )}
 
-            {/* Frame Shape (for buttons) */}
-            {element.type === 'button' && (
+                {/* Frame Shape (for buttons) */}
+                {element.type === 'button' && (
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
@@ -546,10 +556,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </div>
                     )}
                 </div>
-            )}
+                )}
 
-            {/* Frame Color (for buttons with frames) */}
-            {element.type === 'button' && element.metadata?.frameShape && (
+                {/* Frame Color (for buttons with frames) */}
+                {element.type === 'button' && element.metadata?.frameShape && (
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
@@ -589,10 +599,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </div>
                     )}
                 </div>
-            )}
+                )}
 
-            {/* Animation Selector */}
-            <div className={styles.dropdownContainer}>
+                {/* Animation Selector */}
+                <div className={styles.dropdownContainer}>
                 <button
                     className={styles.menuButton}
                     onClick={() => setShowAnimationPicker(!showAnimationPicker)}
@@ -613,10 +623,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         ))}
                     </div>
                 )}
-            </div>
+                </div>
 
-            {/* Font Selector */}
-            {showFontPicker && (element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
+                {/* Font Selector */}
+                {showFontPicker && (element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
                 <div className={styles.dropdown}>
                     {FONTS.map(font => (
                         <button
@@ -628,10 +638,10 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         </button>
                     ))}
                 </div>
-            )}
+                )}
 
-            {/* Sticker Picker (for buttons) */}
-            {showStickerPicker && element.type === 'button' && (
+                {/* Sticker Picker (for buttons) */}
+                {showStickerPicker && element.type === 'button' && (
                 <div className={styles.stickerPicker}>
                     <div className={styles.stickerPickerHeader}>
                         <span>Sticker</span>
@@ -651,43 +661,23 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         ))}
                     </div>
                 </div>
-            )}
+                )}
 
-            {/* Gallery Title/Subtitle Editors */}
-            {(element.type === 'image' || element.type === 'video' || element.type === 'gallery' || element.type === 'long-text') && (
-                <>
-                    <input
-                        type="text"
-                        placeholder="Title"
-                        value={element.metadata?.title || ''}
-                        onChange={(e) => handleTitleChange(e.target.value)}
-                        className={styles.textInput}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Subtitle"
-                        value={element.metadata?.subtitle || ''}
-                        onChange={(e) => handleSubtitleChange(e.target.value)}
-                        className={styles.textInput}
-                    />
-                </>
-            )}
-
-            {/* Layer Controls */}
-            <button
-                className={styles.menuButton}
-                onClick={() => handleMoveLayer('front')}
-                title="Move to Front"
-            >
-                <MoveUp size={18} />
-            </button>
-            <button
-                className={styles.menuButton}
-                onClick={() => handleMoveLayer('back')}
-                title="Move to Back"
-            >
-                <MoveDown size={18} />
-            </button>
+                {/* Layer Controls */}
+                <button
+                    className={styles.menuButton}
+                    onClick={() => handleMoveLayer('front')}
+                    title="Move to Front"
+                >
+                    <MoveUp size={18} />
+                </button>
+                <button
+                    className={styles.menuButton}
+                    onClick={() => handleMoveLayer('back')}
+                    title="Move to Back"
+                >
+                    <MoveDown size={18} />
+                </button>
 
             {/* Delete */}
             <button
@@ -697,6 +687,29 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             >
                 <Trash2 size={18} />
             </button>
+            </div>
+
+            {/* Bottom Row: Title/Subtitle Inputs (only for certain element types) */}
+            {(element.type === 'image' || element.type === 'video' || element.type === 'gallery' || element.type === 'long-text') && (
+                <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
+                    <input
+                        type="text"
+                        placeholder="Title"
+                        value={element.metadata?.title || ''}
+                        onChange={(e) => handleTitleChange(e.target.value)}
+                        className={styles.textInput}
+                        style={{ flex: '1 1 auto', minWidth: '80px' }}
+                    />
+                    <input
+                        type="text"
+                        placeholder="Subtitle"
+                        value={element.metadata?.subtitle || ''}
+                        onChange={(e) => handleSubtitleChange(e.target.value)}
+                        className={styles.textInput}
+                        style={{ flex: '1 1 auto', minWidth: '80px' }}
+                    />
+                </div>
+            )}
         </div>
     );
 };

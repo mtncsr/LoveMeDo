@@ -200,11 +200,11 @@ export const Renderer: React.FC<Props> = ({
             return;
         }
 
-        // Handle lightbox interactions (Images, Galleries, Expandable Text) for preview/export modes
-        // Check if element is media or expandable text
+        // Handle lightbox interactions (Images, Galleries, Long Text) for preview/export modes
+        // Check if element is media or long text
         const isClickable = el?.type === 'image' ||
             el?.type === 'gallery' ||
-            (el?.type === 'long-text' && el.metadata?.expandable);
+            el?.type === 'long-text';
 
         if (isClickable) {
             // Collect all displayable items from the screen
@@ -234,7 +234,7 @@ export const Renderer: React.FC<Props> = ({
                             allItems.push({ type: 'image', content: imageUrl, id: elem.id });
                         }
                     });
-                } else if (elem.type === 'long-text' && elem.metadata?.expandable) {
+                } else if (elem.type === 'long-text') {
                     allItems.push({ type: 'text', content: elem.content, id: elem.id });
                 }
             });
@@ -243,7 +243,7 @@ export const Renderer: React.FC<Props> = ({
             let startIndex = 0;
 
             // If clicked explicit element, find it in the list
-            if (el?.type === 'image' || (el?.type === 'long-text' && el.metadata?.expandable)) {
+            if (el?.type === 'image' || el?.type === 'long-text') {
                 // Determine index by matching ID
                 // Note: duplicates (like multiple images from same gallery ID) need care, 
                 // but direct "image" or "long-text" usually maps 1:1

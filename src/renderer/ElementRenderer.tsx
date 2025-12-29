@@ -10,30 +10,130 @@ const LongTextElement: React.FC<{
     isSelected: boolean;
     onMouseDown: (e: React.MouseEvent) => void;
     onClick: (e: React.MouseEvent) => void;
-}> = ({ element, style, mode, isSelected, onMouseDown, onClick }) => {
-    const { content, styles: elStyles } = element;
+    onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
+}> = ({ element, style, mode, isSelected, onMouseDown, onClick, onUpdate }) => {
+    const { content, styles: elStyles, size } = element;
+    const ref = useRef<HTMLDivElement>(null);
+    const contentRef = useRef(content);
 
+    // Sync contentRef
+    useEffect(() => {
+        contentRef.current = content;
+    }, [content]);
+
+    // Update DOM only if content changes externally
+    useEffect(() => {
+        if (ref.current && ref.current.textContent !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
+            ref.current.textContent = content;
+        }
+    }, [content, isSelected, mode]);
+
+    const isEditable = isSelected && mode === 'editor';
+    const [isFocused, setIsFocused] = useState(false);
+
+    // Calculate approximate line count for ellipsis (only when not editable)
+    useEffect(() => {
+        if (ref.current && ref.current.parentElement && !isEditable && mode !== 'editor') {
+            const containerHeight = ref.current.parentElement.clientHeight;
+            const fontSize = elStyles.fontSize ? parseFloat(String(elStyles.fontSize)) : 16;
+            const lineHeight = fontSize * 1.5; // Approximate line height
+            const maxLines = Math.floor(containerHeight / lineHeight);
+            // Set a reasonable max (between 5 and 50 lines)
+            const clampedLines = Math.max(5, Math.min(50, maxLines));
+            if (ref.current) {
+                ref.current.style.setProperty('-webkit-line-clamp', String(clampedLines));
+                ref.current.style.setProperty('line-clamp', String(clampedLines));
+            }
+        } else if (ref.current && isEditable) {
+            // When editable, remove line-clamp to allow full editing
+            ref.current.style.removeProperty('-webkit-line-clamp');
+            ref.current.style.removeProperty('line-clamp');
+        }
+    }, [size, elStyles.fontSize, isSelected, mode, isEditable]);
+
+    // Focus contentEditable when element becomes selected
+    useEffect(() => {
+        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true') {
+            requestAnimationFrame(() => {
+                if (ref.current && ref.current.contentEditable === 'true') {
+                    ref.current.focus();
+                    const range = document.createRange();
+                    const sel = window.getSelection();
+                    if (sel && ref.current.childNodes.length > 0) {
+                        range.selectNodeContents(ref.current);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            });
+        } else if (!isSelected) {
+            setIsFocused(false);
+        }
+    }, [isSelected, mode, element.id]);
+
+    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+        if (!onUpdate) return;
+        const newContent = e.currentTarget.textContent || '';
+        if (newContent !== contentRef.current) {
+            onUpdate(element.id, { content: newContent });
+        }
+    };
+
+    // Return just the contentEditable div - no container wrapper
     return (
         <div
-            className={styles.element}
+            ref={ref}
+            className={styles.longTextPlaceholder}
+            data-element-id={element.id}
+            data-type="long-text"
+            contentEditable={isEditable}
+            onInput={handleInput}
+            onMouseDown={onMouseDown}
+            onClick={(e) => {
+                // Only stop propagation when editing text, not when selecting
+                if (!isEditable) {
+                    onClick(e);
+                } else {
+                    e.stopPropagation();
+                }
+            }}
+            onFocus={() => {
+                setIsFocused(true);
+            }}
+            onBlur={(e) => {
+                setIsFocused(false);
+                if (isSelected && mode === 'editor' && ref.current) {
+                    const relatedTarget = e.relatedTarget as HTMLElement;
+                    const clickedOnMenu = relatedTarget?.closest('[data-editing-menu]');
+                    const clickedOnResizeHandle = relatedTarget?.closest('[class*="resizeHandle"]');
+                    if (!clickedOnMenu && !clickedOnResizeHandle) {
+                        setTimeout(() => {
+                            if (isSelected && ref.current && document.activeElement !== ref.current) {
+                                ref.current.focus();
+                            }
+                        }, 0);
+                    }
+                }
+            }}
+            suppressContentEditableWarning
             style={{
-                ...style,
+                color: elStyles.color,
+                fontSize: elStyles.fontSize ? `${elStyles.fontSize}px` : undefined,
+                fontFamily: elStyles.fontFamily,
+                fontWeight: elStyles.fontWeight,
+                textAlign: elStyles.textAlign || 'left',
+                outline: 'none',
+                width: '100%',
+                height: '100%',
+                minHeight: 0,
                 padding: '16px',
                 backgroundColor: elStyles.backgroundColor || 'rgba(255,255,255,0.9)',
                 borderRadius: elStyles.borderRadius || 16,
-                border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
-                cursor: mode !== 'editor' ? 'pointer' : 'default',
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-start',
+                cursor: mode !== 'editor' ? 'pointer' : (isFocused ? 'text' : 'move'),
+                boxSizing: 'border-box',
             }}
-            onMouseDown={onMouseDown}
-            onClick={onClick}
-        >
-            <div className={styles.longTextPlaceholder}>
-                {content}
-            </div>
-        </div>
+        />
     );
 };
 
@@ -235,9 +335,10 @@ interface Props {
     screenType?: 'overlay' | 'content' | 'navigation'; // Screen type for safe area calculation
     device?: 'mobile' | 'desktop'; // Device type for responsive font sizing
     project?: Project; // Project for media resolution
+    hasNextButton?: boolean; // Whether the screen has a next button (for long-text auto-expand limits)
 }
 
-export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile', project }) => {
+export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile', project, hasNextButton = false }) => {
     const { type, position, size, content, styles: elStyles } = element;
 
     // Resolve media URL from content (media ID or placeholder URL)
@@ -528,6 +629,96 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             lastTriggerRef.current = triggerKey;
         }
     }, [content, scaledFontSize, elStyles.fontFamily, type, element.id, mode, device]);
+
+    // Auto-resize long-text elements - expand to fit content with limits
+    const longTextLastTriggerRef = useRef<string>('');
+    const longTextIsResizingRef = useRef(false);
+    
+    useEffect(() => {
+        if (type !== 'long-text' || !elementRef.current || !onUpdateRef.current || mode !== 'editor' || longTextIsResizingRef.current || isResizingRef.current) return;
+
+        // Create a trigger key from the values that should trigger recalculation
+        const triggerKey = `${content}-${scaledFontSize || elStyles.fontSize}-${elStyles.fontFamily}-${position.y}-${position.x}`;
+
+        // Skip if this exact combination was already processed
+        if (longTextLastTriggerRef.current === triggerKey) return;
+
+        const element = elementRef.current;
+        const longTextElement = element.querySelector('[contenteditable]') as HTMLElement;
+        if (!longTextElement || !element.offsetParent) return;
+
+        // Measure content height
+        const measureDiv = document.createElement('div');
+        measureDiv.style.position = 'absolute';
+        measureDiv.style.visibility = 'hidden';
+        measureDiv.style.whiteSpace = 'pre-wrap';
+        const fontSize = scaledFontSize || elStyles.fontSize || 18;
+        measureDiv.style.fontSize = `${fontSize}px`;
+        measureDiv.style.fontFamily = elStyles.fontFamily || 'inherit';
+        measureDiv.style.fontWeight = elStyles.fontWeight || 'normal';
+        const elementWidthPx = (size.width || 80) / 100 * element.offsetParent.clientWidth;
+        measureDiv.style.width = `${elementWidthPx - 32}px`; // Account for padding (16px * 2)
+        measureDiv.style.padding = '16px';
+        measureDiv.style.boxSizing = 'border-box';
+        measureDiv.textContent = content || '';
+        document.body.appendChild(measureDiv);
+
+        const parentHeight = element.offsetParent.clientHeight;
+        
+        // Calculate content height
+        const contentHeightPx = measureDiv.scrollHeight;
+        const contentHeightPercent = (contentHeightPx / parentHeight) * 100;
+        
+        document.body.removeChild(measureDiv);
+
+        // Calculate maximum height based on next button area or bottom edge
+        const isContentScreen = screenType === 'content';
+        let maxHeightPercent: number;
+        if (isContentScreen) {
+            if (hasNextButton) {
+                // Next button area: bottom at 85% (safeAreaBottom)
+                // Max height = 85% - element top position
+                maxHeightPercent = 85 - position.y;
+            } else {
+                // No next button: bottom at 99% with small padding
+                maxHeightPercent = 99 - position.y;
+            }
+        } else {
+            // For overlay/navigation screens, use 95% as max
+            maxHeightPercent = 95 - position.y;
+        }
+
+        // Calculate desired height (content height, but not exceeding max)
+        const desiredHeight = Math.min(contentHeightPercent, maxHeightPercent);
+        
+        // Respect user-set size if they've manually shrunk it further
+        const currentHeight = size.height || 0;
+        // If current height is smaller than desired, user may have manually resized
+        // But only respect it if it's significantly smaller (more than 2% difference)
+        const userSetHeight = currentHeight < desiredHeight - 2 ? currentHeight : null;
+        
+        // Only auto-expand if content is larger than current size
+        // But respect user-set size if they've manually shrunk it
+        const finalHeight = userSetHeight && userSetHeight < desiredHeight 
+            ? userSetHeight // User has manually shrunk it, respect that
+            : Math.max(currentHeight, Math.min(desiredHeight, maxHeightPercent)); // Auto-expand but don't exceed max
+
+        // Only update if different from current size (with small threshold)
+        if (Math.abs(finalHeight - currentHeight) > 0.5) {
+            longTextLastTriggerRef.current = triggerKey;
+            longTextIsResizingRef.current = true;
+            onUpdateRef.current(element.id, {
+                size: { width: size.width || 80, height: finalHeight }
+            });
+            // Reset flag after state update completes
+            requestAnimationFrame(() => {
+                longTextIsResizingRef.current = false;
+            });
+        } else {
+            // Even if size didn't change, mark this trigger as processed
+            longTextLastTriggerRef.current = triggerKey;
+        }
+    }, [content, scaledFontSize, elStyles.fontSize, elStyles.fontFamily, elStyles.fontWeight, type, element.id, mode, device, position.y, position.x, size.width, size.height, screenType, hasNextButton]);
 
     // Safe area calculation for content screens
     // Navigation bar: 60px ≈ 10% on mobile (accounts for nav bar)
@@ -856,21 +1047,6 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     {content}
                     {renderResizeHandles()}
                 </div>
-            );
-
-        case 'long-text':
-            return (
-                <>
-                    <LongTextElement
-                        element={element}
-                        style={commonProps.style}
-                        mode={mode}
-                        isSelected={isSelected}
-                        onMouseDown={handleMouseDown}
-                        onClick={handleInteraction}
-                    />
-                    {renderResizeHandles()}
-                </>
             );
 
         case 'gallery':
@@ -1233,11 +1409,22 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         )}
                         <LongTextElement
                             element={element}
-                            style={style}
+                            style={{ 
+                                ...style, 
+                                border: 'none', // Remove border from style since outer wrapper handles it
+                                position: 'relative', // Override absolute positioning from style
+                                left: 0,
+                                top: 0,
+                                width: '100%',
+                                height: '100%',
+                                flex: 1, // Take remaining space in flex container
+                                minHeight: 0 // Allow shrinking
+                            }}
                             mode={mode}
                             isSelected={isSelected}
                             onMouseDown={handleMouseDown}
                             onClick={handleInteraction}
+                            onUpdate={onUpdate}
                         />
                         {longTextSubtitle && (
                             <div style={{
@@ -1254,14 +1441,25 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 );
             }
             return (
-                <LongTextElement
-                    element={element}
-                    style={style}
-                    mode={mode}
-                    isSelected={isSelected}
-                    onMouseDown={handleMouseDown}
-                    onClick={handleInteraction}
-                />
+                <div {...commonProps} style={{ 
+                    ...commonProps.style,
+                    padding: '0', // Remove padding from outer wrapper since LongTextElement handles it
+                    backgroundColor: 'transparent', // Remove background from outer wrapper
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-start',
+                }}>
+                    <LongTextElement
+                        element={element}
+                        style={style}
+                        mode={mode}
+                        isSelected={isSelected}
+                        onMouseDown={handleMouseDown}
+                        onClick={handleInteraction}
+                        onUpdate={onUpdate}
+                    />
+                    {renderResizeHandles()}
+                </div>
             );
 
         case 'shape':

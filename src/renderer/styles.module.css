@@ -102,17 +102,20 @@
 }
 
 .longTextPlaceholder {
-    display: -webkit-box;
-    -webkit-line-clamp: 14;
-    line-clamp: 14;
-    /* Standard property for compatibility */
-    /* Show more lines to fill the container */
-    -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: pre-wrap;
+    word-wrap: break-word;
     width: 100%;
     height: 100%;
+    /* Show ellipsis when text overflows the container */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    /* Use a large number - the container height will naturally limit it */
+    /* The ellipsis will appear when text exceeds the container height */
+    -webkit-line-clamp: 1000;
+    line-clamp: 1000;
+    /* Fallback: if line-clamp doesn't work, overflow hidden will still hide excess */
 }
 
 /* Sticker animations */

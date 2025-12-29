@@ -329,6 +329,77 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             }
         }
 
+        // Special handling for long-text elements positioned between wish cards (anniversary template)
+        const isLongText = current.type === 'long-text';
+        if (isLongText) {
+            // Find wish cards in the layout
+            const wishCards: ScreenElement[] = [];
+            for (const el of layoutElements) {
+                if (isWishCard(el)) {
+                    wishCards.push(el);
+                }
+            }
+            
+            // If there are wish cards and the long-text is positioned near them (y: 10-20 range)
+            if (wishCards.length >= 2 && current.position.y >= 10 && current.position.y <= 20) {
+                // Sort wish cards by y position
+                wishCards.sort((a, b) => a.position.y - b.position.y);
+                const topWishCard = wishCards[0];
+                const bottomWishCard = wishCards[wishCards.length - 1];
+                
+                // Find adjusted positions of wish cards
+                let topWishBottom = topWishCard.position.y + (topWishCard.size.height || 12);
+                let bottomWishTop = bottomWishCard.position.y;
+                
+                // Check if wish cards have already been processed and adjusted
+                let topWishFound = false;
+                let bottomWishFound = false;
+                for (const el of adjustedElements) {
+                    if (isWishCard(el)) {
+                        if (el.id === topWishCard.id) {
+                            topWishBottom = el.position.y + (el.size.height || 12);
+                            topWishFound = true;
+                        }
+                        if (el.id === bottomWishCard.id) {
+                            bottomWishTop = el.position.y;
+                            bottomWishFound = true;
+                        }
+                    }
+                }
+                
+                // If bottom wish card hasn't been processed yet, use original position
+                // The bottom wish card will be processed later, but we need its position now
+                // For the anniversary template, bottom wish card is at y:78 originally
+                // We'll use this as the top of the bottom wish card
+                
+                // Position long-text centered between wish cards with equal spacing on both sides
+                const spacing = isMobile ? 1.5 : 1.0;
+                
+                // Calculate available space between the cards
+                const spaceBetweenCards = bottomWishTop - topWishBottom;
+                
+                // Calculate the maximum height the long text can have (reserving spacing on both sides)
+                // Shrink it a bit to make room for bottom card positioning
+                const shrinkFactor = 0.95; // Shrink by 5% to make room
+                const maxLongTextHeight = (spaceBetweenCards - (spacing * 2)) * shrinkFactor;
+                
+                // Use the smaller of: requested height or available space
+                const desiredHeight = Math.min(adjustedHeight, maxLongTextHeight);
+                
+                // Center the long text in the available space with equal spacing
+                // Start position = top card bottom + spacing
+                adjustedY = topWishBottom + spacing;
+                
+                // Calculate available height (space between cards minus spacing on both sides, with shrink factor)
+                const availableHeight = maxLongTextHeight;
+                if (availableHeight > 0) {
+                    // Use the available height - this already accounts for equal spacing on both sides
+                    adjustedHeight = availableHeight;
+                    
+                }
+            }
+        }
+
         // For wish cards: special layout - yellow at top, blue at bottom, red centered between them
         // This must run BEFORE the general overlap adjustment to ensure positioning takes precedence
         if (currentIsWish) {
@@ -344,10 +415,12 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 }
             }
 
-            // Identify which wish card this is (by original Y position: 5=yellow, 18=red, 31=blue)
+            // Identify which wish card this is (by original Y position: 5=yellow, 18=red, 31=blue for birthday-kids)
+            // For anniversary template: 10=top, 85=bottom
             const isYellow = current.position.y === 5;
             const isRed = current.position.y === 18;
             const isBlue = current.position.y === 31;
+            const isAnniversaryBottom = current.position.y === 85; // Anniversary template bottom wish card
 
             if (isYellow) {
                 // Yellow card: small space from top line
@@ -407,12 +480,34 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 // Move red card up by 2 tics
                 adjustedY -= 2;
 
+            } else if (isAnniversaryBottom) {
+                // Anniversary template bottom wish card: position close to next button with small padding
+                // Next button area starts at safeAreaBottom (85%), so position card just above it
+                // But leave proper spacing from the next button's frame
+                const spacingFromNextButton = isMobile ? 2.0 : 1.5; // Small padding from next button frame
+                adjustedY = safeAreaBottom - adjustedHeight - spacingFromNextButton;
+                
+                // Raise the bottom card by 3% as requested
+                adjustedY -= 3;
+                
+                // Ensure it doesn't go above the long text element
+                // Find long text element if it's been processed and ensure proper spacing
+                for (const el of adjustedElements) {
+                    if (el.type === 'long-text') {
+                        const longTextBottom = el.position.y + (el.size.height || 0);
+                        const minSpacingFromLongText = wishCardSpacing;
+                        if (adjustedY < longTextBottom + minSpacingFromLongText) {
+                            adjustedY = longTextBottom + minSpacingFromLongText;
+                        }
+                        break;
+                    }
+                }
             }
         }
 
-        // Now apply general overlap adjustment (but skip for wish cards that already handled stacking)
-        // Don't override wish card stacking - only apply general adjustment if not a wish card or if it's the first wish card
-        if (!currentIsWish || adjustedElements.length === 0) {
+        // Now apply general overlap adjustment (but skip for wish cards and long-text between wish cards that already handled positioning)
+        // Don't override wish card stacking or long-text positioning - only apply general adjustment if not a wish card or if it's the first wish card
+        if ((!currentIsWish && !isLongText) || adjustedElements.length === 0) {
             if (adjustedY < maxBottom + requiredSpacing) {
                 adjustedY = maxBottom + requiredSpacing;
             }
@@ -420,8 +515,10 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
 
 
         // CRITICAL: Ensure element doesn't exceed safe area bottom (100% = 85% on screen)
+        // BUT: Skip this for long-text elements positioned between wish cards (they're already correctly sized)
         const elementBottom = adjustedY + adjustedHeight;
-        if (elementBottom > safeAreaBottom) {
+        const isLongTextBetweenWishCards = isLongText && current.position.y >= 10 && current.position.y <= 20;
+        if (elementBottom > safeAreaBottom && !isLongTextBetweenWishCards) {
             // Reduce height to fit within safe area
             const maxHeight = safeAreaBottom - adjustedY - 1; // Leave 1% buffer
             if (maxHeight > 2) {
@@ -434,8 +531,12 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
         }
 
         // Final clamp: ensure element fits within 0-100% template space
+        // BUT: Skip this for long-text elements positioned between wish cards (they're already correctly sized)
         const finalY = Math.max(safeAreaTop, Math.min(safeAreaBottom - adjustedHeight - 0.5, adjustedY));
-        const finalHeight = Math.min(adjustedHeight, safeAreaBottom - finalY - 0.5);
+        let finalHeight = adjustedHeight;
+        if (!isLongTextBetweenWishCards) {
+            finalHeight = Math.min(adjustedHeight, safeAreaBottom - finalY - 0.5);
+        }
 
         // Create adjusted element
         const adjustedElement = {
@@ -765,25 +866,25 @@ const templates: Template[] = [
             const s4 = createScreen('Wishes', 'content', 'linear-gradient(135deg, #FFB4A2, #FFCDB2, #E5989B)', [ // Darker
                 createSticker('💝', 90, 5, 36, 15),
                 createWishCard('So inspiring to see your love', 10, '#A4161A', '#FFFFFF'), // Top wish
-                // Expandable Wish Container - Centered and filling space
+                // Expandable Wish Container - Expanding from top wish card to bottom wish card
                 {
                     id: uuidv4(),
                     type: 'long-text' as const,
                     content: 'Click here to write a long, heartfelt wish or memory. \n\nThis message will open in fullscreen for easy reading. Share your favorite moments, lessons learned, or hopes for the future.',
-                    position: { x: 10, y: 24 },
-                    size: { width: 80, height: 52 },
+                    position: { x: 10, y: 10 }, // Start at top wish card position
+                    size: { width: 80, height: 68 }, // Height: 78 (bottom wish card) - 10 (top wish card) = 68
                     styles: {
                         borderRadius: 16,
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         color: '#660708',
                         fontSize: 18,
-                        zIndex: 10,
+                        zIndex: 15, // Higher than wish cards (zIndex: 10) to render on top
                         shadow: true,
                         textAlign: 'left',
                     },
                     metadata: { expandable: true } // Opens in lightbox
                 },
-                createWishCard('Here\'s to many more years', 78, '#660708', '#FFFFFF'), // Bottom wish
+                createWishCard('Here\'s to many more years', 85, '#660708', '#FFFFFF'), // Bottom wish - closer to next button
             ]);
 
             // Screen 5: Video Standalone - Deep purple background

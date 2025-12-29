@@ -97,10 +97,15 @@ const getRuntimeScript = (project: Project) => `
       }
   }
 
-  function openLightbox(src) {
+  function openLightbox(src, type) {
       const lb = document.createElement('div');
       lb.className = 'lightbox';
-      lb.innerHTML = \`<button class="lightbox-close" onclick="this.parentElement.remove()">×</button><img src="\${src}" />\`;
+      if (type === 'text') {
+          lb.innerHTML = \`<button class="lightbox-close" onclick="this.parentElement.remove()">×</button>
+            <div style="background-color:rgba(255,255,255,0.95); padding:40px; border-radius:16px; max-width:90%; max-height:80vh; overflow-y:auto; font-size:24px; line-height:1.6; color:#333; white-space:pre-wrap; text-align:center; font-family:var(--font-body, sans-serif); box-shadow:0 10px 40px rgba(0,0,0,0.3); user-select:text; -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; cursor:text;">\${src}</div>\`;
+      } else {
+          lb.innerHTML = \`<button class="lightbox-close" onclick="this.parentElement.remove()">×</button><img src="\${src}" />\`;
+      }
       document.body.appendChild(lb);
       lb.onclick = (e) => { if(e.target === lb) lb.remove(); };
   }
@@ -190,7 +195,7 @@ const getRuntimeScript = (project: Project) => `
                       imageSrc = project.mediaLibrary[elem.content].data;
                   }
                   contentHtml = \`<img src="\${imageSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; display:block; border-radius:inherit;" />\`;
-                  onClick = \`onclick="openLightbox('\${imageSrc}')"\`;
+                  onClick = \`onclick="openLightbox('\${imageSrc}', 'image')"\`;
               } else if (elem.type === 'button') {
                   className += ' element-button animate-pulse';
                   contentHtml = elem.content;
@@ -293,11 +298,12 @@ const getRuntimeScript = (project: Project) => `
                    }
                    contentHtml = \`<video src="\${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls></video>\`;
               } else if (elem.type === 'long-text') {
-                   const expanded = false; // Start collapsed
-                   contentHtml = \`<div style="max-height:\${expanded ? 'none' : '200px'}; overflow-y:\${expanded ? 'auto' : 'hidden'}; padding:12px; background-color:\${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:\${elem.styles.borderRadius || 8}px;">
-                      <div style="white-space:pre-wrap;">\${elem.content}</div>
-                      <button onclick="this.parentElement.style.maxHeight=this.parentElement.style.maxHeight==='none'?'200px':'none'; this.textContent=this.textContent==='Collapse'?'Expand':'Collapse';" style="margin-top:8px; padding:4px 12px; background:var(--color-primary); color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.8rem;">Expand</button>
+                   // Show text with ellipsis when too long, clickable to open in lightbox
+                   const textContent = elem.content.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                   contentHtml = \`<div style="padding:16px; background-color:\${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:\${elem.styles.borderRadius || 16}px; width:100%; height:100%; display:flex; align-items:flex-start; justify-content:flex-start; box-sizing:border-box;">
+                      <div style="display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:pre-wrap; word-wrap:break-word; width:100%; height:100%; -webkit-line-clamp:999; line-clamp:999; color:\${elem.styles.color || 'inherit'}; font-size:\${elem.styles.fontSize ? elem.styles.fontSize + 'px' : 'inherit'}; font-family:\${elem.styles.fontFamily || 'inherit'}; font-weight:\${elem.styles.fontWeight || 'normal'}; text-align:\${elem.styles.textAlign || 'left'};">\${textContent}</div>
                    </div>\`;
+                   onClick = \`onclick="openLightbox('\${textContent}', 'text')"\`;
               } else if (elem.type === 'shape') {
                    const isCircle = elem.styles.borderRadius && elem.styles.borderRadius >= 50;
                    contentHtml = \`<div style="width:100%; height:100%; background-color:\${elem.styles.backgroundColor || '#ccc'}; border-radius:\${isCircle ? '50%' : (elem.styles.borderRadius || 0) + 'px'};"></div>\`;

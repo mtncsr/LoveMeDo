@@ -147,7 +147,12 @@ export const Lightbox: React.FC<Props> = ({ items, currentIndex, onClose, onNavi
                         whiteSpace: 'pre-wrap',
                         textAlign: 'center',
                         fontFamily: 'var(--font-body, sans-serif)',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                        userSelect: 'text',
+                        WebkitUserSelect: 'text',
+                        MozUserSelect: 'text',
+                        msUserSelect: 'text',
+                        cursor: 'text'
                     }}>
                         {currentItem.content}
                     </div>
