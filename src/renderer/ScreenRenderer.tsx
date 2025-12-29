@@ -20,9 +20,11 @@ interface Props {
     selectedElementId?: string; // Selected element ID for editor mode
     device?: 'mobile' | 'desktop'; // Device type for responsive layout
     project?: Project; // Project for media resolution
+    onVideoRef?: (videoRef: HTMLVideoElement) => void;
+    onVideoUnref?: (videoRef: HTMLVideoElement) => void;
 }
 
-export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, onAddElement, allScreens = [], currentScreenIndex, selectedElementId, device = 'mobile', project }) => {
+export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavigate, onElementClick, onElementUpdate, onAddElement, allScreens = [], currentScreenIndex, selectedElementId, device = 'mobile', project, onVideoRef, onVideoUnref }) => {
     if (!isActive) return null;
 
     const { background, elements, type, title } = screen;
@@ -178,6 +180,8 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                         device={device}
                         project={project}
                         hasNextButton={type === 'content' && hasNextScreen && (mode === 'editor' || !hasNavigationButtons)}
+                        onVideoRef={onVideoRef}
+                        onVideoUnref={onVideoUnref}
                     />
                 );
             })}

@@ -21,11 +21,14 @@ interface UIState {
         elementType: 'image' | 'gallery' | 'video' | null;
     } | null;
 
+    isYourProjectsOpen: boolean;
+
     // Actions
     setActiveScreenId: (id: string | null) => void;
     setSelectedElementId: (id: string | null) => void;
     setTemplatePreviewOpen: (isOpen: boolean, templateId?: string) => void;
     setMediaLibraryOpen: (isOpen: boolean, mode?: 'select' | 'manage', context?: { elementId: string; screenId: string; elementType: 'image' | 'gallery' | 'video' }) => void;
+    setYourProjectsOpen: (isOpen: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -39,6 +42,7 @@ export const useUIStore = create<UIState>((set) => ({
     isMediaLibraryOpen: false,
     mediaLibraryMode: 'manage',
     contentManagerContext: null,
+    isYourProjectsOpen: false,
 
     setActiveScreenId: (id) => set({ activeScreenId: id }),
     setSelectedElementId: (id) => set({ selectedElementId: id }),
@@ -57,4 +61,6 @@ export const useUIStore = create<UIState>((set) => ({
             elementType: context.elementType
         } : null
     }),
+
+    setYourProjectsOpen: (isOpen) => set({ isYourProjectsOpen: isOpen }),
 }));

@@ -539,9 +539,11 @@ interface Props {
     device?: 'mobile' | 'desktop'; // Device type for responsive font sizing
     project?: Project; // Project for media resolution
     hasNextButton?: boolean; // Whether the screen has a next button (for long-text auto-expand limits)
+    onVideoRef?: (videoRef: HTMLVideoElement) => void;
+    onVideoUnref?: (videoRef: HTMLVideoElement) => void;
 }
 
-export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile', project, hasNextButton = false }) => {
+export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpdate, isSelected = false, screenType = 'overlay', device = 'mobile', project, hasNextButton = false, onVideoRef, onVideoUnref }) => {
     const { type, position, size, content, styles: elStyles } = element;
 
     // Resolve media URL from content (media ID or placeholder URL)
@@ -1556,6 +1558,20 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     </div>
                 );
             }
+            const videoRef = useRef<HTMLVideoElement | null>(null);
+
+            // Register/unregister video ref for music pause/resume
+            useEffect(() => {
+                if (mode !== 'editor' && videoRef.current && onVideoRef) {
+                    onVideoRef(videoRef.current);
+                }
+                return () => {
+                    if (videoRef.current && onVideoUnref) {
+                        onVideoUnref(videoRef.current);
+                    }
+                };
+            }, [mode, onVideoRef, onVideoUnref]);
+
             return (
                 <div {...commonProps} style={{
                     ...commonProps.style,
@@ -1565,6 +1581,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     backgroundColor: elStyles.backgroundColor || 'transparent',
                 }}>
                     <video
+                        ref={videoRef}
                         src={resolveMediaUrl(content)}
                         controls
                         preload="metadata"

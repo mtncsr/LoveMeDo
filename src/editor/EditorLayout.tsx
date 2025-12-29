@@ -2,22 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
-import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './EditorLayout.module.css';
 import ElementsMenu from './ElementsMenu';
 import MediaLibraryModal from './MediaLibraryModal';
 import { ElementEditingMenu } from './ElementEditingMenu';
+import { YourProjectsModal } from '../components/YourProjectsModal';
+import { saveProject } from '../utils/projectStorage';
 
 const EditorLayout: React.FC = () => {
     const { project, updateScreen, updateElement, addScreen, addElement } = useProjectStore();
     const {
         setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
-        selectedElementId, isMediaLibraryOpen, mediaLibraryMode, contentManagerContext
+        selectedElementId, isMediaLibraryOpen, mediaLibraryMode, contentManagerContext,
+        isYourProjectsOpen, setYourProjectsOpen
     } = useUIStore();
     const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('mobile');
     const [zoom, setZoom] = useState(100);
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
+    const [editingScreenId, setEditingScreenId] = useState<string | null>(null);
+    const [editScreenTitle, setEditScreenTitle] = useState<string>('');
 
     // If no active screen, set to first one
     // Also validate that activeScreenId still exists in project after updates
@@ -45,6 +50,36 @@ const EditorLayout: React.FC = () => {
 
     const handleCreate = () => {
         setMode('export');
+    };
+
+    const handleSaveProject = () => {
+        if (!project) return;
+        try {
+            saveProject(project);
+            setYourProjectsOpen(true);
+        } catch (error) {
+            console.error('Failed to save project:', error);
+            alert('Failed to save project. Please try again.');
+        }
+    };
+
+    const handleStartEditScreen = (e: React.MouseEvent, screen: Screen) => {
+        e.stopPropagation();
+        setEditingScreenId(screen.id);
+        setEditScreenTitle(screen.title);
+    };
+
+    const handleSaveScreenTitle = (screenId: string) => {
+        if (editScreenTitle.trim()) {
+            updateScreen(screenId, { title: editScreenTitle.trim() });
+        }
+        setEditingScreenId(null);
+        setEditScreenTitle('');
+    };
+
+    const handleCancelEditScreen = () => {
+        setEditingScreenId(null);
+        setEditScreenTitle('');
     };
 
     const handleMediaSelect = (mediaIdOrArray: string | string[]) => {
@@ -101,6 +136,10 @@ const EditorLayout: React.FC = () => {
                     />
                 </div>
                 <div className={styles.right}>
+                    <button className={styles.saveBtn} onClick={handleSaveProject}>
+                        <Save size={18} />
+                        <span>Save Project</span>
+                    </button>
                     <button className={styles.createBtn} onClick={handleCreate}>
                         <Sparkles size={18} />
                         <span>CREATE</span>
@@ -112,14 +151,39 @@ const EditorLayout: React.FC = () => {
             <div className={styles.tabsContainer}>
                 <div className={styles.tabsList}>
                     {project.screens.map((screen, index) => (
-                        <button
+                        <div
                             key={screen.id}
                             className={`${styles.tab} ${activeScreenId === screen.id ? styles.activeTab : ''}`}
-                            onClick={() => setActiveScreenId(screen.id)}
+                            onClick={() => !editingScreenId && setActiveScreenId(screen.id)}
                         >
                             <span className={styles.tabIndex}>{index + 1}</span>
-                            <span className={styles.tabTitle}>{screen.title}</span>
-                        </button>
+                            {editingScreenId === screen.id ? (
+                                <input
+                                    type="text"
+                                    value={editScreenTitle}
+                                    onChange={(e) => setEditScreenTitle(e.target.value)}
+                                    onBlur={() => handleSaveScreenTitle(screen.id)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleSaveScreenTitle(screen.id);
+                                        } else if (e.key === 'Escape') {
+                                            handleCancelEditScreen();
+                                        }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={styles.tabTitleInput}
+                                    autoFocus
+                                />
+                            ) : (
+                                <span 
+                                    className={styles.tabTitle}
+                                    onDoubleClick={(e) => handleStartEditScreen(e, screen)}
+                                    title="Double-click to rename"
+                                >
+                                    {screen.title}
+                                </span>
+                            )}
+                        </div>
                     ))}
                     <button
                         className={styles.addScreenBtn}
@@ -287,6 +351,9 @@ const EditorLayout: React.FC = () => {
 
             {/* Media Library Overlay */}
             {isMediaLibraryOpen && <MediaLibraryModal onSelect={handleMediaSelect} />}
+
+            {/* Your Projects Modal */}
+            {isYourProjectsOpen && <YourProjectsModal />}
 
         </div>
     );

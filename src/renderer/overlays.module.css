@@ -21,24 +21,25 @@
     animation-name: fall;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
+    top: -50px;
 }
 
 @keyframes fall {
     0% {
-        transform: translateY(-10%) rotate(0deg);
+        transform: translateY(0) translateX(0) rotate(0deg);
         opacity: 0;
     }
 
-    10% {
+    2% {
         opacity: 1;
     }
 
-    90% {
+    98% {
         opacity: 1;
     }
 
     100% {
-        transform: translateY(110vh) rotate(720deg);
+        transform: translateY(calc(100vh + 50px)) translateX(var(--drift-x, 0px)) rotate(var(--rotation-end, 720deg));
         opacity: 0;
     }
 }
@@ -52,24 +53,25 @@
     animation-iteration-count: infinite;
     opacity: 0;
     filter: drop-shadow(0 0 5px rgba(255, 100, 100, 0.5));
+    bottom: -50px;
 }
 
 @keyframes floatUp {
     0% {
-        transform: translateY(110vh) scale(0.5);
+        transform: translateY(0) scale(0.5);
         opacity: 0;
     }
 
-    10% {
+    2% {
         opacity: 0.8;
     }
 
-    90% {
+    98% {
         opacity: 0.8;
     }
 
     100% {
-        transform: translateY(-10vh) scale(1.2);
+        transform: translateY(calc(-100vh - 50px)) scale(1.2);
         opacity: 0;
     }
 }
@@ -88,7 +90,7 @@
 }
 
 .starVariable {
-    animation: loopFade 10s ease-in-out infinite;
+    animation: loopFade 12s ease-in-out infinite;
 }
 
 @keyframes twinkle {
@@ -106,15 +108,20 @@
 }
 
 @keyframes loopFade {
-
-    0%,
-    100% {
+    0% {
         opacity: 0;
     }
 
-    20%,
-    80% {
+    15% {
         opacity: 1;
+    }
+
+    85% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
     }
 }
 
@@ -146,9 +153,9 @@
         opacity: 1;
     }
 
-    40% {
+    30% {
         transform: translate(var(--tx), var(--ty));
-        opacity: 0;
+        opacity: 1;
     }
 
     100% {

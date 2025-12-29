@@ -101,13 +101,27 @@ const getRuntimeScript = (project: Project) => `
       const lb = document.createElement('div');
       lb.className = 'lightbox';
       if (type === 'text') {
-          lb.innerHTML = \`<button class="lightbox-close" onclick="this.parentElement.remove()">×</button>
-            <div style="background-color:rgba(255,255,255,0.95); padding:40px; border-radius:16px; max-width:90%; max-height:80vh; overflow-y:auto; font-size:24px; line-height:1.6; color:#333; white-space:pre-wrap; text-align:center; font-family:var(--font-body, sans-serif); box-shadow:0 10px 40px rgba(0,0,0,0.3); user-select:text; -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; cursor:text;">\${src}</div>\`;
+          const textDiv = document.createElement('div');
+          textDiv.style.cssText = 'background-color:rgba(255,255,255,0.95);padding:40px;border-radius:16px;max-width:90%;max-height:80vh;overflow-y:auto;font-size:24px;line-height:1.6;color:#333;white-space:pre-wrap;text-align:center;font-family:var(--font-body, sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.3);user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;cursor:text;';
+          textDiv.textContent = src;
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'lightbox-close';
+          closeBtn.textContent = '×';
+          closeBtn.onclick = function() { lb.remove(); };
+          lb.appendChild(closeBtn);
+          lb.appendChild(textDiv);
       } else {
-          lb.innerHTML = \`<button class="lightbox-close" onclick="this.parentElement.remove()">×</button><img src="\${src}" />\`;
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'lightbox-close';
+          closeBtn.textContent = '×';
+          closeBtn.onclick = function() { lb.remove(); };
+          const img = document.createElement('img');
+          img.src = src;
+          lb.appendChild(closeBtn);
+          lb.appendChild(img);
       }
       document.body.appendChild(lb);
-      lb.onclick = (e) => { if(e.target === lb) lb.remove(); };
+      lb.onclick = function(e) { if(e.target === lb) lb.remove(); };
   }
 
   function init() {
@@ -121,6 +135,7 @@ const getRuntimeScript = (project: Project) => `
         </div>\`;
       root.appendChild(menu);
 
+      const galleryInitCodes = [];
       project.screens.forEach(screen => {
           const el = document.createElement('div');
           el.id = 'screen-' + screen.id;
@@ -131,7 +146,19 @@ const getRuntimeScript = (project: Project) => `
           else if (screen.background.type === 'gradient') bgStyle = \`background-image: \${screen.background.value};\`;
           
           let bgContent = '';
-          if (screen.background.type === 'image') bgContent = \`<img src="\${screen.background.value}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;">\`;
+          if (screen.background.type === 'image') {
+              let bgImageSrc = screen.background.value;
+              if (project.mediaLibrary[screen.background.value]) {
+                  bgImageSrc = project.mediaLibrary[screen.background.value].data;
+              }
+              bgContent = \`<img src="\${bgImageSrc}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;">\`;
+          } else if (screen.background.type === 'video') {
+              let bgVideoSrc = screen.background.value;
+              if (project.mediaLibrary[screen.background.value]) {
+                  bgVideoSrc = project.mediaLibrary[screen.background.value].data;
+              }
+              bgContent = \`<video src="\${bgVideoSrc}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;" autoplay loop muted playsinline></video>\`;
+          }
           
           const navBar = screen.type === 'content' ? \`
             <div class="nav-bar">
@@ -166,7 +193,7 @@ const getRuntimeScript = (project: Project) => `
           \` : '';
 
           const elementsHtml = screen.elements.map(elem => {
-              const style = \`
+              let style = \`
                   left: \${elem.position.x}%; top: \${elem.position.y}%;
                   width: \${elem.size.width ? elem.size.width + '%' : 'auto'};
                   height: \${elem.size.height ? elem.size.height + '%' : 'auto'};
@@ -219,84 +246,85 @@ const getRuntimeScript = (project: Project) => `
                    
                    const galleryId = 'gallery_' + elem.id.replace(/[^a-zA-Z0-9]/g, '_');
                    const initialIndex = Math.floor(images.length / 2);
+                   const initialImageSrc = images[initialIndex];
                    
-                   // Generate unique function names for this gallery
-                   const navPrevFunc = \`navPrev_\${galleryId}\`;
-                   const navNextFunc = \`navNext_\${galleryId}\`;
-                   const thumbClickFunc = \`thumbClick_\${galleryId}\`;
+                   // Generate unique function names for this gallery (as strings)
+                   const navPrevFunc = 'navPrev_' + galleryId;
+                   const navNextFunc = 'navNext_' + galleryId;
+                   const thumbClickFunc = 'thumbClick_' + galleryId;
+                   
+                   // Build thumbnail HTML with string concatenation to avoid nested template literals
+                   const thumbnailsHtml = images.length > 1 ? images.map((src, idx) => {
+                       const isActive = idx === initialIndex;
+                       const border = isActive ? '3px solid var(--color-primary)' : '2px solid transparent';
+                       const opacity = isActive ? '1' : '0.7';
+                       return '<div onclick="' + thumbClickFunc + '(' + idx + ')" style="flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:' + border + '; opacity:' + opacity + '; transition:all 0.2s; background-color:#f0f0f0;"><img src="' + src + '" style="width:100%; height:100%; object-fit:cover;" /></div>';
+                   }).join('') : '';
+                   
+                   // Build buttons HTML with string concatenation
+                   const buttonsHtml = images.length > 1 ? '<button onclick="' + navPrevFunc + '()" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">‹</button><button onclick="' + navNextFunc + '()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">›</button>' : '';
+                   const thumbsContainerHtml = images.length > 1 ? '<div id="' + galleryId + '_thumbs" style="display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin;">' + thumbnailsHtml + '</div>' : '';
                    
                    contentHtml = \`
                      <div id="\${galleryId}" style="display:flex; flex-direction:column; width:100%; height:100%; padding:4px; box-sizing:border-box;">
                        <div style="position:relative; width:100%; flex:1; min-height:60%; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">
-                         <img id="\${galleryId}_hero" src="\${images[\${initialIndex}]}" style="width:100%; height:100%; object-fit:contain; object-position:center;" />
-                         \${images.length > 1 ? \`
-                           <button onclick="\${navPrevFunc}()" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">‹</button>
-                           <button onclick="\${navNextFunc}()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">›</button>
-                         \` : ''}
+                         <img id="\${galleryId}_hero" src="\${initialImageSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center;" />
+                         \${buttonsHtml}
                        </div>
-                       \${images.length > 1 ? \`
-                         <div id="\${galleryId}_thumbs" style="display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin;">
-                           \${images.map((src, idx) => \`
-                             <div onclick="\${thumbClickFunc}(\${idx})" style="flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:\${idx === \${initialIndex} ? '3px solid var(--color-primary)' : '2px solid transparent'}; opacity:\${idx === \${initialIndex} ? 1 : 0.7}; transition:all 0.2s; background-color:#f0f0f0;">
-                               <img src="\${src}" style="width:100%; height:100%; object-fit:cover;" />
-                             </div>
-                           \`).join('')}
-                         </div>
-                       \` : ''}
+                       \${thumbsContainerHtml}
                      </div>
-                     <script>
-                       (function() {
-                         let currentIndex = \${initialIndex};
-                         const images = \${JSON.stringify(images)};
-                         const heroImg = document.getElementById('\${galleryId}_hero');
-                         const thumbsContainer = document.getElementById('\${galleryId}_thumbs');
-                         
-                         window[\${navPrevFunc}] = function() {
-                           currentIndex = (currentIndex - 1 + images.length) % images.length;
-                           heroImg.src = images[currentIndex];
-                           updateThumbnails();
-                         };
-                         
-                         window[\${navNextFunc}] = function() {
-                           currentIndex = (currentIndex + 1) % images.length;
-                           heroImg.src = images[currentIndex];
-                           updateThumbnails();
-                         };
-                         
-                         window[\${thumbClickFunc}] = function(index) {
-                           currentIndex = index;
-                           heroImg.src = images[currentIndex];
-                           updateThumbnails();
-                         };
-                         
-                         function updateThumbnails() {
-                           if (!thumbsContainer) return;
-                           const thumbs = thumbsContainer.children;
-                           for (let i = 0; i < thumbs.length; i++) {
-                             const thumb = thumbs[i];
-                             if (i === currentIndex) {
-                               thumb.style.border = '3px solid var(--color-primary)';
-                               thumb.style.opacity = '1';
-                             } else {
-                               thumb.style.border = '2px solid transparent';
-                               thumb.style.opacity = '0.7';
-                             }
-                           }
-                           // Scroll to center current thumbnail
-                           const thumbWidth = 60 + 6; // width + gap
-                           const scrollPos = (currentIndex - 2) * thumbWidth;
-                           thumbsContainer.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
-                         }
-                       })();
-                     </script>
                    \`;
+                   
+                   // Store gallery initialization code - scripts in innerHTML don't execute, so we'll run it after appendChild
+                   galleryInitCodes.push(\`(function() {
+                     let currentIndex = \${initialIndex};
+                     const images = \${JSON.stringify(images)};
+                     const heroImg = document.getElementById('\${galleryId}_hero');
+                     const thumbsContainer = document.getElementById('\${galleryId}_thumbs');
+                     
+                     window['\${navPrevFunc}'] = function() {
+                       currentIndex = (currentIndex - 1 + images.length) % images.length;
+                       heroImg.src = images[currentIndex];
+                       updateThumbnails();
+                     };
+                     
+                     window['\${navNextFunc}'] = function() {
+                       currentIndex = (currentIndex + 1) % images.length;
+                       heroImg.src = images[currentIndex];
+                       updateThumbnails();
+                     };
+                     
+                     window['\${thumbClickFunc}'] = function(index) {
+                       currentIndex = index;
+                       heroImg.src = images[currentIndex];
+                       updateThumbnails();
+                     };
+                     
+                     function updateThumbnails() {
+                       if (!thumbsContainer) return;
+                       const thumbs = thumbsContainer.children;
+                       for (let i = 0; i < thumbs.length; i++) {
+                         const thumb = thumbs[i];
+                         if (i === currentIndex) {
+                           thumb.style.border = '3px solid var(--color-primary)';
+                           thumb.style.opacity = '1';
+                         } else {
+                           thumb.style.border = '2px solid transparent';
+                           thumb.style.opacity = '0.7';
+                         }
+                       }
+                       const thumbWidth = 60 + 6;
+                       const scrollPos = (currentIndex - 2) * thumbWidth;
+                       thumbsContainer.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
+                     }
+                   })();\`);
               } else if (elem.type === 'video') {
                    // Check if content is a media ID or direct URL
                    let videoSrc = elem.content;
                    if (project.mediaLibrary[elem.content]) {
                        videoSrc = project.mediaLibrary[elem.content].data;
                    }
-                   contentHtml = \`<video src="\${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls></video>\`;
+                   contentHtml = \`<video src="\${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls preload="metadata"></video>\`;
               } else if (elem.type === 'long-text') {
                    // Show text with ellipsis when too long, clickable to open in lightbox
                    const textContent = elem.content.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -316,11 +344,23 @@ const getRuntimeScript = (project: Project) => `
           el.style.cssText = bgStyle;
           root.appendChild(el);
       });
+      
+      // Execute gallery initialization codes (scripts in innerHTML don't execute, so we run them here)
+      galleryInitCodes.forEach(code => {
+          try { eval(code); } catch(e) { console.error('Gallery init error:', e); }
+      });
 
       renderScreen(project.screens[0].id);
   }
 
-  window.onload = init;
+  if (document.readyState === 'loading') {
+      window.onload = function() {
+          init();
+      };
+  } else {
+      // Document already loaded, run init immediately
+      init();
+  }
 `;
 
 // Minify CSS
@@ -348,8 +388,9 @@ const minifyJS = (js: string): string => {
 };
 
 export const buildExportHtml = (project: Project): string => {
+    // Disable minification to avoid breaking code - regex-based minifiers can't handle complex JavaScript safely
     const minifiedCSS = minifyCSS(GLOBAL_CSS);
-    const minifiedJS = minifyJS(getRuntimeScript(project));
+    const runtimeScript = getRuntimeScript(project); // Don't minify JS - it breaks template literals and URLs
     
     return `<!DOCTYPE html>
 <html lang="en">
@@ -361,7 +402,7 @@ export const buildExportHtml = (project: Project): string => {
 </head>
 <body>
     <div id="root"></div>
-    <script>${minifiedJS}</script>
+    <script>${runtimeScript}</script>
 </body>
 </html>`;
 };

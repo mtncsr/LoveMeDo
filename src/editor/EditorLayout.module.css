@@ -70,6 +70,26 @@
     outline: 2px solid var(--color-primary);
 }
 
+.saveBtn {
+    background: white;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s;
+    margin-right: 8px;
+}
+
+.saveBtn:hover {
+    background: #f9f9f9;
+    border-color: var(--color-primary);
+}
+
 .createBtn {
     background: var(--color-primary);
     color: white;
@@ -109,6 +129,8 @@
     font-size: 0.9rem;
     transition: all 0.2s;
     white-space: nowrap;
+    cursor: pointer;
+    border: none;
 }
 
 .tab:hover {
@@ -135,6 +157,23 @@
 .activeTab .tabIndex {
     background: rgba(255, 77, 109, 0.1);
     color: var(--color-primary);
+}
+
+.tabTitle {
+    cursor: text;
+}
+
+.tabTitleInput {
+    background: white;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    outline: none;
+    min-width: 80px;
+    max-width: 200px;
+    font-weight: inherit;
 }
 
 .workspace {

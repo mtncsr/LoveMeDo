@@ -43,6 +43,9 @@ export const Renderer: React.FC<Props> = ({
     // Music playback refs
     const globalAudioRef = useRef<HTMLAudioElement | null>(null);
     const screenAudioRef = useRef<HTMLAudioElement | null>(null);
+    const [shouldPlayGlobalMusic, setShouldPlayGlobalMusic] = useState(false);
+    const [isGlobalMusicPausedForVideo, setIsGlobalMusicPausedForVideo] = useState(false);
+    const videoRefsRef = useRef<Set<HTMLVideoElement>>(new Set());
 
     // Determine which screen to show
     const activeId = mode === 'editor' && propScreenId ? propScreenId : internalActiveId;
@@ -64,11 +67,11 @@ export const Renderer: React.FC<Props> = ({
         }
     }, [propScreenId, mode]);
 
-    // Handle global music
+    // Handle global music - only play when shouldPlayGlobalMusic is true and not paused for video
     useEffect(() => {
         if (mode === 'editor') return; // No music in editor
 
-        if (project.config.globalMusic) {
+        if (project.config.globalMusic && shouldPlayGlobalMusic && !isGlobalMusicPausedForVideo) {
             const audioItem = project.mediaLibrary[project.config.globalMusic];
             if (audioItem && audioItem.type === 'audio') {
                 // Stop any screen music
@@ -87,61 +90,132 @@ export const Renderer: React.FC<Props> = ({
                     audio.volume = 0.7;
                     audio.play().catch(err => console.warn('Audio play failed:', err));
                     globalAudioRef.current = audio;
+                } else if (globalAudioRef.current.paused) {
+                    // Resume if paused
+                    globalAudioRef.current.play().catch(err => console.warn('Audio play failed:', err));
                 }
             }
         } else {
-            // Stop global music if it exists
-            if (globalAudioRef.current) {
+            // Pause global music if should not play or paused for video
+            if (globalAudioRef.current && (!shouldPlayGlobalMusic || isGlobalMusicPausedForVideo)) {
                 globalAudioRef.current.pause();
-                globalAudioRef.current = null;
             }
         }
 
         return () => {
+            // Don't cleanup on unmount - let cleanup happen in the main cleanup effect
+        };
+    }, [project.config.globalMusic, mode, project.mediaLibrary, shouldPlayGlobalMusic, isGlobalMusicPausedForVideo]);
+
+    // Cleanup global music when config changes or component unmounts
+    useEffect(() => {
+        if (!project.config.globalMusic) {
             if (globalAudioRef.current) {
                 globalAudioRef.current.pause();
                 globalAudioRef.current = null;
             }
-        };
-    }, [project.config.globalMusic, mode, project.mediaLibrary]);
+            setShouldPlayGlobalMusic(false);
+        }
+    }, [project.config.globalMusic]);
 
     // Handle per-screen music (only if no global music)
     useEffect(() => {
         if (mode === 'editor') return; // No music in editor
-        if (project.config.globalMusic) return; // No per-screen music if global exists
+        if (project.config.globalMusic) {
+            // Stop screen music if global music exists
+            if (screenAudioRef.current) {
+                screenAudioRef.current.pause();
+                screenAudioRef.current = null;
+            }
+            return;
+        }
 
         const currentScreen = project.screens.find(s => s.id === activeId);
+        
+        // Stop previous screen music immediately
+        if (screenAudioRef.current) {
+            screenAudioRef.current.pause();
+            screenAudioRef.current = null;
+        }
+
+        // Play current screen music immediately if it exists
         if (currentScreen?.music) {
             const audioItem = project.mediaLibrary[currentScreen.music];
             if (audioItem && audioItem.type === 'audio') {
-                // Stop previous screen music
-                if (screenAudioRef.current) {
-                    screenAudioRef.current.pause();
-                    screenAudioRef.current = null;
-                }
-
-                // Play current screen music
                 const audio = new Audio(audioItem.data);
                 audio.loop = true;
                 audio.volume = 0.7;
                 audio.play().catch(err => console.warn('Audio play failed:', err));
                 screenAudioRef.current = audio;
             }
-        } else {
-            // Stop screen music if screen has no music
-            if (screenAudioRef.current) {
-                screenAudioRef.current.pause();
-                screenAudioRef.current = null;
-            }
         }
 
         return () => {
+            // Cleanup on screen change - stop music immediately
             if (screenAudioRef.current) {
                 screenAudioRef.current.pause();
                 screenAudioRef.current = null;
             }
         };
     }, [activeId, project.screens, project.mediaLibrary, project.config.globalMusic, mode]);
+
+    // Video playback detection - pause/resume global music
+    useEffect(() => {
+        if (mode === 'editor') return;
+
+        const handleVideoPlay = () => {
+            if (globalAudioRef.current && !globalAudioRef.current.paused && shouldPlayGlobalMusic) {
+                globalAudioRef.current.pause();
+                setIsGlobalMusicPausedForVideo(true);
+            }
+        };
+
+        const checkAndResumeMusic = () => {
+            // Check if any video is still playing
+            let anyVideoPlaying = false;
+            videoRefsRef.current.forEach(video => {
+                if (!video.paused && !video.ended) {
+                    anyVideoPlaying = true;
+                }
+            });
+
+            if (!anyVideoPlaying && isGlobalMusicPausedForVideo && shouldPlayGlobalMusic) {
+                setIsGlobalMusicPausedForVideo(false);
+            }
+        };
+
+        const handleVideoPause = () => {
+            checkAndResumeMusic();
+        };
+
+        const handleVideoEnd = () => {
+            checkAndResumeMusic();
+        };
+
+        // Add event listeners to all videos
+        const videos = Array.from(videoRefsRef.current);
+        videos.forEach(video => {
+            video.addEventListener('play', handleVideoPlay);
+            video.addEventListener('pause', handleVideoPause);
+            video.addEventListener('ended', handleVideoEnd);
+        });
+
+        // Also check on mount/update in case videos are already playing
+        checkAndResumeMusic();
+
+        return () => {
+            videos.forEach(video => {
+                video.removeEventListener('play', handleVideoPlay);
+                video.removeEventListener('pause', handleVideoPause);
+                video.removeEventListener('ended', handleVideoEnd);
+            });
+        };
+    }, [mode, isGlobalMusicPausedForVideo, shouldPlayGlobalMusic, activeId]);
+
+    // Clear video refs when screen changes
+    useEffect(() => {
+        videoRefsRef.current.clear();
+    }, [activeId]);
 
     const handleNavigate = (target: string) => {
         if (mode === 'editor') return;
@@ -168,9 +242,15 @@ export const Renderer: React.FC<Props> = ({
                 setIsMenuOpen(false);
             }
         } else if (target === 'next') {
-            // Logic for 'next' screen (start experience)
+            // Logic for 'next' screen (start experience) - trigger global music
             const index = project.screens.findIndex(s => s.id === activeId);
             if (index < project.screens.length - 1) {
+                // Check if current screen is overlay and next is content - start global music
+                const currentScreen = project.screens[index];
+                const nextScreen = project.screens[index + 1];
+                if (currentScreen.type === 'overlay' && nextScreen.type === 'content' && project.config.globalMusic) {
+                    setShouldPlayGlobalMusic(true);
+                }
                 setInternalActiveId(project.screens[index + 1].id);
             }
         } else {
@@ -291,6 +371,16 @@ export const Renderer: React.FC<Props> = ({
                 selectedElementId={selectedElementId}
                 device={device}
                 project={project}
+                onVideoRef={(videoRef) => {
+                    if (videoRef) {
+                        videoRefsRef.current.add(videoRef);
+                    }
+                }}
+                onVideoUnref={(videoRef) => {
+                    if (videoRef) {
+                        videoRefsRef.current.delete(videoRef);
+                    }
+                }}
                 key={activeScreen.id}
             />
 

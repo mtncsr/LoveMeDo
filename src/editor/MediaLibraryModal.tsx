@@ -14,9 +14,10 @@ type TabType = 'images' | 'videos' | 'music';
 
 const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     const { setMediaLibraryOpen, contentManagerContext } = useUIStore();
-    const { project, addMediaItem } = useProjectStore();
+    const { project, addMediaItem, updateScreen, updateGlobalConfig } = useProjectStore();
     const [activeTab, setActiveTab] = useState<TabType>('images');
     const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+    const [musicAssignmentType, setMusicAssignmentType] = useState<'global' | 'individual'>('global');
     
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +26,13 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     if (!project || !contentManagerContext) return null;
 
     const { elementId, screenId, elementType } = contentManagerContext;
+    
+    // Set music tab as active when music element is opened
+    useEffect(() => {
+        if (elementType === 'music') {
+            setActiveTab('music');
+        }
+    }, [elementType]);
     
     // Get the current element to determine assigned media
     const currentElement = useMemo(() => {
@@ -35,6 +43,26 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
 
     // Initialize selected items based on current element content
     useEffect(() => {
+        if (elementType === 'music') {
+            // For music, check both global and screen-level assignments
+            const assignedIds = new Set<string>();
+            const currentScreen = screenId ? project.screens.find(s => s.id === screenId) : null;
+            
+            // Check global music
+            if (project.config.globalMusic && project.mediaLibrary[project.config.globalMusic]) {
+                assignedIds.add(project.config.globalMusic);
+                setMusicAssignmentType('global');
+            }
+            // Check screen-level music
+            else if (currentScreen?.music && project.mediaLibrary[currentScreen.music]) {
+                assignedIds.add(currentScreen.music);
+                setMusicAssignmentType('individual');
+            }
+            
+            setSelectedMediaIds(assignedIds);
+            return;
+        }
+        
         if (!currentElement) return;
         
         const assignedIds = new Set<string>();
@@ -64,7 +92,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
         }
         
         setSelectedMediaIds(assignedIds);
-    }, [currentElement, elementType, project.mediaLibrary]);
+    }, [currentElement, elementType, project.mediaLibrary, project.config.globalMusic, screenId, project.screens]);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, expectedType: 'image' | 'video' | 'audio') => {
         const files = e.target.files;
@@ -130,8 +158,8 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     };
 
     const handleItemClick = (mediaId: string) => {
-        if (elementType === 'image' || elementType === 'video') {
-            // Single selection for hero images and videos
+        if (elementType === 'image' || elementType === 'video' || elementType === 'music') {
+            // Single selection for hero images, videos, and music
             setSelectedMediaIds(new Set([mediaId]));
         } else if (elementType === 'gallery') {
             // Multiple selection for galleries
@@ -146,7 +174,31 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     };
 
     const handleSave = () => {
-        if (elementType === 'image' || elementType === 'video') {
+        if (elementType === 'music') {
+            // Handle music assignment
+            const selectedId = Array.from(selectedMediaIds)[0] || '';
+            if (selectedId && project.mediaLibrary[selectedId]) {
+                if (musicAssignmentType === 'global') {
+                    // Update global music
+                    updateGlobalConfig({ globalMusic: selectedId });
+                } else {
+                    // Update screen-level music
+                    if (screenId) {
+                        updateScreen(screenId, { music: selectedId });
+                    }
+                }
+            } else {
+                // Clear music assignment - use empty string to clear
+                if (musicAssignmentType === 'global') {
+                    updateGlobalConfig({ globalMusic: '' });
+                } else {
+                    if (screenId) {
+                        updateScreen(screenId, { music: '' });
+                    }
+                }
+            }
+            onSelect?.(selectedId);
+        } else if (elementType === 'image' || elementType === 'video') {
             // Single selection
             const selectedId = Array.from(selectedMediaIds)[0] || '';
             onSelect?.(selectedId);
@@ -175,6 +227,14 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
 
     // Check if media item is assigned (has checkmark)
     const isAssigned = (mediaId: string) => {
+        if (elementType === 'music') {
+            // Check both global and screen-level music assignments
+            const currentScreen = screenId ? project.screens.find(s => s.id === screenId) : null;
+            const isGlobal = project.config.globalMusic === mediaId && project.mediaLibrary[mediaId];
+            const isScreen = currentScreen?.music === mediaId && project.mediaLibrary[mediaId];
+            return isGlobal || isScreen;
+        }
+        
         if (!currentElement) return false;
         
         if (elementType === 'image' || elementType === 'video') {
@@ -191,8 +251,8 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
         return false;
     };
 
-    // Check if music tab should be disabled (only for screen-level assignment)
-    const isMusicDisabled = elementType !== null; // Disable music tab when opened from element
+    // Check if music tab should be disabled (only for screen-level assignment, but enable for music element)
+    const isMusicDisabled = elementType !== null && elementType !== 'music'; // Enable music tab for music element
 
     const getFileInputRef = () => {
         if (activeTab === 'images') return imageInputRef;
@@ -250,6 +310,41 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                 </div>
 
                 <div className={styles.content}>
+                    {/* Music Assignment Type Selector */}
+                    {elementType === 'music' && (
+                        <div style={{ 
+                            padding: '16px', 
+                            borderBottom: '1px solid #e0e0e0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px'
+                        }}>
+                            <label style={{ fontWeight: '600', fontSize: '14px' }}>Music Assignment:</label>
+                            <div style={{ display: 'flex', gap: '16px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input
+                                        type="radio"
+                                        name="musicAssignment"
+                                        value="global"
+                                        checked={musicAssignmentType === 'global'}
+                                        onChange={(e) => setMusicAssignmentType(e.target.value as 'global' | 'individual')}
+                                    />
+                                    <span>Global Music (All Screens)</span>
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <input
+                                        type="radio"
+                                        name="musicAssignment"
+                                        value="individual"
+                                        checked={musicAssignmentType === 'individual'}
+                                        onChange={(e) => setMusicAssignmentType(e.target.value as 'global' | 'individual')}
+                                    />
+                                    <span>Individual Music (This Screen)</span>
+                                </label>
+                            </div>
+                        </div>
+                    )}
+                    
                     {/* Upload Section */}
                     <div className={styles.uploadSection}>
                         <div 

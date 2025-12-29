@@ -2,15 +2,16 @@ import React from 'react';
 import { useUIStore } from '../store/uiStore';
 import { useProjectStore } from '../store/projectStore';
 import { getAllTemplates } from '../templates/registry';
-import { Upload, ArrowLeft } from 'lucide-react';
+import { Upload, ArrowLeft, FolderOpen } from 'lucide-react';
 import { TemplatePreviewModal } from './TemplatePreviewModal';
+import { YourProjectsModal } from './YourProjectsModal';
 import styles from './TemplatesScreen.module.css';
 
 const TemplatesScreen: React.FC = () => {
     const setMode = useUIStore(state => state.setMode);
     const setPreview = useUIStore(state => state.setTemplatePreviewOpen);
     const setProject = useProjectStore(state => state.setProject);
-    const { isTemplatePreviewOpen, previewTemplateId } = useUIStore();
+    const { isTemplatePreviewOpen, previewTemplateId, isYourProjectsOpen, setYourProjectsOpen } = useUIStore();
     const templates = getAllTemplates();
 
     const handleImport = () => {
@@ -52,10 +53,16 @@ const TemplatesScreen: React.FC = () => {
                         <h1>Select Your Template</h1>
                         <p>Each Perfectly Designed Template is 100% Customizable</p>
                     </div>
-                    <button className={styles.importButton} onClick={handleImport}>
-                        <Upload size={20} />
-                        <span>Import Project</span>
-                    </button>
+                    <div className={styles.headerActions}>
+                        <button className={styles.yourProjectsButton} onClick={() => setYourProjectsOpen(true)}>
+                            <FolderOpen size={20} />
+                            <span>Your Projects</span>
+                        </button>
+                        <button className={styles.importButton} onClick={handleImport}>
+                            <Upload size={20} />
+                            <span>Import Project</span>
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -123,6 +130,8 @@ const TemplatesScreen: React.FC = () => {
             {isTemplatePreviewOpen && previewTemplateId && (
                 <TemplatePreviewModal templateId={previewTemplateId} />
             )}
+
+            {isYourProjectsOpen && <YourProjectsModal />}
         </div>
     );
 };

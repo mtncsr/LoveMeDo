@@ -1,12 +1,12 @@
 import React from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
-import { Type, Image as ImageIcon, Video, Smile, MousePointerClick, LayoutTemplate, Circle } from 'lucide-react';
+import { Type, Image as ImageIcon, Video, Smile, MousePointerClick, LayoutTemplate, Circle, Music } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ElementsMenu.module.css';
 
 const ElementsMenu: React.FC = () => {
-    const { activeScreenId } = useUIStore();
+    const { activeScreenId, setMediaLibraryOpen } = useUIStore();
     const { addElement } = useProjectStore();
 
     if (!activeScreenId) return null;
@@ -90,6 +90,21 @@ const ElementsMenu: React.FC = () => {
             <button className={styles.item} onClick={() => handleAdd('shape')}>
                 <div className={styles.iconBox}><Circle size={20} /></div>
                 <span>Shape</span>
+            </button>
+            <button 
+                className={styles.item} 
+                onClick={() => {
+                    if (activeScreenId) {
+                        setMediaLibraryOpen(true, 'manage', {
+                            elementId: 'music-element',
+                            screenId: activeScreenId,
+                            elementType: 'music'
+                        });
+                    }
+                }}
+            >
+                <div className={styles.iconBox}><Music size={20} /></div>
+                <span>Music</span>
             </button>
         </div>
     );

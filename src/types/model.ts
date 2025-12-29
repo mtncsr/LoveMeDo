@@ -6,7 +6,8 @@ export type ElementType =
   | 'button'
   | 'gallery'
   | 'shape'
-  | 'long-text';
+  | 'long-text'
+  | 'music';
 
 export interface BoxSize {
   width: number;
