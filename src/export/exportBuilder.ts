@@ -11,8 +11,9 @@ const GLOBAL_CSS = `
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: var(--font-body); background: #000; overflow: hidden; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; }
-  #root { width: 100%; height: 100%; max-width: 500px; max-height: 900px; position: relative; background: white; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-  @media (min-width: 600px) { #root { border-radius: 20px; height: 90vh; } }
+  #root { width: 100%; height: 100%; position: relative; background: white; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.5); transition: all 0.3s ease; }
+  #root[data-device="mobile"] { max-width: 375px; max-height: calc(100vh - 40px); aspect-ratio: 9 / 16; border-radius: 30px; }
+  #root[data-device="desktop"] { max-width: 1200px; width: min(90vw, calc((100vh - 40px) * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 8px; height: auto; }
   
   .screen { position: absolute; top:0; left:0; width:100%; height:100%; display:none; opacity:0; transition: opacity 0.5s; z-index:1; }
   .screen.active { display:block; opacity:1; z-index:2; }
@@ -22,8 +23,22 @@ const GLOBAL_CSS = `
   .screen-title { flex:1; text-align:center; color:white; font-family: var(--font-heading); font-weight:700; text-shadow:0 2px 4px rgba(0,0,0,0.2); }
   
   .element { position: absolute; z-index: 10; cursor: pointer; }
+  .element[data-type="sticker"] { animation: float 4s ease-in-out infinite; pointer-events: none; }
+  @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-10px) rotate(5deg); } }
   .element-button { display:flex; align-items:center; justify-content:center; background: var(--color-primary); color:white; border-radius:999px; font-weight:bold; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
   .element-button:active { transform: scale(0.95); }
+  .overlay-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 1; }
+  .confetti { position: absolute; width: 10px; height: 10px; background-color: #f00; opacity: 0.8; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; top: -50px; }
+  @keyframes fall { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; } 2% { opacity: 1; } 98% { opacity: 1; } 100% { transform: translateY(calc(100vh + 50px)) translateX(var(--drift-x, 0px)) rotate(var(--rotation-end, 720deg)); opacity: 0; } }
+  .heart { position: absolute; font-size: 24px; animation-name: floatUp; animation-timing-function: linear; animation-iteration-count: infinite; opacity: 0; filter: drop-shadow(0 0 5px rgba(255, 100, 100, 0.5)); bottom: -50px; }
+  @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 2% { opacity: 0.8; } 98% { opacity: 0.8; } 100% { transform: translateY(calc(-100vh - 50px)) scale(1.2); opacity: 0; } }
+  .star { position: absolute; color: #FFF; font-size: 16px; text-shadow: 0 0 5px #FFF; opacity: 0; }
+  .star-variable { animation: loopFade 12s ease-in-out infinite; }
+  @keyframes loopFade { 0% { opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+  .firework-particle { position: absolute; width: 4px; height: 4px; border-radius: 50%; animation-name: fireworkParticle; animation-timing-function: ease-out; animation-iteration-count: infinite; opacity: 0; }
+  @keyframes fireworkParticle { 0% { transform: translate(0, 0); opacity: 1; } 30% { transform: translate(var(--tx), var(--ty)); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)); opacity: 0; } }
+  .bubble { position: absolute; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2)); box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); border: 1px solid rgba(255, 255, 255, 0.4); animation-name: floatBubble; animation-timing-function: linear; animation-iteration-count: infinite; }
+  @keyframes floatBubble { 0% { transform: translateY(110vh) translateX(0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translateY(-20vh) translateX(20px); opacity: 0; } }
   
   .menu-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .menu-item { color:white; font-size:1.5rem; margin:10px; cursor:pointer; font-family:var(--font-heading); }
@@ -56,6 +71,16 @@ const getRuntimeScript = (project: Project) => `
   const project = ${JSON.stringify(project)};
   const root = document.getElementById('root');
   let historyStack = [];
+  
+  // Detect device type and set root data attribute
+  function detectDevice() {
+      if (!root) return;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      // Mobile if: width <= 768px OR (portrait orientation AND width <= 1024px)
+      const isMobile = width <= 768 || (width < height && width <= 1024);
+      root.setAttribute('data-device', isMobile ? 'mobile' : 'desktop');
+  }
   
   function renderScreen(screenId) {
       document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
@@ -150,14 +175,24 @@ const getRuntimeScript = (project: Project) => `
               let bgImageSrc = screen.background.value;
               if (project.mediaLibrary[screen.background.value]) {
                   bgImageSrc = project.mediaLibrary[screen.background.value].data;
+              } else {
+                  bgImageSrc = screen.background.value;
               }
               bgContent = \`<img src="\${bgImageSrc}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;">\`;
           } else if (screen.background.type === 'video') {
               let bgVideoSrc = screen.background.value;
               if (project.mediaLibrary[screen.background.value]) {
                   bgVideoSrc = project.mediaLibrary[screen.background.value].data;
+              } else {
+                  bgVideoSrc = screen.background.value;
               }
               bgContent = \`<video src="\${bgVideoSrc}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:-1;" autoplay loop muted playsinline></video>\`;
+          }
+          
+          // Generate overlay container div - will be populated by JavaScript
+          let overlayContainerHtml = '';
+          if (screen.background.overlay && screen.background.overlay !== 'none') {
+              overlayContainerHtml = \`<div id="overlay-\${screen.id}" class="overlay-container"></div>\`;
           }
           
           const navBar = screen.type === 'content' ? \`
@@ -216,10 +251,14 @@ const getRuntimeScript = (project: Project) => `
               if (elem.type === 'text') {
                   contentHtml = elem.content;
               } else if (elem.type === 'image') {
-                  // Check if content is a media ID or direct URL
+                  // Check if content is a media ID or direct URL/placeholder path
                   let imageSrc = elem.content;
                   if (project.mediaLibrary[elem.content]) {
+                      // Use uploaded image from mediaLibrary
                       imageSrc = project.mediaLibrary[elem.content].data;
+                  } else {
+                      // Use placeholder path (e.g., /images/templates/heroes/one-screen-hero.webp)
+                      imageSrc = elem.content;
                   }
                   contentHtml = \`<img src="\${imageSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; display:block; border-radius:inherit;" />\`;
                   onClick = \`onclick="openLightbox('\${imageSrc}', 'image')"\`;
@@ -236,12 +275,15 @@ const getRuntimeScript = (project: Project) => `
                    let images = [];
                    try { images = JSON.parse(elem.content); } catch { images = [elem.content]; }
                    if (!Array.isArray(images)) images = [elem.content];
-                   // Convert media IDs to Base64 data URLs
+                   // Convert media IDs to Base64 data URLs, or use placeholder paths
                    images = images.map(imgId => {
                        if (project.mediaLibrary[imgId]) {
+                           // Use uploaded image from mediaLibrary
                            return project.mediaLibrary[imgId].data;
+                       } else {
+                           // Use placeholder path (e.g., /images/templates/galleries/gallery-1.webp)
+                           return imgId;
                        }
-                       return imgId;
                    });
                    
                    const galleryId = 'gallery_' + elem.id.replace(/[^a-zA-Z0-9]/g, '_');
@@ -319,10 +361,14 @@ const getRuntimeScript = (project: Project) => `
                      }
                    })();\`);
               } else if (elem.type === 'video') {
-                   // Check if content is a media ID or direct URL
+                   // Check if content is a media ID or direct URL/placeholder path
                    let videoSrc = elem.content;
                    if (project.mediaLibrary[elem.content]) {
+                       // Use uploaded video from mediaLibrary
                        videoSrc = project.mediaLibrary[elem.content].data;
+                   } else {
+                       // Use placeholder path (e.g., /images/templates/videos/video-placeholder.mp4)
+                       videoSrc = elem.content;
                    }
                    contentHtml = \`<video src="\${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls preload="metadata"></video>\`;
               } else if (elem.type === 'long-text') {
@@ -337,10 +383,12 @@ const getRuntimeScript = (project: Project) => `
                    contentHtml = \`<div style="width:100%; height:100%; background-color:\${elem.styles.backgroundColor || '#ccc'}; border-radius:\${isCircle ? '50%' : (elem.styles.borderRadius || 0) + 'px'};"></div>\`;
               }
 
-              return \`<div class="\${className}" style="\${style}" \${onClick}>\${contentHtml}</div>\`;
+              // Add data-type attribute for stickers to enable float animation
+              const dataTypeAttr = elem.type === 'sticker' ? 'data-type="sticker"' : '';
+              return \`<div class="\${className}" style="\${style}" \${dataTypeAttr} \${onClick}>\${contentHtml}</div>\`;
           }).join('');
 
-          el.innerHTML = bgContent + navBar + navPills + elementsHtml + nextButton;
+          el.innerHTML = bgContent + overlayContainerHtml + navBar + navPills + elementsHtml + nextButton;
           el.style.cssText = bgStyle;
           root.appendChild(el);
       });
@@ -349,9 +397,114 @@ const getRuntimeScript = (project: Project) => `
       galleryInitCodes.forEach(code => {
           try { eval(code); } catch(e) { console.error('Gallery init error:', e); }
       });
+      
+      // Initialize overlay animations
+      function initOverlays() {
+          const random = (min, max) => Math.random() * (max - min) + min;
+          const randomColor = () => {
+              const colors = ['#FFD93D', '#FF4D6D', '#4CC9F0', '#95d5b2', '#a2d6f9', '#ffb3c6', '#FFC300'];
+              return colors[Math.floor(Math.random() * colors.length)];
+          };
+          
+          project.screens.forEach(screen => {
+              if (!screen.background.overlay || screen.background.overlay === 'none') return;
+              const container = document.getElementById('overlay-' + screen.id);
+              if (!container) return;
+              
+              const overlayType = screen.background.overlay;
+              
+              if (overlayType === 'confetti') {
+                  for (let i = 0; i < 30; i++) {
+                      const duration = random(6, 9);
+                      const p = document.createElement('div');
+                      p.className = 'confetti';
+                      p.style.left = random(0, 100) + '%';
+                      p.style.width = random(6, 12) + 'px';
+                      p.style.height = random(6, 12) + 'px';
+                      p.style.backgroundColor = randomColor();
+                      p.style.animationDelay = random(0, 9) + 's';
+                      p.style.animationDuration = duration + 's';
+                      p.style.setProperty('--drift-x', random(-50, 50) + 'px');
+                      p.style.setProperty('--rotation-end', (random(-180, 180) + 720) + 'deg');
+                      container.appendChild(p);
+                  }
+              } else if (overlayType === 'hearts') {
+                  for (let i = 0; i < 15; i++) {
+                      const duration = random(10, 16);
+                      const p = document.createElement('div');
+                      p.className = 'heart';
+                      p.textContent = '❤️';
+                      p.style.left = random(0, 100) + '%';
+                      p.style.fontSize = random(20, 40) + 'px';
+                      p.style.color = Math.random() > 0.5 ? '#FF4D6D' : '#FFb3c6';
+                      p.style.animationDelay = random(0, 16) + 's';
+                      p.style.animationDuration = duration + 's';
+                      container.appendChild(p);
+                  }
+              } else if (overlayType === 'stars') {
+                  for (let i = 0; i < 15; i++) {
+                      const p = document.createElement('div');
+                      p.className = 'star star-variable';
+                      p.textContent = '✨';
+                      p.style.left = random(0, 100) + '%';
+                      p.style.top = random(0, 100) + '%';
+                      p.style.fontSize = random(10, 20) + 'px';
+                      p.style.animationDelay = (i < 5 ? -6 + random(-1, 1) : random(0, 12)) + 's';
+                      p.style.animationDuration = '12s';
+                      container.appendChild(p);
+                  }
+              } else if (overlayType === 'bubbles') {
+                  for (let i = 0; i < 20; i++) {
+                      const duration = random(15, 25);
+                      const p = document.createElement('div');
+                      p.className = 'bubble';
+                      p.style.left = random(0, 100) + '%';
+                      const size = random(20, 60);
+                      p.style.width = size + 'px';
+                      p.style.height = size + 'px';
+                      p.style.animationDelay = random(-duration, 0) + 's';
+                      p.style.animationDuration = duration + 's';
+                      container.appendChild(p);
+                  }
+              } else if (overlayType === 'fireworks') {
+                  const count = Math.floor(random(20, 31));
+                  for (let i = 0; i < count; i++) {
+                      const duration = random(3, 6);
+                      const burstLeft = random(10, 90);
+                      const burstTop = random(10, 70);
+                      const particleCount = Math.floor(random(8, 17));
+                      
+                      for (let j = 0; j < particleCount; j++) {
+                          const angle = random(0, 360) * (Math.PI / 180);
+                          const dist = random(80, 150);
+                          const tx = Math.cos(angle) * dist + 'px';
+                          const ty = Math.sin(angle) * dist + 'px';
+                          
+                          const p = document.createElement('div');
+                          p.className = 'firework-particle';
+                          p.style.left = burstLeft + '%';
+                          p.style.top = burstTop + '%';
+                          p.style.backgroundColor = randomColor();
+                          p.style.animationDelay = random(0, 6) + 's';
+                          p.style.animationDuration = duration + 's';
+                          p.style.setProperty('--tx', tx);
+                          p.style.setProperty('--ty', ty);
+                          container.appendChild(p);
+                      }
+                  }
+              }
+          });
+      }
+      initOverlays();
+      
+      // Detect and set device type after DOM is ready
+      detectDevice();
 
       renderScreen(project.screens[0].id);
   }
+  
+  // Also set device on window resize
+  window.addEventListener('resize', detectDevice);
 
   if (document.readyState === 'loading') {
       window.onload = function() {

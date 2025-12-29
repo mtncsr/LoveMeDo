@@ -31,14 +31,85 @@ export const resizeImage = (base64Str: string, maxWidth: number = 1920): Promise
 };
 
 export const convertProjectMediaToBase64 = async (project: import('../types/model').Project): Promise<import('../types/model').Project> => {
-    const { resizeImage } = await import('./fileHelpers');
+    const { resizeImage, fileToBase64 } = await import('./fileHelpers');
     const mediaLibrary = { ...project.mediaLibrary };
     
-    // Convert all media items to Base64
+    // Collect all placeholder image paths from the project
+    const placeholderPaths = new Set<string>();
+    
+    // Scan screens for placeholder paths
+    for (const screen of project.screens) {
+        // Check background images/videos
+        if (screen.background.type === 'image' && screen.background.value.startsWith('/images/templates/')) {
+            placeholderPaths.add(screen.background.value);
+        } else if (screen.background.type === 'video' && screen.background.value.startsWith('/images/templates/')) {
+            placeholderPaths.add(screen.background.value);
+        }
+        
+        // Check elements
+        for (const elem of screen.elements) {
+            if (elem.type === 'image' && elem.content.startsWith('/images/templates/')) {
+                placeholderPaths.add(elem.content);
+            } else if (elem.type === 'gallery') {
+                let images: string[] = [];
+                try {
+                    images = JSON.parse(elem.content);
+                    if (!Array.isArray(images)) images = [elem.content];
+                } catch {
+                    images = [elem.content];
+                }
+                images.forEach(imgPath => {
+                    if (typeof imgPath === 'string' && imgPath.startsWith('/images/templates/')) {
+                        placeholderPaths.add(imgPath);
+                    }
+                });
+            } else if (elem.type === 'video' && elem.content.startsWith('/images/templates/')) {
+                placeholderPaths.add(elem.content);
+            }
+        }
+    }
+    
+    // Fetch and convert placeholder images to base64
+    for (const placeholderPath of placeholderPaths) {
+        // Skip if already in mediaLibrary
+        if (mediaLibrary[placeholderPath]) continue;
+        
+        try {
+            // Fetch the image from public folder
+            const response = await fetch(placeholderPath);
+            if (!response.ok) {
+                console.warn(`Failed to fetch placeholder ${placeholderPath}: ${response.statusText}`);
+                continue;
+            }
+            
+            const blob = await response.blob();
+            const fileName = placeholderPath.split('/').pop() || 'placeholder';
+            const mimeType = blob.type || 'image/webp';
+            
+            // Convert to base64
+            const base64 = await fileToBase64(new File([blob], fileName, { type: mimeType }));
+            
+            // Convert to WebP if it's an image
+            const isImage = mimeType.startsWith('image/');
+            const finalBase64 = isImage ? await resizeImage(base64) : base64;
+            
+            // Add to mediaLibrary using the path as the key
+            mediaLibrary[placeholderPath] = {
+                id: placeholderPath,
+                type: isImage ? 'image' : (mimeType.startsWith('video/') ? 'video' : 'image'),
+                data: finalBase64,
+                originalName: fileName,
+                mimeType: isImage ? 'image/webp' : mimeType
+            };
+        } catch (error) {
+            console.warn(`Failed to convert placeholder ${placeholderPath}:`, error);
+        }
+    }
+    
+    // Convert all existing media items to Base64
     for (const [id, item] of Object.entries(mediaLibrary)) {
         if (item.type === 'image' && !item.data.startsWith('data:')) {
             // If it's a blob URL or external URL, we need to fetch and convert
-            // For now, assume it's already Base64 or handle blob URLs
             try {
                 if (item.data.startsWith('blob:')) {
                     const response = await fetch(item.data);
