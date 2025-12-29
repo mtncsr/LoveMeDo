@@ -3,6 +3,14 @@ import type { ScreenElement, Project } from '../types/model';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import styles from './styles.module.css';
 
+// Detect if text contains RTL characters (Hebrew, Arabic, etc.)
+const detectTextDirection = (text: string): 'ltr' | 'rtl' => {
+    if (!text) return 'ltr';
+    // Hebrew: \u0590-\u05FF, Arabic: \u0600-\u06FF, etc.
+    const rtlRegex = /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    return rtlRegex.test(text) ? 'rtl' : 'ltr';
+};
+
 const LongTextElement: React.FC<{
     element: ScreenElement;
     style: React.CSSProperties;
@@ -15,6 +23,7 @@ const LongTextElement: React.FC<{
     const { content, styles: elStyles, size } = element;
     const ref = useRef<HTMLDivElement>(null);
     const contentRef = useRef(content);
+    const hasInitializedFocusRef = useRef(false);
 
     // Sync contentRef
     useEffect(() => {
@@ -53,10 +62,12 @@ const LongTextElement: React.FC<{
 
     // Focus contentEditable when element becomes selected
     useEffect(() => {
-        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true') {
+        // Only initialize focus when element first becomes selected
+        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true' && !hasInitializedFocusRef.current) {
             requestAnimationFrame(() => {
                 if (ref.current && ref.current.contentEditable === 'true') {
                     ref.current.focus();
+                    // Set cursor to end of text only on initial selection
                     const range = document.createRange();
                     const sel = window.getSelection();
                     if (sel && ref.current.childNodes.length > 0) {
@@ -65,10 +76,12 @@ const LongTextElement: React.FC<{
                         sel.removeAllRanges();
                         sel.addRange(range);
                     }
+                    hasInitializedFocusRef.current = true;
                 }
             });
         } else if (!isSelected) {
             setIsFocused(false);
+            hasInitializedFocusRef.current = false;
         }
     }, [isSelected, mode, element.id]);
 
@@ -137,6 +150,183 @@ const LongTextElement: React.FC<{
     );
 };
 
+// Internal component for safe contentEditable handling of buttons
+const EditableButton: React.FC<{
+    element: ScreenElement;
+    mode: 'templatePreview' | 'editor' | 'export';
+    isSelected: boolean;
+    onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
+    commonProps: any;
+    renderResizeHandles: () => React.ReactNode;
+    getAnimationClass: () => string;
+    buttonStyle: React.CSSProperties;
+    buttonClassName: string;
+    sticker?: string;
+}> = ({ element, mode, isSelected, onUpdate, commonProps, renderResizeHandles, getAnimationClass, buttonStyle, buttonClassName, sticker }) => {
+    const { content, styles: elStyles } = element;
+    const ref = useRef<HTMLDivElement>(null);
+    const contentRef = useRef(content);
+
+    // Sync contentRef
+    useEffect(() => {
+        contentRef.current = content;
+    }, [content]);
+
+    // Initialize content when element becomes editable
+    useEffect(() => {
+        if (ref.current && ref.current.contentEditable === 'true' && !ref.current.textContent && content) {
+            ref.current.textContent = content;
+        }
+    }, [content, isSelected, mode]);
+
+    // Update DOM only if content changes externally (not from our own typing)
+    useEffect(() => {
+        if (ref.current && ref.current.contentEditable === 'true') {
+            // Only update if content changed externally (not when focused/editing)
+            if (ref.current.textContent !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
+                ref.current.textContent = content;
+            }
+        }
+    }, [content, isSelected, mode]);
+
+    // Track if we've already initialized focus to avoid resetting cursor position
+    const hasInitializedFocusRef = useRef(false);
+    
+    // Initialize and focus contentEditable when element becomes selected
+    useEffect(() => {
+        // Initialize and focus the contentEditable when element becomes selected
+        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true' && !hasInitializedFocusRef.current) {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+                if (ref.current && ref.current.contentEditable === 'true') {
+                    // Initialize content if empty
+                    if (!ref.current.textContent && content) {
+                        ref.current.textContent = content;
+                    }
+                    ref.current.focus();
+                    // Set cursor to end of text only on initial selection
+                    const range = document.createRange();
+                    const sel = window.getSelection();
+                    if (sel && ref.current.childNodes.length > 0) {
+                        range.selectNodeContents(ref.current);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                    hasInitializedFocusRef.current = true;
+                }
+            });
+        } else if (!isSelected) {
+            // Reset flag when element is deselected
+            hasInitializedFocusRef.current = false;
+        }
+    }, [isSelected, mode, element.id]);
+
+    const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+        if (!onUpdate) return;
+        const newContent = e.currentTarget.textContent || '';
+        // Optimization: Don't trigger update if same
+        if (newContent !== contentRef.current) {
+            onUpdate(element.id, { content: newContent });
+        }
+    };
+
+    const textDirection = detectTextDirection(content);
+    const isEditable = isSelected && mode === 'editor';
+    
+    // When editing, use a div styled like a button. Otherwise use a real button element.
+    if (isEditable) {
+        // In editor mode when selected, use div styled as button for contentEditable
+        return (
+            <div
+                {...commonProps}
+                style={{
+                    ...commonProps.style,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <div
+                    className={buttonClassName}
+                    style={buttonStyle}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                    }}
+                >
+                    <div
+                        ref={ref}
+                        contentEditable={true}
+                        onInput={handleInput}
+                        onBlur={(e) => {
+                            // If element is still selected and blur wasn't caused by clicking on menu/controls, refocus
+                            if (isSelected && mode === 'editor' && ref.current) {
+                                const relatedTarget = e.relatedTarget as HTMLElement;
+                                // Don't refocus if user clicked on editing menu or resize handles
+                                const clickedOnMenu = relatedTarget?.closest('[data-editing-menu]');
+                                const clickedOnResizeHandle = relatedTarget?.closest('[class*="resizeHandle"]');
+                                if (!clickedOnMenu && !clickedOnResizeHandle) {
+                                    // Use setTimeout to allow the blur to complete, then refocus
+                                    setTimeout(() => {
+                                        if (isSelected && ref.current && document.activeElement !== ref.current) {
+                                            ref.current.focus();
+                                        }
+                                    }, 0);
+                                }
+                            }
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
+                        suppressContentEditableWarning
+                        style={{
+                            outline: 'none',
+                            border: 'none',
+                            background: 'transparent',
+                            width: '100%',
+                            direction: textDirection,
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                        }}
+                    />
+                    {sticker && <span>{sticker}</span>}
+            </div>
+                {renderResizeHandles()}
+            </div>
+        );
+    }
+    
+    // In preview/export mode, use actual button element
+    return (
+        <div
+            {...commonProps}
+            style={{
+                ...commonProps.style,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+        >
+            <button
+                className={buttonClassName}
+                style={buttonStyle}
+                onClick={(e) => {
+                    // In editor mode, prevent default button behavior
+                    if (mode === 'editor') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }}
+            >
+                {content}
+                {sticker && <span>{sticker}</span>}
+            </button>
+            {renderResizeHandles()}
+        </div>
+    );
+};
+
 // Internal component for safe contentEditable handling
 const EditableText: React.FC<{
     element: ScreenElement;
@@ -158,30 +348,34 @@ const EditableText: React.FC<{
 
     // Update DOM only if content changes externally (not from our own typing)
     useEffect(() => {
-        if (ref.current && ref.current.textContent !== content) {
-            // Only update if not currently focused or if significantly different
-            // Ideally we trust the user's typing, but if undo/redo happens we need to sync.
-            // A simple check: if we are focused, we might want to be careful.
-            // But for now, let's trust that if the prop changes, it's authoritative.
-            // HOWEVER: If prop update comes from our own onInput, we must NOT touch DOM.
-            // But we don't know source. 
-            // Solution: check cursor position? No too complex.
-            // Best practice: The parent updates state, passed back down. 
-            // If we are typing, the prop update matches our DOM. 
-            // So checking textContent !== content should be safe IF the delay isn't huge.
+        if (ref.current) {
+            // If contentEditable is enabled and element is empty, initialize it with content
+            if (isSelected && mode === 'editor' && ref.current.contentEditable === 'true' && !ref.current.textContent && content) {
             ref.current.textContent = content;
         }
-    }, [content]);
+            // Otherwise, only update if content changed externally (not when focused/editing)
+            else if (ref.current.textContent !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
+                ref.current.textContent = content;
+            }
+        }
+    }, [content, isSelected, mode]);
 
-    // Focus contentEditable when element becomes selected
+    // Track if we've already initialized focus to avoid resetting cursor position
+    const hasInitializedFocusRef = useRef(false);
+    
+    // Initialize and focus contentEditable when element becomes selected
     useEffect(() => {
-        // Focus the contentEditable when element becomes selected
-        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true') {
+        // Only initialize focus when element first becomes selected
+        if (isSelected && mode === 'editor' && ref.current && ref.current.contentEditable === 'true' && !hasInitializedFocusRef.current) {
             // Use requestAnimationFrame to ensure DOM is ready
             requestAnimationFrame(() => {
                 if (ref.current && ref.current.contentEditable === 'true') {
+                    // Initialize content if empty
+                    if (!ref.current.textContent && content) {
+                        ref.current.textContent = content;
+                    }
                     ref.current.focus();
-                    // Set cursor to end of text
+                    // Set cursor to end of text only on initial selection
                     const range = document.createRange();
                     const sel = window.getSelection();
                     if (sel && ref.current.childNodes.length > 0) {
@@ -190,8 +384,12 @@ const EditableText: React.FC<{
                         sel.removeAllRanges();
                         sel.addRange(range);
                     }
+                    hasInitializedFocusRef.current = true;
                 }
             });
+        } else if (!isSelected) {
+            // Reset flag when element is deselected
+            hasInitializedFocusRef.current = false;
         }
     }, [isSelected, mode, element.id]);
 
@@ -206,6 +404,7 @@ const EditableText: React.FC<{
 
     const hasBackground = !!elStyles.backgroundColor;
     const showBorderWrapper = isSelected && mode === 'editor';
+    const textDirection = detectTextDirection(content);
 
     // No Box Style - use this when there's no background, even when selected
     // Apply selection border directly to the main element
@@ -217,11 +416,14 @@ const EditableText: React.FC<{
             outline: 'none',
             boxShadow: 'none',
             backgroundColor: 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start',
-            direction: 'ltr', // Force LTR
+            display: isSelected && mode === 'editor' ? 'block' : 'flex',
+            alignItems: isSelected && mode === 'editor' ? undefined : 'center',
+            justifyContent: isSelected && mode === 'editor' ? undefined : (elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start'),
+            direction: textDirection,
             padding: showBorderWrapper ? '4px 8px' : undefined,
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
         };
 
         return (
@@ -253,9 +455,10 @@ const EditableText: React.FC<{
                     }
                 }}
                 suppressContentEditableWarning
+                key={`text-${element.id}-${isSelected ? 'editable' : 'static'}`}
                 style={noBoxTextStyle}
+                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: content || '' } : undefined}
             >
-                {/* Initial render only */}
                 {renderResizeHandles()}
             </div>
         );
@@ -271,7 +474,7 @@ const EditableText: React.FC<{
                 display: hasBackground ? 'flex' : (showBorderWrapper ? 'flex' : undefined),
                 alignItems: hasBackground || showBorderWrapper ? 'center' : undefined,
                 justifyContent: hasBackground || showBorderWrapper ? (elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start') : undefined,
-                direction: 'ltr',
+                direction: textDirection,
             }}
         >
             <div
@@ -302,6 +505,7 @@ const EditableText: React.FC<{
                     e.stopPropagation();
                 }}
                 suppressContentEditableWarning
+                key={`text-box-${element.id}-${isSelected ? 'editable' : 'static'}`}
                 style={{
                     outline: 'none',
                     border: showBorderWrapper ? '2px solid var(--color-primary)' : 'none',
@@ -312,15 +516,14 @@ const EditableText: React.FC<{
                     width: showBorderWrapper ? 'fit-content' : undefined,
                     minWidth: showBorderWrapper ? 'fit-content' : undefined,
                     maxWidth: '100%',
+                    whiteSpace: 'pre-wrap',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    direction: textDirection,
                 }}
-            />
-            {/* Note: Self-closing div for boxed text because content is managed by ref/effect, 
-                 BUT we need initial content. Actually the useEffect [content] will run on mount and populate it!
-                 Alternatively, we can use defaultValue if we were using a real input, but for div we can just
-                 set children initially? No, that causes the re-render issue.
-                 Let's stick to useEffect filling it. Reference: https://reactjs.org/docs/dom-elements.html#dangerouslysetinnerhtml
-                 Actually for contentEditable, suppressing children is key.
-              */}
+                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: content || '' } : undefined}
+            >
+            </div>
             {renderResizeHandles()}
         </div>
     );
@@ -379,12 +582,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         // Select element immediately on mouse down (even if onUpdate is not available)
         onClick?.(e);
         
-        // For text elements, check if we should allow the click to propagate to contentEditable
+        // For text and button elements, check if we should allow the click to propagate to contentEditable
         const target = e.target as HTMLElement;
         const isTextElement = type === 'text';
+        const isButtonElement = type === 'button';
         
-        // For text elements that are already selected, allow clicks to reach contentEditable
-        if (isTextElement && isSelected) {
+        // For text/button elements that are already selected, allow clicks to reach contentEditable
+        if ((isTextElement || isButtonElement) && isSelected) {
             // Find the contentEditable element within this element
             const currentTarget = e.currentTarget as HTMLElement;
             const contentEditableEl = currentTarget.querySelector('[contenteditable="true"]') as HTMLElement;
@@ -392,16 +596,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             // If clicking on the wrapper but there's a contentEditable child, don't stop propagation
             // so the click can reach the contentEditable for proper focus
             if (contentEditableEl && target === currentTarget) {
-                // Click is on wrapper of selected text element, allow it to bubble to contentEditable
+                // Click is on wrapper of selected text/button element, allow it to bubble to contentEditable
                 // Don't stop propagation so click can reach contentEditable
-                // Also don't set up drag handlers for text elements on wrapper clicks
+                // Also don't set up drag handlers for text/button elements on wrapper clicks
                 return;
             }
         }
         
         // For non-text elements or unselected text elements, stop propagation
         e.stopPropagation();
-        
+
         // Only enable dragging if onUpdate is available
         if (!onUpdate) return;
 
@@ -765,7 +969,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         fontStyle: elStyles.fontStyle,
         cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery' || type === 'long-text') ? 'pointer' : 'default',
         border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
-        direction: 'ltr', // Fix: Ensure English text writes LTR by default
+        direction: type === 'text' ? detectTextDirection(content) : 'ltr',
     };
 
     const handleInteraction = (e: React.MouseEvent) => {
@@ -999,22 +1203,17 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             const frameStyle = getFrameStyle();
             const hasFrame = frameShape && elStyles.frameColor;
             
-            return (
-                <div
-                    {...commonProps}
-                    style={{
+            const buttonWrapperProps = {
+                ...commonProps,
+                style: {
                         ...commonProps.style,
-                        border: hasFrame ? `4px solid ${frameColor}` : 'none',
-                        padding: hasFrame ? '4px' : '0',
-                        ...(hasFrame && frameStyle),
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }}
-                >
-                    <button
-                        className={`${styles.elementButton} ${getAnimationClass()}`}
-                        style={{
+                    border: hasFrame ? `4px solid ${frameColor}` : 'none',
+                    padding: hasFrame ? '4px' : '0',
+                    ...(hasFrame && frameStyle),
+                }
+            };
+            
+            const buttonStyle: React.CSSProperties = {
                             border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : undefined,
                             padding: '12px 24px',
                             width: 'fit-content',
@@ -1024,21 +1223,21 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             flexDirection: 'column',
                             alignItems: 'center',
                             gap: '4px',
-                        }}
-                        onClick={(e) => {
-                            // In editor mode, prevent default button behavior and let parent handle click
-                            if (mode === 'editor') {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleInteraction(e);
-                            }
-                        }}
-                    >
-                        {content}
-                        {buttonSticker && <span>{buttonSticker}</span>}
-                    </button>
-                    {renderResizeHandles()}
-                </div>
+            };
+            
+            return (
+                <EditableButton
+                    element={element}
+                    mode={mode}
+                    isSelected={isSelected}
+                    onUpdate={onUpdate}
+                    commonProps={buttonWrapperProps}
+                    renderResizeHandles={renderResizeHandles}
+                    getAnimationClass={getAnimationClass}
+                    buttonStyle={buttonStyle}
+                    buttonClassName={`${styles.elementButton} ${getAnimationClass()}`}
+                    sticker={buttonSticker}
+                />
             );
 
         case 'sticker':
@@ -1449,15 +1648,15 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     alignItems: 'flex-start',
                     justifyContent: 'flex-start',
                 }}>
-                    <LongTextElement
-                        element={element}
-                        style={style}
-                        mode={mode}
-                        isSelected={isSelected}
-                        onMouseDown={handleMouseDown}
-                        onClick={handleInteraction}
+                <LongTextElement
+                    element={element}
+                    style={style}
+                    mode={mode}
+                    isSelected={isSelected}
+                    onMouseDown={handleMouseDown}
+                    onClick={handleInteraction}
                         onUpdate={onUpdate}
-                    />
+                />
                     {renderResizeHandles()}
                 </div>
             );
@@ -1481,3 +1680,4 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             return null;
     }
 };
+

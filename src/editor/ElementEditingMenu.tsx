@@ -257,13 +257,16 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
     const renderTextFeatures = () => (
         <>
-            <button
-                className={styles.menuButton}
-                onClick={handleEditText}
-                title="Edit Text"
-            >
-                <Type size={18} />
-            </button>
+            {/* Only show Edit Text button for text and long-text, not for buttons (buttons are directly editable) */}
+            {(element.type === 'text' || element.type === 'long-text') && (
+                <button
+                    className={styles.menuButton}
+                    onClick={handleEditText}
+                    title="Edit Text"
+                >
+                    <Type size={18} />
+                </button>
+            )}
             <button
                 className={styles.menuButton}
                 onClick={() => setShowFontPicker(!showFontPicker)}
