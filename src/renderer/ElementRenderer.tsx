@@ -1442,7 +1442,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 }
                             }}
                         >
-                            {images.map((src, index) => (
+                            {resolvedImages.map((resolvedUrl, index) => (
                                 <div
                                     key={index}
                                     onClick={isInteractive ? (e) => handleThumbnailClick(index, e) : undefined}
@@ -1470,7 +1470,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                     }}
                                 >
                                     <img
-                                        src={src}
+                                        src={resolvedUrl}
                                         alt={`Thumbnail ${index + 1}`}
                                         loading="eager"
                                         decoding="async"

@@ -39,8 +39,8 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
         
         const assignedIds = new Set<string>();
         
-        if (elementType === 'image') {
-            // Single media ID for hero images
+        if (elementType === 'image' || elementType === 'video') {
+            // Single media ID for hero images and videos
             const content = currentElement.content;
             if (content && project.mediaLibrary[content]) {
                 assignedIds.add(content);
@@ -67,56 +67,71 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     }, [currentElement, elementType, project.mediaLibrary]);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, expectedType: 'image' | 'video' | 'audio') => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-        // Validate file type matches expected tab
-        if (expectedType === 'image' && !file.type.startsWith('image/')) {
-            alert('Please select an image file');
-            return;
-        }
-        if (expectedType === 'video' && !file.type.startsWith('video/')) {
-            alert('Please select a video file');
-            return;
-        }
-        if (expectedType === 'audio' && !file.type.startsWith('audio/')) {
-            alert('Please select an audio file');
-            return;
-        }
+        const filesArray = Array.from(files);
+        let successCount = 0;
+        let errorCount = 0;
 
-        try {
-            // 1. Convert to Base64
-            let base64 = await fileToBase64(file);
-
-            // 2. Resize/Compress if image
-            if (file.type.startsWith('image/')) {
-                base64 = await resizeImage(base64);
+        // Process all files
+        for (const file of filesArray) {
+            // Validate file type matches expected tab
+            if (expectedType === 'image' && !file.type.startsWith('image/')) {
+                errorCount++;
+                continue;
+            }
+            if (expectedType === 'video' && !file.type.startsWith('video/')) {
+                errorCount++;
+                continue;
+            }
+            if (expectedType === 'audio' && !file.type.startsWith('audio/')) {
+                errorCount++;
+                continue;
             }
 
-            // 3. Create Item
-            const newItem = {
-                id: uuidv4(),
-                type: expectedType,
-                originalName: file.name,
-                mimeType: file.type,
-                data: base64,
-                width: 0, // Should extract
-                height: 0
-            };
+            try {
+                // 1. Convert to Base64
+                let base64 = await fileToBase64(file);
 
-            addMediaItem(newItem);
-            
-            // Reset file input
-            e.target.value = '';
-        } catch (err) {
-            console.error("Upload failed", err);
-            alert("Failed to upload file.");
+                // 2. Resize/Compress if image
+                if (file.type.startsWith('image/')) {
+                    base64 = await resizeImage(base64);
+                }
+
+                // 3. Create Item
+                const newItem = {
+                    id: uuidv4(),
+                    type: expectedType,
+                    originalName: file.name,
+                    mimeType: file.type,
+                    data: base64,
+                    width: 0, // Should extract
+                    height: 0
+                };
+
+                addMediaItem(newItem);
+                successCount++;
+            } catch (err) {
+                console.error("Upload failed for file:", file.name, err);
+                errorCount++;
+            }
+        }
+
+        // Reset file input
+        e.target.value = '';
+
+        // Show feedback
+        if (errorCount > 0 && successCount === 0) {
+            alert(`Failed to upload ${errorCount} file(s).`);
+        } else if (errorCount > 0) {
+            alert(`Successfully uploaded ${successCount} file(s). ${errorCount} file(s) failed.`);
         }
     };
 
     const handleItemClick = (mediaId: string) => {
-        if (elementType === 'image') {
-            // Single selection for hero images
+        if (elementType === 'image' || elementType === 'video') {
+            // Single selection for hero images and videos
             setSelectedMediaIds(new Set([mediaId]));
         } else if (elementType === 'gallery') {
             // Multiple selection for galleries
@@ -131,7 +146,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     };
 
     const handleSave = () => {
-        if (elementType === 'image') {
+        if (elementType === 'image' || elementType === 'video') {
             // Single selection
             const selectedId = Array.from(selectedMediaIds)[0] || '';
             onSelect?.(selectedId);
@@ -162,7 +177,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     const isAssigned = (mediaId: string) => {
         if (!currentElement) return false;
         
-        if (elementType === 'image') {
+        if (elementType === 'image' || elementType === 'video') {
             return currentElement.content === mediaId && project.mediaLibrary[mediaId];
         } else if (elementType === 'gallery') {
             try {
@@ -247,6 +262,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                                 ref={getFileInputRef()}
                                 type="file"
                                 accept={getAcceptType()}
+                                multiple
                                 style={{ display: 'none' }}
                                 onChange={(e) => handleFileChange(e, activeTab === 'images' ? 'image' : activeTab === 'videos' ? 'video' : 'audio')}
                             />

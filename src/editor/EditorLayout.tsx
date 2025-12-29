@@ -63,8 +63,8 @@ const EditorLayout: React.FC = () => {
         const { elementId, screenId, elementType } = contentManagerContext;
         if (!screenId || !elementId) return;
 
-        if (elementType === 'image') {
-            // Single selection for hero images - store media ID
+        if (elementType === 'image' || elementType === 'video') {
+            // Single selection for hero images and videos - store media ID
             const mediaId = typeof mediaIdOrArray === 'string' ? mediaIdOrArray : mediaIdOrArray[0];
             if (mediaId && project.mediaLibrary[mediaId]) {
                 updateElement(screenId, elementId, { content: mediaId });

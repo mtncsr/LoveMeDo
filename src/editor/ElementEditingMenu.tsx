@@ -5,7 +5,8 @@ import type { ScreenElement } from '../types/model';
 import {
     Trash2, Type, Palette, MoveUp, MoveDown, 
     Bold, Underline, Italic, Minus, Plus,
-    Sparkles, Image as ImageIcon, X, FolderOpen
+    Sparkles, Image as ImageIcon, X, FolderOpen,
+    AlignLeft, AlignCenter, AlignRight
 } from 'lucide-react';
 import styles from './ElementEditingMenu.module.css';
 
@@ -231,6 +232,12 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         updateElement(activeScreenId, element.id, { styles: updates });
     };
 
+    const handleTextAlignChange = (align: 'left' | 'center' | 'right') => {
+        updateElement(activeScreenId, element.id, {
+            styles: { ...element.styles, textAlign: align }
+        });
+    };
+
     const handleStickerSelect = (sticker: string) => {
         updateElement(activeScreenId, element.id, {
             metadata: { ...element.metadata, sticker }
@@ -311,6 +318,27 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 title="Italic"
             >
                 <Italic size={18} />
+            </button>
+            <button
+                className={`${styles.menuButton} ${element.styles.textAlign === 'left' ? styles.active : ''}`}
+                onClick={() => handleTextAlignChange('left')}
+                title="Align Left"
+            >
+                <AlignLeft size={18} />
+            </button>
+            <button
+                className={`${styles.menuButton} ${element.styles.textAlign === 'center' ? styles.active : ''}`}
+                onClick={() => handleTextAlignChange('center')}
+                title="Align Center"
+            >
+                <AlignCenter size={18} />
+            </button>
+            <button
+                className={`${styles.menuButton} ${element.styles.textAlign === 'right' ? styles.active : ''}`}
+                onClick={() => handleTextAlignChange('right')}
+                title="Align Right"
+            >
+                <AlignRight size={18} />
             </button>
         </>
     );
