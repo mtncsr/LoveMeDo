@@ -1,4 +1,5 @@
 import type { Project } from '../types/model';
+import { calculateLayout } from '../templates/registry';
 
 // CSS from global.css (simplified)
 const GLOBAL_CSS = `
@@ -227,15 +228,48 @@ const getRuntimeScript = (project: Project) => `
             </div>
           \` : '';
 
-          const elementsHtml = screen.elements.map(elem => {
+          // Elements are already processed by calculateLayout at build time
+          // Sort elements by zIndex (just like the preview does)
+          const sortedElements = [...screen.elements].sort((a, b) => {
+              const aZ = a.styles?.zIndex || 10;
+              const bZ = b.styles?.zIndex || 10;
+              return aZ - bZ;
+          });
+
+          const elementsHtml = sortedElements.map(elem => {
+              // Safe area mapping for content screens (0-100% template space → 10-85% screen space)
+              let adjustedY = elem.position.y;
+              let adjustedHeight = elem.size.height;
+              const isContentScreen = screen.type === 'content';
+              const safeAreaTop = 10;      // 10% from top (below nav bar)
+              const safeAreaBottom = 85;   // 85% from top (above next button)
+              const safeAreaHeight = safeAreaBottom - safeAreaTop; // 75% available height
+
+              if (isContentScreen) {
+                  // Map element's y position (0-100%) to safe area (10-85%)
+                  // Element at y: 0% → renders at y: 10% (top of safe area)
+                  // Element at y: 100% → renders at y: 85% (bottom of safe area)
+                  adjustedY = safeAreaTop + (elem.position.y / 100) * safeAreaHeight;
+                  
+                  // Scale element height proportionally to safe area
+                  if (adjustedHeight) {
+                      adjustedHeight = (adjustedHeight / 100) * safeAreaHeight;
+                  }
+              }
+              
+              // Apply mobile font scaling (0.7 factor for mobile, just like ElementRenderer)
+              const isMobile = true; // Using mobile as default for export
+              const fontScaleFactor = isMobile ? 0.7 : 1.0;
+              const scaledFontSize = elem.styles?.fontSize ? elem.styles.fontSize * fontScaleFactor : undefined;
+
               let style = \`
-                  left: \${elem.position.x}%; top: \${elem.position.y}%;
+                  left: \${elem.position.x}%; top: \${adjustedY}%;
                   width: \${elem.size.width ? elem.size.width + '%' : 'auto'};
-                  height: \${elem.size.height ? elem.size.height + '%' : 'auto'};
-                  color: \${elem.styles.color || 'inherit'};
-                  background-color: \${elem.styles.backgroundColor || 'transparent'};
-                  font-size: \${elem.styles.fontSize ? elem.styles.fontSize + 'px' : ''};
-                  font-family: \${elem.styles.fontFamily || ''};
+                  height: \${adjustedHeight ? adjustedHeight + '%' : 'auto'};
+                  color: \${elem.styles?.color || 'inherit'};
+                  background-color: \${elem.styles?.backgroundColor || 'transparent'};
+                  font-size: \${scaledFontSize ? scaledFontSize + 'px' : ''};
+                  font-family: \${elem.styles?.fontFamily || ''};
                   text-align: \${elem.styles.textAlign || 'left'};
                   border-radius: \${elem.styles.borderRadius || 0}px;
                   transform: rotate(\${elem.styles.rotation || 0}deg);
@@ -541,9 +575,24 @@ const minifyJS = (js: string): string => {
 };
 
 export const buildExportHtml = (project: Project): string => {
+    // Apply calculateLayout to content screens at build time (before generating HTML)
+    const processedProject: Project = {
+        ...project,
+        screens: project.screens.map(screen => {
+            if (screen.type === 'content') {
+                const processedElements = calculateLayout(screen.elements, 'mobile');
+                return {
+                    ...screen,
+                    elements: processedElements
+                };
+            }
+            return screen;
+        })
+    };
+    
     // Disable minification to avoid breaking code - regex-based minifiers can't handle complex JavaScript safely
     const minifiedCSS = minifyCSS(GLOBAL_CSS);
-    const runtimeScript = getRuntimeScript(project); // Don't minify JS - it breaks template literals and URLs
+    const runtimeScript = getRuntimeScript(processedProject); // Don't minify JS - it breaks template literals and URLs
     
     return `<!DOCTYPE html>
 <html lang="en">
