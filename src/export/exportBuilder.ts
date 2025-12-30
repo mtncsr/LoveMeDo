@@ -1,26 +1,119 @@
 import type { Project } from '../types/model';
 import { calculateLayout } from '../templates/registry';
 
-// CSS from global.css (simplified)
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+// Helper function to convert blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+// Embed Google Fonts as base64 data URIs
+async function embedGoogleFonts(): Promise<string> {
+  const fontUrl = 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap';
+  
+  try {
+    // Fetch the Google Fonts CSS
+    const cssResponse = await fetch(fontUrl);
+    const cssText = await cssResponse.text();
+    
+    // Parse @font-face declarations from the CSS
+    const fontFaceRegex = /@font-face\s*\{([^}]+)\}/g;
+    const fontFaces: string[] = [];
+    let match;
+    
+    while ((match = fontFaceRegex.exec(cssText)) !== null) {
+      const fontFaceContent = match[1];
+      
+      // Extract font-family
+      const familyMatch = fontFaceContent.match(/font-family:\s*['"]?([^'";}]+)['"]?/i);
+      if (!familyMatch) continue;
+      const fontFamily = familyMatch[1].trim();
+      
+      // Extract font-weight
+      const weightMatch = fontFaceContent.match(/font-weight:\s*(\d+)/i);
+      const weight = weightMatch ? weightMatch[1] : '400';
+      
+      // Extract font-style
+      const styleMatch = fontFaceContent.match(/font-style:\s*(\w+)/i);
+      const style = styleMatch ? styleMatch[1] : 'normal';
+      
+      // Extract src URL
+      const srcMatch = fontFaceContent.match(/src:\s*url\(['"]?([^'")]+)['"]?\)/i);
+      if (!srcMatch) continue;
+      let fontFileUrl = srcMatch[1].trim();
+      
+      // Convert relative URLs to absolute
+      if (fontFileUrl.startsWith('//')) {
+        fontFileUrl = 'https:' + fontFileUrl;
+      } else if (fontFileUrl.startsWith('/')) {
+        fontFileUrl = 'https://fonts.gstatic.com' + fontFileUrl;
+      }
+      
+      try {
+        // Fetch font file and convert to base64
+        const fontResponse = await fetch(fontFileUrl);
+        const fontBlob = await fontResponse.blob();
+        const base64 = await blobToBase64(fontBlob);
+        
+        // Determine format from URL
+        let format = 'woff2';
+        if (fontFileUrl.includes('.woff2')) format = 'woff2';
+        else if (fontFileUrl.includes('.woff')) format = 'woff';
+        else if (fontFileUrl.includes('.ttf')) format = 'truetype';
+        else if (fontFileUrl.includes('.otf')) format = 'opentype';
+        
+        fontFaces.push(`@font-face {
+  font-family: '${fontFamily}';
+  font-style: ${style};
+  font-weight: ${weight};
+  font-display: swap;
+  src: url(${base64}) format('${format}');
+}`);
+      } catch (error) {
+        console.warn('Failed to embed font file:', fontFileUrl, error);
+      }
+    }
+    
+    return fontFaces.join('\n');
+  } catch (error) {
+    console.warn('Failed to fetch Google Fonts, using fallback:', error);
+    // Return empty string - fonts will fall back to system fonts
+    return '';
+  }
+}
+
+// CSS from global.css (simplified) - @import will be replaced with embedded fonts
+const GLOBAL_CSS_TEMPLATE = `
   :root {
     --color-primary: #FF4D6D;
     --color-text: #2D2D2D;
     --font-heading: 'Playfair Display', serif;
     --font-body: 'Outfit', sans-serif;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--font-body); background: #000; overflow: hidden; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: var(--font-body); background: #000; overflow: hidden; height: calc(var(--vh, 1vh) * 100); width: 100vw; display: flex; align-items: center; justify-content: center; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; touch-action: manipulation; }
   #root { width: 100%; height: 100%; position: relative; background: white; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.5); transition: all 0.3s ease; }
-  #root[data-device="mobile"] { max-width: 375px; max-height: calc(100vh - 40px); aspect-ratio: 9 / 16; border-radius: 30px; }
-  #root[data-device="desktop"] { max-width: 1200px; width: min(90vw, calc((100vh - 40px) * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 8px; height: auto; }
+  #root[data-device="mobile"] { max-width: 375px; max-height: calc(calc(var(--vh, 1vh) * 100) - 40px); position: relative; padding-bottom: 177.78%; border-radius: 30px; }
+  @supports (aspect-ratio: 9 / 16) {
+    #root[data-device="mobile"] { padding-bottom: 0; aspect-ratio: 9 / 16; }
+  }
+  #root[data-device="desktop"] { max-width: 1200px; width: min(90vw, calc((calc(var(--vh, 1vh) * 100) - 40px) * 16 / 9)); position: relative; padding-bottom: 56.25%; border-radius: 8px; height: auto; }
+  @supports (aspect-ratio: 16 / 9) {
+    #root[data-device="desktop"] { padding-bottom: 0; aspect-ratio: 16 / 9; }
+  }
   
   .screen { position: absolute; top:0; left:0; width:100%; height:100%; display:none; opacity:0; transition: opacity 0.5s; z-index:1; }
   .screen.active { display:block; opacity:1; z-index:2; }
   
   .nav-bar { position: absolute; top:0; left:0; width:100%; height:60px; display:flex; align-items:center; z-index:100; padding:0 16px; pointer-events: none; }
-  .nav-btn { pointer-events: auto; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.2); backdrop-filter:blur(5px); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 20px; }
+  .nav-btn { pointer-events: auto; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 20px; }
   .screen-title { flex:1; text-align:center; color:white; font-family: var(--font-heading); font-weight:700; text-shadow:0 2px 4px rgba(0,0,0,0.2); }
   
   .element { position: absolute; z-index: 10; cursor: pointer; }
@@ -30,48 +123,95 @@ const GLOBAL_CSS = `
   .element-button:active { transform: scale(0.95); }
   .overlay-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; z-index: 1; }
   .confetti { position: absolute; width: 10px; height: 10px; background-color: #f00; opacity: 0.8; animation-name: fall; animation-timing-function: linear; animation-iteration-count: infinite; top: -50px; }
-  @keyframes fall { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; } 2% { opacity: 1; } 98% { opacity: 1; } 100% { transform: translateY(calc(100vh + 50px)) translateX(var(--drift-x, 0px)) rotate(var(--rotation-end, 720deg)); opacity: 0; } }
+  @keyframes fall { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; } 2% { opacity: 1; } 98% { opacity: 1; } 100% { transform: translateY(calc(calc(var(--vh, 1vh) * 100) + 50px)) translateX(var(--drift-x, 0px)) rotate(var(--rotation-end, 720deg)); opacity: 0; } }
   .heart { position: absolute; font-size: 24px; animation-name: floatUp; animation-timing-function: linear; animation-iteration-count: infinite; opacity: 0; filter: drop-shadow(0 0 5px rgba(255, 100, 100, 0.5)); bottom: -50px; }
-  @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 2% { opacity: 0.8; } 98% { opacity: 0.8; } 100% { transform: translateY(calc(-100vh - 50px)) scale(1.2); opacity: 0; } }
+  @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 2% { opacity: 0.8; } 98% { opacity: 0.8; } 100% { transform: translateY(calc(calc(var(--vh, 1vh) * -100) - 50px)) scale(1.2); opacity: 0; } }
   .star { position: absolute; color: #FFF; font-size: 16px; text-shadow: 0 0 5px #FFF; opacity: 0; }
   .star-variable { animation: loopFade 12s ease-in-out infinite; }
   @keyframes loopFade { 0% { opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
   .firework-particle { position: absolute; width: 4px; height: 4px; border-radius: 50%; animation-name: fireworkParticle; animation-timing-function: ease-out; animation-iteration-count: infinite; opacity: 0; }
   @keyframes fireworkParticle { 0% { transform: translate(0, 0); opacity: 1; } 30% { transform: translate(var(--tx), var(--ty)); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)); opacity: 0; } }
   .bubble { position: absolute; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2)); box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); border: 1px solid rgba(255, 255, 255, 0.4); animation-name: floatBubble; animation-timing-function: linear; animation-iteration-count: infinite; }
-  @keyframes floatBubble { 0% { transform: translateY(110vh) translateX(0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translateY(-20vh) translateX(20px); opacity: 0; } }
+  @keyframes floatBubble { 0% { transform: translateY(calc(calc(var(--vh, 1vh) * 110))) translateX(0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translateY(calc(calc(var(--vh, 1vh) * -20))) translateX(20px); opacity: 0; } }
   
   .menu-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .menu-item { color:white; font-size:1.5rem; margin:10px; cursor:pointer; font-family:var(--font-heading); }
   .menu-close { position:absolute; top:20px; right:20px; color:white; font-size:30px; cursor:pointer; }
   
-  .lightbox { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9999; display:flex; align-items:center; justify-content:center; }
+  .lightbox { position:fixed; top:0; left:0; width:100vw; height:calc(var(--vh, 1vh) * 100); background:rgba(0,0,0,0.95); z-index:9999; display:flex; align-items:center; justify-content:center; }
   .lightbox img { max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 0 30px rgba(0,0,0,0.5); }
   .lightbox-close { position:absolute; top:20px; right:20px; color:white; font-size:30px; cursor:pointer; background:none; border:none; }
   .lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); color:white; font-size:40px; cursor:pointer; background:rgba(0,0,0,0.5); border:none; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
   .lightbox-prev { left:20px; }
   .lightbox-next { right:20px; }
-  .navigation-pills { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; gap:10px; padding:20px 20px 20px; z-index:10; overflow-y:auto; align-items:center; box-sizing:border-box; }
-  .nav-pill { background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); border-radius:50px; padding:16px 24px; display:flex; align-items:center; justify-content:flex-start; gap:16px; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s,background 0.2s; border:2px solid rgba(255,255,255,0.3); width:100%; max-width:400px; min-height:60px; cursor:pointer; }
+  .navigation-pills { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; padding:20px 20px 20px; z-index:10; overflow-y:auto; align-items:center; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
+  .navigation-pills > * + * { margin-top: 10px; }
+  @supports (gap: 10px) {
+    .navigation-pills > * + * { margin-top: 0; }
+    .navigation-pills { gap: 10px; }
+  }
+  .nav-pill { background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border-radius:50px; padding:16px 24px; display:flex; align-items:center; justify-content:flex-start; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s,background 0.2s; border:2px solid rgba(255,255,255,0.3); width:100%; max-width:400px; min-height:60px; cursor:pointer; }
+  .nav-pill > * + * { margin-left: 16px; }
+  @supports (gap: 16px) {
+    .nav-pill > * + * { margin-left: 0; }
+    .nav-pill { gap: 16px; }
+  }
   .nav-pill:hover { transform:translateX(4px); box-shadow:0 6px 16px rgba(0,0,0,0.2); background:rgba(255,255,255,1); }
   .nav-pill:active { transform:translateX(2px); }
   .nav-pill-number { font-size:18px; font-weight:700; color:var(--color-primary); background:rgba(74,144,226,0.1); border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--font-heading); }
   .nav-pill-title { font-size:16px; font-weight:600; color:var(--color-text); text-align:left; flex:1; font-family:var(--font-body); }
-  @media (max-width:768px) { .navigation-pills { padding:20px 16px 16px; gap:10px; } .nav-pill { max-width:100%; padding:14px 20px; } .nav-pill-number { width:32px; height:32px; font-size:16px; } .nav-pill-title { font-size:15px; } }
-  @media (min-width:600px) { .navigation-pills { padding:30px 40px 40px; gap:12px; } .nav-pill { max-width:450px; } }
+  @media (max-width:768px) { .navigation-pills { padding:20px 16px 16px; } .navigation-pills > * + * { margin-top: 10px; } .nav-pill { max-width:100%; padding:14px 20px; } .nav-pill-number { width:32px; height:32px; font-size:16px; } .nav-pill-title { font-size:15px; } }
+  @supports (gap: 10px) {
+    @media (max-width:768px) { .navigation-pills > * + * { margin-top: 0; } .navigation-pills { gap: 10px; } }
+  }
+  @media (min-width:600px) { .navigation-pills { padding:30px 40px 40px; } .navigation-pills > * + * { margin-top: 12px; } .nav-pill { max-width:450px; } }
+  @supports (gap: 12px) {
+    @media (min-width:600px) { .navigation-pills > * + * { margin-top: 0; } .navigation-pills { gap: 12px; } }
+  }
   .next-button-container { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:150; width:100%; display:flex; justify-content:center; padding:0 20px; }
-  .next-button { background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); color:var(--color-primary); border:none; padding:12px 32px; border-radius:999px; font-size:1rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; display:flex; align-items:center; gap:8px; }
+  .next-button { background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:var(--color-primary); border:none; padding:12px 32px; border-radius:999px; font-size:1rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; display:flex; align-items:center; }
+  .next-button > * + * { margin-left: 8px; }
+  @supports (gap: 8px) {
+    .next-button > * + * { margin-left: 0; }
+    .next-button { gap: 8px; }
+  }
   .next-button:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
   .next-button:active { transform:translateY(0); }
   @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
   .animate-pulse { animation: pulse 2s infinite; }
+  
+  /* Scrollbar styling for cross-browser compatibility */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
 `;
+
+// Function to build CSS with embedded fonts
+const buildGlobalCSS = async (): Promise<string> => {
+  const embeddedFonts = await embedGoogleFonts();
+  return embeddedFonts + GLOBAL_CSS_TEMPLATE;
+};
 
 // JS Runtime
 const getRuntimeScript = (project: Project) => `
   const project = ${JSON.stringify(project)};
   const root = document.getElementById('root');
   let historyStack = [];
+  
+  // Fix viewport height for iOS Safari (address bar issue)
+  function setVH() {
+    var vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
+  }
+  setVH();
+  window.addEventListener('resize', setVH);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(function() {
+      setVH();
+      detectDevice();
+    }, 100);
+  });
   
   // Detect device type and set root data attribute
   function detectDevice() {
@@ -155,7 +295,7 @@ const getRuntimeScript = (project: Project) => `
       
       if (type === 'text') {
           const textDiv = document.createElement('div');
-          textDiv.style.cssText = 'background-color:rgba(255,255,255,0.95);padding:40px;border-radius:16px;max-width:90%;max-height:80vh;overflow-y:auto;font-size:24px;line-height:1.6;color:#333;white-space:pre-wrap;text-align:center;font-family:var(--font-body, sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.3);user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;cursor:text;';
+          textDiv.style.cssText = 'background-color:rgba(255,255,255,0.95);padding:40px;border-radius:16px;max-width:90%;max-height:calc(var(--vh, 1vh) * 80);overflow-y:auto;font-size:24px;line-height:1.6;color:#333;white-space:pre-wrap;text-align:center;font-family:var(--font-body, sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.3);user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;cursor:text;';
           textDiv.textContent = src;
           lb.appendChild(closeBtn);
           lb.appendChild(textDiv);
@@ -470,7 +610,7 @@ const getRuntimeScript = (project: Project) => `
                    
                    // Build buttons HTML with string concatenation
                    const buttonsHtml = images.length > 1 ? '<button onclick="' + navPrevFunc + '()" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">‹</button><button onclick="' + navNextFunc + '()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">›</button>' : '';
-                   const thumbsContainerHtml = images.length > 1 ? '<div id="' + galleryId + '_thumbs" style="display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin;">' + thumbnailsHtml + '</div>' : '';
+                   const thumbsContainerHtml = images.length > 1 ? '<div id="' + galleryId + '_thumbs" style="display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin; -webkit-overflow-scrolling: touch;">' + thumbnailsHtml + '</div>' : '';
                    
                    // Create onclick handler for gallery hero image to open lightbox
                    const galleryOpenFunc = 'openGalleryLightbox_' + galleryId;
@@ -532,7 +672,15 @@ const getRuntimeScript = (project: Project) => `
                        }
                        const thumbWidth = 60 + 6;
                        const scrollPos = (currentIndex - 2) * thumbWidth;
-                       thumbsContainer.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
+                       if (thumbsContainer.scrollTo) {
+                         try {
+                           thumbsContainer.scrollTo({ left: Math.max(0, scrollPos), behavior: 'smooth' });
+                         } catch(e) {
+                           thumbsContainer.scrollLeft = Math.max(0, scrollPos);
+                         }
+                       } else {
+                         thumbsContainer.scrollLeft = Math.max(0, scrollPos);
+                       }
                      }
                    })();\`);
               } else if (elem.type === 'video') {
@@ -715,7 +863,7 @@ const minifyJS = (js: string): string => {
         .trim();
 };
 
-export const buildExportHtml = (project: Project): string => {
+export const buildExportHtml = async (project: Project): Promise<string> => {
     // Apply calculateLayout to content screens at build time (before generating HTML)
     const processedProject: Project = {
         ...project,
@@ -731,15 +879,18 @@ export const buildExportHtml = (project: Project): string => {
         })
     };
     
+    // Build CSS with embedded fonts
+    const globalCSS = await buildGlobalCSS();
+    
     // Disable minification to avoid breaking code - regex-based minifiers can't handle complex JavaScript safely
-    const minifiedCSS = minifyCSS(GLOBAL_CSS);
+    const minifiedCSS = minifyCSS(globalCSS);
     const runtimeScript = getRuntimeScript(processedProject); // Don't minify JS - it breaks template literals and URLs
     
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>${project.config.title}</title>
     <style>${minifiedCSS}</style>
 </head>

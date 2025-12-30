@@ -20,7 +20,7 @@ const ExportScreen: React.FC = () => {
         try {
             // Convert all media to Base64 before export
             const projectWithBase64 = await convertProjectMediaToBase64(project);
-            const html = buildExportHtml(projectWithBase64);
+            const html = await buildExportHtml(projectWithBase64);
             const blob = new Blob([html], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             setDownloadUrl(url);
