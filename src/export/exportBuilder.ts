@@ -113,6 +113,11 @@ const getRuntimeScript = (project: Project) => `
       } else if (target === 'next') {
           const currentIdx = project.screens.findIndex(s => s.id === window.activeScreenId);
           if (currentIdx < project.screens.length - 1) {
+              // Start global music when navigating from overlay screen (start button pressed)
+              const currentScreen = project.screens[currentIdx];
+              if (currentScreen && currentScreen.type === 'overlay' && project.config.globalMusic) {
+                  startGlobalMusic();
+              }
               historyStack.push(window.activeScreenId);
               renderScreen(project.screens[currentIdx + 1].id);
           }
@@ -123,32 +128,157 @@ const getRuntimeScript = (project: Project) => `
       }
   }
 
-  function openLightbox(src, type) {
+  function openLightbox(src, type, images, startIndex) {
       const lb = document.createElement('div');
       lb.className = 'lightbox';
+      
+      // Handle multiple images (gallery) or single image
+      const imageArray = images && Array.isArray(images) ? images : [src];
+      let currentIndex = startIndex !== undefined ? startIndex : 0;
+      if (currentIndex < 0 || currentIndex >= imageArray.length) currentIndex = 0;
+      
+      // Create close button (shared for both text and image)
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'lightbox-close';
+      closeBtn.textContent = '×';
+      closeBtn.style.cssText = 'position:absolute; top:20px; right:20px; color:white; font-size:32px; cursor:pointer; background:rgba(0,0,0,0.5); border:none; width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10000;';
+      
+      const closeLightbox = function() {
+          if (lb._keyHandler) document.removeEventListener('keydown', lb._keyHandler);
+          lb.remove();
+      };
+      
+      closeBtn.onclick = function(e) {
+          e.stopPropagation();
+          closeLightbox();
+      };
+      
       if (type === 'text') {
           const textDiv = document.createElement('div');
           textDiv.style.cssText = 'background-color:rgba(255,255,255,0.95);padding:40px;border-radius:16px;max-width:90%;max-height:80vh;overflow-y:auto;font-size:24px;line-height:1.6;color:#333;white-space:pre-wrap;text-align:center;font-family:var(--font-body, sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.3);user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;cursor:text;';
           textDiv.textContent = src;
-          const closeBtn = document.createElement('button');
-          closeBtn.className = 'lightbox-close';
-          closeBtn.textContent = '×';
-          closeBtn.onclick = function() { lb.remove(); };
           lb.appendChild(closeBtn);
           lb.appendChild(textDiv);
       } else {
-          const closeBtn = document.createElement('button');
-          closeBtn.className = 'lightbox-close';
-          closeBtn.textContent = '×';
-          closeBtn.onclick = function() { lb.remove(); };
+          const imgContainer = document.createElement('div');
+          imgContainer.style.cssText = 'position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center;';
+          
           const img = document.createElement('img');
-          img.src = src;
+          img.src = imageArray[currentIndex];
+          img.style.cssText = 'max-width:90%; max-height:90%; border-radius:8px; box-shadow:0 0 30px rgba(0,0,0,0.5); object-fit:contain;';
+          
+          // Navigation arrows for multiple images
+          if (imageArray.length > 1) {
+              const prevBtn = document.createElement('button');
+              prevBtn.className = 'lightbox-nav lightbox-prev';
+              prevBtn.textContent = '‹';
+              prevBtn.style.cssText = 'position:absolute; top:50%; left:20px; transform:translateY(-50%); color:white; font-size:40px; cursor:pointer; background:rgba(0,0,0,0.5); border:none; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10001;';
+              prevBtn.onclick = function(e) {
+                  e.stopPropagation();
+                  currentIndex = (currentIndex - 1 + imageArray.length) % imageArray.length;
+                  img.src = imageArray[currentIndex];
+                  updateCounter();
+              };
+              
+              const nextBtn = document.createElement('button');
+              nextBtn.className = 'lightbox-nav lightbox-next';
+              nextBtn.textContent = '›';
+              nextBtn.style.cssText = 'position:absolute; top:50%; right:20px; transform:translateY(-50%); color:white; font-size:40px; cursor:pointer; background:rgba(0,0,0,0.5); border:none; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:10001;';
+              nextBtn.onclick = function(e) {
+                  e.stopPropagation();
+                  currentIndex = (currentIndex + 1) % imageArray.length;
+                  img.src = imageArray[currentIndex];
+                  updateCounter();
+              };
+              
+              const counter = document.createElement('div');
+              counter.style.cssText = 'position:absolute; bottom:20px; left:50%; transform:translateX(-50%); color:white; font-size:16px; background:rgba(0,0,0,0.5); padding:8px 16px; border-radius:20px; z-index:10001;';
+              
+              function updateCounter() {
+                  counter.textContent = (currentIndex + 1) + ' / ' + imageArray.length;
+              }
+              
+              updateCounter();
+              imgContainer.appendChild(prevBtn);
+              imgContainer.appendChild(nextBtn);
+              imgContainer.appendChild(counter);
+              
+              // Keyboard navigation
+              const keyHandler = function(e) {
+                  if (e.key === 'ArrowLeft') {
+                      e.preventDefault();
+                      prevBtn.onclick(e);
+                  } else if (e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      nextBtn.onclick(e);
+                  } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      closeLightbox();
+                  }
+              };
+              document.addEventListener('keydown', keyHandler);
+              lb._keyHandler = keyHandler; // Store for cleanup
+          }
+          
+          imgContainer.appendChild(img);
           lb.appendChild(closeBtn);
-          lb.appendChild(img);
+          lb.appendChild(imgContainer);
       }
       document.body.appendChild(lb);
-      lb.onclick = function(e) { if(e.target === lb) lb.remove(); };
+      lb.onclick = function(e) { 
+          if(e.target === lb) {
+              closeLightbox();
+          }
+      };
   }
+
+  // Global music playback
+  let globalAudio = null;
+  let isGlobalMusicPausedForVideo = false;
+  
+  function startGlobalMusic() {
+      if (!project.config.globalMusic) return;
+      const audioItem = project.mediaLibrary[project.config.globalMusic];
+      if (audioItem && audioItem.type === 'audio') {
+          if (globalAudio) {
+              globalAudio.pause();
+          }
+          globalAudio = new Audio(audioItem.data);
+          globalAudio.loop = true;
+          globalAudio.volume = 0.7;
+          globalAudio.play().catch(err => console.warn('Audio play failed:', err));
+      }
+  }
+  
+  function pauseGlobalMusic() {
+      if (globalAudio && !globalAudio.paused) {
+          globalAudio.pause();
+          isGlobalMusicPausedForVideo = true;
+      }
+  }
+  
+  function resumeGlobalMusic() {
+      if (globalAudio && isGlobalMusicPausedForVideo) {
+          globalAudio.play().catch(err => console.warn('Audio play failed:', err));
+          isGlobalMusicPausedForVideo = false;
+      }
+  }
+  
+  // Monitor video playback to pause/resume music
+  setInterval(function() {
+      const videos = document.querySelectorAll('video');
+      let anyVideoPlaying = false;
+      videos.forEach(video => {
+          if (!video.paused && !video.ended && video.readyState > 2) {
+              anyVideoPlaying = true;
+          }
+      });
+      if (anyVideoPlaying && globalAudio && !globalAudio.paused) {
+          pauseGlobalMusic();
+      } else if (!anyVideoPlaying && isGlobalMusicPausedForVideo) {
+          resumeGlobalMusic();
+      }
+  }, 500);
 
   function init() {
       const menu = document.createElement('div');
@@ -342,18 +472,28 @@ const getRuntimeScript = (project: Project) => `
                    const buttonsHtml = images.length > 1 ? '<button onclick="' + navPrevFunc + '()" style="position:absolute; left:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">‹</button><button onclick="' + navNextFunc + '()" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px;">›</button>' : '';
                    const thumbsContainerHtml = images.length > 1 ? '<div id="' + galleryId + '_thumbs" style="display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin;">' + thumbnailsHtml + '</div>' : '';
                    
-                   contentHtml = \`
-                     <div id="\${galleryId}" style="display:flex; flex-direction:column; width:100%; height:100%; padding:4px; box-sizing:border-box;">
-                       <div style="position:relative; width:100%; flex:1; min-height:60%; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">
-                         <img id="\${galleryId}_hero" src="\${initialImageSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center;" />
-                         \${buttonsHtml}
-                       </div>
-                       \${thumbsContainerHtml}
-                     </div>
-                   \`;
+                   // Create onclick handler for gallery hero image to open lightbox
+                   const galleryOpenFunc = 'openGalleryLightbox_' + galleryId;
+                   const galleryOnClick = 'onclick="' + galleryOpenFunc + '()"';
+                   
+                   contentHtml = '<div id="' + galleryId + '" style="display:flex; flex-direction:column; width:100%; height:100%; padding:4px; box-sizing:border-box;">' +
+                     '<div style="position:relative; width:100%; flex:1; min-height:60%; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">' +
+                       '<img id="' + galleryId + '_hero" src="' + initialImageSrc + '" style="width:100%; height:100%; object-fit:contain; object-position:center; cursor:pointer;" ' + galleryOnClick + ' />' +
+                       buttonsHtml +
+                     '</div>' +
+                     thumbsContainerHtml +
+                   '</div>';
                    
                    // Store gallery initialization code - scripts in innerHTML don't execute, so we'll run it after appendChild
+                   // Escape the image source for use in JavaScript string - use JSON.stringify for proper escaping
+                   const escapedImageSrc = JSON.stringify(initialImageSrc);
                    galleryInitCodes.push(\`(function() {
+                     // Gallery lightbox opener
+                     window['\${galleryOpenFunc}'] = function() {
+                       openLightbox(\${escapedImageSrc}, 'image', \${JSON.stringify(images)}, \${initialIndex});
+                     };
+                     
+                     // Gallery navigation
                      let currentIndex = \${initialIndex};
                      const images = \${JSON.stringify(images)};
                      const heroImg = document.getElementById('\${galleryId}_hero');
