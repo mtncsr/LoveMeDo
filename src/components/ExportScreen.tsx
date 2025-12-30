@@ -37,7 +37,19 @@ const ExportScreen: React.FC = () => {
         const jsonStr = JSON.stringify(project, null, 2);
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        setJsonUrl(url);
+        
+        // Create a temporary anchor element to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${project.config.title.replace(/\s+/g, '_')}_project.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the object URL after a short delay
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
     };
 
     return (

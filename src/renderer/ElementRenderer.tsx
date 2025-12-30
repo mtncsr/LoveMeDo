@@ -11,6 +11,12 @@ const detectTextDirection = (text: string): 'ltr' | 'rtl' => {
     return rtlRegex.test(text) ? 'rtl' : 'ltr';
 };
 
+// Convert newlines to HTML breaks for rendering
+const newlinesToHtml = (text: string): string => {
+    if (!text) return '';
+    return text.replace(/\n/g, '<br>');
+};
+
 const LongTextElement: React.FC<{
     element: ScreenElement;
     style: React.CSSProperties;
@@ -32,8 +38,11 @@ const LongTextElement: React.FC<{
 
     // Update DOM only if content changes externally
     useEffect(() => {
-        if (ref.current && ref.current.textContent !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
-            ref.current.textContent = content;
+        if (ref.current && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
+            // Use innerText to preserve newlines when setting content
+            if (ref.current.innerText !== content) {
+                ref.current.innerText = content || '';
+            }
         }
     }, [content, isSelected, mode]);
 
@@ -87,7 +96,8 @@ const LongTextElement: React.FC<{
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         if (!onUpdate) return;
-        const newContent = e.currentTarget.textContent || '';
+        // Use innerText to preserve line breaks as \n characters
+        const newContent = e.currentTarget.innerText || '';
         if (newContent !== contentRef.current) {
             onUpdate(element.id, { content: newContent });
         }
@@ -174,8 +184,8 @@ const EditableButton: React.FC<{
 
     // Initialize content when element becomes editable
     useEffect(() => {
-        if (ref.current && ref.current.contentEditable === 'true' && !ref.current.textContent && content) {
-            ref.current.textContent = content;
+        if (ref.current && ref.current.contentEditable === 'true' && !ref.current.innerText && content) {
+            ref.current.innerText = content;
         }
     }, [content, isSelected, mode]);
 
@@ -183,8 +193,8 @@ const EditableButton: React.FC<{
     useEffect(() => {
         if (ref.current && ref.current.contentEditable === 'true') {
             // Only update if content changed externally (not when focused/editing)
-            if (ref.current.textContent !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
-                ref.current.textContent = content;
+            if (ref.current.innerText !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
+                ref.current.innerText = content || '';
             }
         }
     }, [content, isSelected, mode]);
@@ -200,8 +210,8 @@ const EditableButton: React.FC<{
             requestAnimationFrame(() => {
                 if (ref.current && ref.current.contentEditable === 'true') {
                     // Initialize content if empty
-                    if (!ref.current.textContent && content) {
-                        ref.current.textContent = content;
+                    if (!ref.current.innerText && content) {
+                        ref.current.innerText = content;
                     }
                     ref.current.focus();
                     // Set cursor to end of text only on initial selection
@@ -224,7 +234,8 @@ const EditableButton: React.FC<{
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         if (!onUpdate) return;
-        const newContent = e.currentTarget.textContent || '';
+        // Use innerText to preserve line breaks as \n characters
+        const newContent = e.currentTarget.innerText || '';
         // Optimization: Don't trigger update if same
         if (newContent !== contentRef.current) {
             onUpdate(element.id, { content: newContent });
@@ -350,12 +361,12 @@ const EditableText: React.FC<{
     useEffect(() => {
         if (ref.current) {
             // If contentEditable is enabled and element is empty, initialize it with content
-            if (isSelected && mode === 'editor' && ref.current.contentEditable === 'true' && !ref.current.textContent && content) {
-            ref.current.textContent = content;
+            if (isSelected && mode === 'editor' && ref.current.contentEditable === 'true' && !ref.current.innerText && content) {
+            ref.current.innerText = content;
         }
             // Otherwise, only update if content changed externally (not when focused/editing)
-            else if (ref.current.textContent !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
-                ref.current.textContent = content;
+            else if (ref.current.innerText !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
+                ref.current.innerText = content || '';
             }
         }
     }, [content, isSelected, mode]);
@@ -371,8 +382,8 @@ const EditableText: React.FC<{
             requestAnimationFrame(() => {
                 if (ref.current && ref.current.contentEditable === 'true') {
                     // Initialize content if empty
-                    if (!ref.current.textContent && content) {
-                        ref.current.textContent = content;
+                    if (!ref.current.innerText && content) {
+                        ref.current.innerText = content;
                     }
                     ref.current.focus();
                     // Set cursor to end of text only on initial selection
@@ -395,7 +406,8 @@ const EditableText: React.FC<{
 
     const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
         if (!onUpdate) return;
-        const newContent = e.currentTarget.textContent || '';
+        // Use innerText to preserve line breaks as \n characters
+        const newContent = e.currentTarget.innerText || '';
         // Optimization: Don't trigger update if same
         if (newContent !== contentRef.current) {
             onUpdate(element.id, { content: newContent });
@@ -457,7 +469,7 @@ const EditableText: React.FC<{
                 suppressContentEditableWarning
                 key={`text-${element.id}-${isSelected ? 'editable' : 'static'}`}
                 style={noBoxTextStyle}
-                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: content || '' } : undefined}
+                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: newlinesToHtml(content || '') } : undefined}
             >
                 {renderResizeHandles()}
             </div>
@@ -521,7 +533,7 @@ const EditableText: React.FC<{
                     overflowWrap: 'break-word',
                     direction: textDirection,
                 }}
-                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: content || '' } : undefined}
+                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: newlinesToHtml(content || '') } : undefined}
             >
             </div>
             {renderResizeHandles()}
@@ -1042,6 +1054,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         onTouchEnd: handleTouchEnd,
     };
 
+    const isInteractive = mode !== 'editor';
+    
     switch (type) {
         case 'text':
             return (
@@ -1156,11 +1170,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         alt="Element"
                         loading="eager"
                         decoding="async"
+                        onClick={isInteractive ? (e) => {
+                            e.stopPropagation();
+                            onClick?.(element.id);
+                        } : undefined}
                         style={{
                             width: '100%',
                             height: '100%',
                             objectFit: 'contain',
                             objectPosition: 'center',
+                            cursor: isInteractive ? 'pointer' : 'default',
                         }}
                         draggable={false}
                     />
@@ -1301,7 +1320,6 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
             const galleryTitle = element.metadata?.title && element.metadata.title.trim() !== '';
             const gallerySubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
-            const isInteractive = mode !== 'editor';
 
             return (
                 <div
@@ -1348,11 +1366,18 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                                 alt={`Gallery ${currentImageIndex + 1}`}
                                 loading="eager"
                                 decoding="async"
+                                onClick={isInteractive ? (e) => {
+                                    e.stopPropagation();
+                                    // Store current image index in element temporarily for lightbox
+                                    (element as any).__currentImageIndex = currentImageIndex;
+                                    onClick?.(element.id);
+                                } : undefined}
                                 style={{
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'contain',
                                     objectPosition: 'center',
+                                    cursor: isInteractive ? 'pointer' : 'default',
                                 }}
                                 draggable={false}
                             />

@@ -245,10 +245,9 @@ export const Renderer: React.FC<Props> = ({
             // Logic for 'next' screen (start experience) - trigger global music
             const index = project.screens.findIndex(s => s.id === activeId);
             if (index < project.screens.length - 1) {
-                // Check if current screen is overlay and next is content - start global music
+                // Start global music when navigating from overlay screen (start button pressed)
                 const currentScreen = project.screens[index];
-                const nextScreen = project.screens[index + 1];
-                if (currentScreen.type === 'overlay' && nextScreen.type === 'content' && project.config.globalMusic) {
+                if (currentScreen.type === 'overlay' && project.config.globalMusic) {
                     setShouldPlayGlobalMusic(true);
                 }
                 setInternalActiveId(project.screens[index + 1].id);
@@ -305,13 +304,16 @@ export const Renderer: React.FC<Props> = ({
                         galleryImages = [elem.content];
                     }
 
-                    galleryImages.forEach((imgId) => {
+                    galleryImages.forEach((imgId, imgIndex) => {
                         const imageUrl = resolveMediaUrl(imgId);
                         if (imageUrl && imageUrl.trim() !== '') {
                             // Add images as belonging to this gallery ID but they are individual items in lightbox
-                            // Note: if clicked gallery, we want to start at first image of gallery
-                            // But we just linearize everything for the lightbox playlist
-                            allItems.push({ type: 'image', content: imageUrl, id: elem.id });
+                            // Store gallery element ID and image index for proper starting position
+                            allItems.push({ 
+                                type: 'image', 
+                                content: imageUrl, 
+                                id: `${elem.id}_${imgIndex}` // Include index to identify specific image
+                            });
                         }
                     });
                 } else if (elem.type === 'long-text') {
@@ -330,9 +332,26 @@ export const Renderer: React.FC<Props> = ({
                 const index = allItems.findIndex(item => item.id === el.id);
                 if (index !== -1) startIndex = index;
             } else if (el?.type === 'gallery') {
-                // If clicked a gallery, find the first item belonging to that gallery
-                const index = allItems.findIndex(item => item.id === el.id);
-                if (index !== -1) startIndex = index;
+                // If clicked a gallery, check if we have a specific image index from the click
+                // (stored temporarily when main image is clicked)
+                const clickedImageIndex = (el as any).__currentImageIndex;
+                if (clickedImageIndex !== undefined) {
+                    // Find the specific image by gallery ID and index
+                    const index = allItems.findIndex(item => item.id === `${el.id}_${clickedImageIndex}`);
+                    if (index !== -1) {
+                        startIndex = index;
+                    } else {
+                        // Fallback to first image of gallery
+                        const index = allItems.findIndex(item => item.id.startsWith(el.id + '_'));
+                        if (index !== -1) startIndex = index;
+                    }
+                    // Clean up the temporary property
+                    delete (el as any).__currentImageIndex;
+                } else {
+                    // Default: start at first image of gallery (when clicking gallery container, not main image)
+                    const index = allItems.findIndex(item => item.id.startsWith(el.id + '_'));
+                    if (index !== -1) startIndex = index;
+                }
             }
 
             if (allItems.length > 0) {

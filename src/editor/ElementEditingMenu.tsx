@@ -6,7 +6,7 @@ import {
     Trash2, Type, Palette, MoveUp, MoveDown, 
     Bold, Underline, Italic, Minus, Plus,
     Sparkles, Image as ImageIcon, X, FolderOpen,
-    AlignLeft, AlignCenter, AlignRight
+    AlignLeft, AlignCenter, AlignRight, GripVertical
 } from 'lucide-react';
 import styles from './ElementEditingMenu.module.css';
 
@@ -52,12 +52,65 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const [showFrameShapePicker, setShowFrameShapePicker] = useState(false);
     const [isEditingText, setIsEditingText] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const dragHandleRef = useRef<HTMLDivElement>(null);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
     const [isPositioned, setIsPositioned] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const [isManuallyPositioned, setIsManuallyPositioned] = useState(false);
+
+    // Handle dragging
+    useEffect(() => {
+        if (!isDragging) return;
+
+        const handleMouseMove = (e: MouseEvent) => {
+            const newLeft = e.clientX - dragOffset.x;
+            const newTop = e.clientY - dragOffset.y;
+            
+            // Clamp to viewport bounds
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const menuRect = menuRef.current?.getBoundingClientRect();
+            
+            if (menuRect) {
+                const padding = 8;
+                const minLeft = padding;
+                const maxLeft = viewportWidth - menuRect.width - padding;
+                const minTop = padding;
+                const maxTop = viewportHeight - menuRect.height - padding;
+                
+                setMenuPosition({
+                    left: Math.max(minLeft, Math.min(maxLeft, newLeft)),
+                    top: Math.max(minTop, Math.min(maxTop, newTop))
+                });
+            }
+        };
+
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            setIsManuallyPositioned(true);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, dragOffset]);
+
+    // Reset manual positioning when element changes
+    useEffect(() => {
+        setIsManuallyPositioned(false);
+    }, [element.id]);
 
     // Position menu below element by finding it in the DOM
     // Menu can render anywhere on the canvas, not just within the preview window
     useEffect(() => {
+        // Don't auto-position if user has manually dragged the menu
+        if (isManuallyPositioned) return;
+        
         setIsPositioned(false);
         
         const findElement = () => {
@@ -154,7 +207,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             clearInterval(interval);
             window.removeEventListener('resize', findElement);
         };
-    }, [element.id]);
+    }, [element.id, isManuallyPositioned]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -262,6 +315,19 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         // Focus will be handled by contentEditable in ElementRenderer
     };
 
+    const handleDragStart = (e: React.MouseEvent) => {
+        if (!menuRef.current) return;
+        
+        const menuRect = menuRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - menuRect.left,
+            y: e.clientY - menuRect.top
+        });
+        setIsDragging(true);
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
     const renderTextFeatures = () => (
         <>
             {/* Only show Edit Text button for text and long-text, not for buttons (buttons are directly editable) */}
@@ -355,9 +421,20 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 opacity: isPositioned ? 1 : 0,
                 pointerEvents: isPositioned ? 'auto' : 'none',
                 zIndex: 10000, // High z-index to ensure it's on top
+                cursor: isDragging ? 'grabbing' : 'default',
             }}
             onClick={(e) => e.stopPropagation()}
         >
+            {/* Drag Handle */}
+            <div
+                ref={dragHandleRef}
+                className={styles.dragHandle}
+                onMouseDown={handleDragStart}
+                title="Drag to reposition"
+            >
+                <GripVertical size={14} />
+            </div>
+
             {/* Top Row: All Icon Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
                 {/* Text/Button Features */}

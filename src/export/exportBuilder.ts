@@ -204,13 +204,14 @@ const getRuntimeScript = (project: Project) => `
             </div>\` : '';
           
           // Next button for content screens (including when next screen is navigation)
-          // Only render automatic next button if no navigation button elements exist
+          // Only render automatic next button if no visible navigation button elements exist
           const currentIdx = project.screens.findIndex(s => s.id === screen.id);
           const hasNextScreen = currentIdx < project.screens.length - 1;
           const hasNavigationButtons = screen.elements.some(
               el => el.type === 'button' && 
               el.metadata?.action === 'navigate' && 
-              el.metadata?.target === 'next'
+              el.metadata?.target === 'next' &&
+              !el.metadata?.hidden  // Exclude hidden navigation buttons
           );
           const nextButton = screen.type === 'content' && hasNextScreen && !hasNavigationButtons ? \`
             <div class="next-button-container">
