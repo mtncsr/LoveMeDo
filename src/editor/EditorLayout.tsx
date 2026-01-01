@@ -103,6 +103,9 @@ const EditorLayout: React.FC = () => {
             const mediaId = typeof mediaIdOrArray === 'string' ? mediaIdOrArray : mediaIdOrArray[0];
             if (mediaId && project.mediaLibrary[mediaId]) {
                 updateElement(screenId, elementId, { content: mediaId });
+            } else {
+                // Clear assignment when none selected
+                updateElement(screenId, elementId, { content: '' });
             }
         } else if (elementType === 'gallery') {
             // Multiple selection for galleries - store as JSON array of media IDs

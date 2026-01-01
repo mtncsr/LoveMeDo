@@ -173,6 +173,10 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
         }
     };
 
+    const clearSelection = () => {
+        setSelectedMediaIds(new Set());
+    };
+
     const handleSave = () => {
         if (elementType === 'music') {
             // Handle music assignment
@@ -415,6 +419,22 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                             <p>No {activeTab} uploaded yet. Click "Upload" to add your first {activeTab === 'images' ? 'image' : activeTab === 'videos' ? 'video' : 'audio'}.</p>
                         </div>
                     )}
+                </div>
+
+                <div className={styles.footer}>
+                    <button className={styles.closeBtn} onClick={handleClose}>
+                        <X size={18} />
+                        Close
+                    </button>
+                    <div className={styles.actions}>
+                        <button className={styles.clearBtn} onClick={clearSelection}>
+                            Clear selection
+                        </button>
+                        <button className={styles.saveBtn} onClick={handleSave}>
+                            <Save size={18} />
+                            Save
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
