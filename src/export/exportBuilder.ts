@@ -90,10 +90,20 @@ const GLOBAL_CSS_TEMPLATE = `
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: var(--font-body); background: #000; overflow: hidden; height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; touch-action: manipulation; }
 #root { width: 100%; height: 100%; position: relative; background: white; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-#root.mobile { max-width: 375px; max-height: calc(100vh - 40px); position: relative; padding-bottom: 177.78%; border-radius: 30px; }
-@supports (aspect-ratio: 9 / 16) { #root.mobile { padding-bottom: 0; aspect-ratio: 9 / 16; } }
-#root.desktop { max-width: 1200px; width: min(90vw, (100vh - 40px) * 16 / 9); position: relative; padding-bottom: 56.25%; border-radius: 8px; height: auto; }
-@supports (aspect-ratio: 16 / 9) { #root.desktop { padding-bottom: 0; aspect-ratio: 16 / 9; } }
+#root.mobile, #root.responsive { max-width: 375px; max-height: calc(100vh - 40px); position: relative; padding-bottom: 177.78%; border-radius: 30px; }
+@supports (aspect-ratio: 9 / 16) { #root.mobile, #root.responsive { padding-bottom: 0; aspect-ratio: 9 / 16; } }
+@media (min-width: 768px) {
+  #root.mobile, #root.responsive {
+    max-width: 1200px;
+    width: min(90vw, (100vh - 40px) * 16 / 9);
+    padding-bottom: 56.25%;
+    border-radius: 12px;
+    height: auto;
+  }
+  @supports (aspect-ratio: 16 / 9) {
+    #root.mobile, #root.responsive { padding-bottom: 0; aspect-ratio: 16 / 9; }
+  }
+}
 
 .screen { position:absolute; inset:0; width:100%; height:100%; display:none; z-index:1; }
 .screen:target { display:block; z-index:2; }
@@ -551,7 +561,7 @@ export const buildExportHtml = async (project: Project): Promise<string> => {
   const screensHtml = screenBuilds.map((b) => b.html).join('');
   const allLightboxes = screenBuilds.flatMap((b) => b.lightboxes).join('');
 
-  const deviceClass = 'mobile';
+  const deviceClass = 'responsive';
 
   return `<!DOCTYPE html>
 <html lang="en">
