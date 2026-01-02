@@ -158,7 +158,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 
 .gallery { display:flex; flex-direction:column; width:100%; height:100%; padding:6px; box-sizing:border-box; }
 .gallery input[type="radio"] { display:none; }
-.gallery-frame { position:relative; width:100%; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
+.gallery-frame { position:relative; width:100%; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background-color:transparent; border-radius:10px; overflow:hidden; margin-bottom:8px; }
 .gallery-slide { position:absolute; inset:0; opacity:0; display:flex; align-items:center; justify-content:center; pointer-events:none; visibility:hidden; }
 .gallery-slide > a { display:block; width:100%; height:100%; }
 .gallery-slide img { width:100%; height:100%; object-fit:contain; object-position:center; }
