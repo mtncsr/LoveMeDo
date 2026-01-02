@@ -53,17 +53,17 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
 
     // Check if screen has any button elements with navigation to 'next' (excluding hidden ones)
     const hasNavigationButtons = sortedElements.some(
-        el => el.type === 'button' && 
-        el.metadata?.action === 'navigate' && 
-        el.metadata?.target === 'next' &&
-        !el.metadata?.hidden
+        el => el.type === 'button' &&
+            el.metadata?.action === 'navigate' &&
+            el.metadata?.target === 'next' &&
+            !el.metadata?.hidden
     );
-    
+
     // Find the navigation button element for styling (including hidden ones used for automatic next button)
     const navButtonElement = sortedElements.find(
-        el => el.type === 'button' && 
-        el.metadata?.action === 'navigate' && 
-        el.metadata?.target === 'next'
+        el => el.type === 'button' &&
+            el.metadata?.action === 'navigate' &&
+            el.metadata?.target === 'next'
     );
 
     // Render Background
@@ -208,11 +208,11 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                             if (mode === 'editor') {
                                 // In editor mode, find or create a navigation button element
                                 const existingNavButton = sortedElements.find(
-                                    el => el.type === 'button' && 
-                                    el.metadata?.action === 'navigate' && 
-                                    el.metadata?.target === 'next'
+                                    el => el.type === 'button' &&
+                                        el.metadata?.action === 'navigate' &&
+                                        el.metadata?.target === 'next'
                                 );
-                                
+
                                 if (existingNavButton) {
                                     // Select existing navigation button
                                     console.log('Found existing nav button, selecting:', existingNavButton.id);
@@ -231,7 +231,7 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                                             color: 'var(--color-primary)',
                                             borderRadius: 999,
                                             fontSize: 16,
-                                            fontWeight: 600,
+                                            fontWeight: '600',
                                             textAlign: 'center',
                                             shadow: true
                                         },

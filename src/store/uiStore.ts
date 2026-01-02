@@ -18,7 +18,7 @@ interface UIState {
     contentManagerContext: {
         elementId: string | null;
         screenId: string | null;
-        elementType: 'image' | 'gallery' | 'video' | null;
+        elementType: 'image' | 'gallery' | 'video' | 'music' | null;
     } | null;
 
     isYourProjectsOpen: boolean;
@@ -27,7 +27,7 @@ interface UIState {
     setActiveScreenId: (id: string | null) => void;
     setSelectedElementId: (id: string | null) => void;
     setTemplatePreviewOpen: (isOpen: boolean, templateId?: string) => void;
-    setMediaLibraryOpen: (isOpen: boolean, mode?: 'select' | 'manage', context?: { elementId: string; screenId: string; elementType: 'image' | 'gallery' | 'video' }) => void;
+    setMediaLibraryOpen: (isOpen: boolean, mode?: 'select' | 'manage', context?: { elementId: string; screenId: string; elementType: 'image' | 'gallery' | 'video' | 'music' }) => void;
     setYourProjectsOpen: (isOpen: boolean) => void;
 }
 

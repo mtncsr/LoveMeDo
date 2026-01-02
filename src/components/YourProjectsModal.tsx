@@ -62,9 +62,9 @@ export const YourProjectsModal: React.FC = () => {
 
     const formatDate = (timestamp: number) => {
         const date = new Date(timestamp);
-        return date.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
@@ -107,7 +107,7 @@ export const YourProjectsModal: React.FC = () => {
                                                     onChange={(e) => setEditName(e.target.value)}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
-                                                            handleSaveRename(e, savedProject.id);
+                                                            handleSaveRename(e as any, savedProject.id);
                                                         } else if (e.key === 'Escape') {
                                                             handleCancelRename();
                                                         }

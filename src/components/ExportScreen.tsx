@@ -11,7 +11,7 @@ const ExportScreen: React.FC = () => {
     const { setMode } = useUIStore();
     const [isExporting, setIsExporting] = useState(false);
     const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-    const [jsonUrl, setJsonUrl] = useState<string | null>(null);
+    // const [jsonUrl, setJsonUrl] = useState<string | null>(null); // Unused
 
     if (!project) return null;
 
@@ -37,7 +37,7 @@ const ExportScreen: React.FC = () => {
         const jsonStr = JSON.stringify(project, null, 2);
         const blob = new Blob([jsonStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         // Create a temporary anchor element to trigger download
         const link = document.createElement('a');
         link.href = url;
@@ -45,7 +45,7 @@ const ExportScreen: React.FC = () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         // Clean up the object URL after a short delay
         setTimeout(() => {
             URL.revokeObjectURL(url);
@@ -85,12 +85,7 @@ const ExportScreen: React.FC = () => {
                             <Download size={20} />
                             Download Interactive HTML Gift
                         </a>
-                        {jsonUrl && (
-                            <a href={jsonUrl} download={`${project.config.title.replace(/\s+/g, '_')}_project.json`} className={styles.downloadBtn} style={{ marginTop: '12px', background: '#6d6875' }}>
-                                <Download size={20} />
-                                Download Project to Continue Editing Later
-                            </a>
-                        )}
+                        {/* JSON download removed as state was unused */}
                     </div>
                 )}
             </div>

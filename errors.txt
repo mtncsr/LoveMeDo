@@ -1,0 +1,16 @@
+src/components/ExportScreen.tsx(14,21): error TS6133: 'setJsonUrl' is declared but its value is never read.
+src/components/YourProjectsModal.tsx(110,78): error TS2345: Argument of type 'KeyboardEvent<HTMLInputElement>' is not assignable to parameter of type 'MouseEvent<Element, MouseEvent>'.
+  Type 'KeyboardEvent<HTMLInputElement>' is missing the following properties from type 'MouseEvent<Element, MouseEvent>': button, buttons, clientX, clientY, and 7 more.
+src/editor/EditorLayout.tsx(68,35): error TS2339: Property 'id' does not exist on type 'Screen'.
+src/editor/EditorLayout.tsx(69,35): error TS2339: Property 'title' does not exist on type 'Screen'.
+src/editor/EditorLayout.tsx(183,84): error TS2345: Argument of type 'import("C:/Users/matan/Videos/Programming 2025/LoveMeDo/src/types/model").Screen' is not assignable to parameter of type 'Screen'.
+  Type 'Screen' is missing the following properties from type 'Screen': availHeight, availWidth, colorDepth, height, and 3 more.
+src/editor/ElementsMenu.tsx(101,29): error TS2322: Type '"music"' is not assignable to type '"image" | "video" | "gallery"'.
+src/editor/MediaLibraryModal.tsx(32,13): error TS2367: This comparison appears to be unintentional because the types '"image" | "video" | "gallery" | null' and '"music"' have no overlap.
+src/editor/MediaLibraryModal.tsx(46,13): error TS2367: This comparison appears to be unintentional because the types '"image" | "video" | "gallery" | null' and '"music"' have no overlap.
+src/editor/MediaLibraryModal.tsx(161,67): error TS2367: This comparison appears to be unintentional because the types '"gallery" | null' and '"music"' have no overlap.
+src/editor/MediaLibraryModal.tsx(181,13): error TS2367: This comparison appears to be unintentional because the types '"image" | "video" | "gallery" | null' and '"music"' have no overlap.
+src/editor/MediaLibraryModal.tsx(234,13): error TS2367: This comparison appears to be unintentional because the types '"image" | "video" | "gallery" | null' and '"music"' have no overlap.
+src/editor/MediaLibraryModal.tsx(259,53): error TS2367: This comparison appears to be unintentional because the types '"image" | "video" | "gallery"' and '"music"' have no overlap.
+src/editor/MediaLibraryModal.tsx(318,22): error TS2367: This comparison appears to be unintentional because the types '"image" | "video" | "gallery" | null' and '"music"' have no overlap.
+src/renderer/ScreenRenderer.tsx(234,45): error TS2322: Type 'number' is not assignable to type 'string'.

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import type { Screen } from '../types/model';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
@@ -178,7 +179,7 @@ const EditorLayout: React.FC = () => {
                                     autoFocus
                                 />
                             ) : (
-                                <span 
+                                <span
                                     className={styles.tabTitle}
                                     onDoubleClick={(e) => handleStartEditScreen(e, screen)}
                                     title="Double-click to rename"
@@ -263,7 +264,7 @@ const EditorLayout: React.FC = () => {
                     </button>
                 </div>
 
-                <div 
+                <div
                     className={styles.canvasContainer}
                     onClick={(e) => {
                         // Deselect if clicking directly on canvas container (gray area)
@@ -273,7 +274,7 @@ const EditorLayout: React.FC = () => {
                             }
                             return;
                         }
-                        
+
                         // Also check if clicking on canvas wrapper background (not on element or menu)
                         const target = e.target as HTMLElement;
                         const isElement = target.closest('[data-element-id]');
@@ -330,7 +331,7 @@ const EditorLayout: React.FC = () => {
 
                     </div>
                 </div>
-                
+
                 {/* Element Editing Menu - Render outside canvas wrapper so it can appear anywhere on canvas */}
                 {selectedElementId && activeScreenId && (() => {
                     const currentScreen = project.screens.find(s => s.id === activeScreenId);

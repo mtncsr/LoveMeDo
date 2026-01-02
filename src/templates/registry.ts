@@ -239,7 +239,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
 
 
         // Calculate accurate height based on element type
-        let adjustedHeight: number;
+        let adjustedHeight: number = 0;
 
         if (current.type === 'text' || current.type === 'long-text') {
             // Use estimated height for text elements
@@ -358,17 +358,13 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 let bottomWishTop = bottomWishCard.position.y;
 
                 // Check if wish cards have already been processed and adjusted
-                let topWishFound = false;
-                let bottomWishFound = false;
                 for (const el of adjustedElements) {
                     if (isWishCard(el)) {
                         if (el.id === topWishCard.id) {
                             topWishBottom = el.position.y + (el.size.height || 12);
-                            topWishFound = true;
                         }
                         if (el.id === bottomWishCard.id) {
                             bottomWishTop = el.position.y;
-                            bottomWishFound = true;
                         }
                     }
                 }
@@ -396,12 +392,9 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 // Start position = top card bottom + spacing
                 adjustedY = topWishBottom + spacing;
 
-                // Calculate available height (space between cards minus spacing on both sides, with shrink factor)
-                const availableHeight = maxLongTextHeight;
-                if (availableHeight > 0) {
-                    // Use the available height - this already accounts for equal spacing on both sides
-                    adjustedHeight = availableHeight;
-
+                if (desiredHeight > 0) {
+                    // Use the desired height - this already accounts for equal spacing on both sides
+                    adjustedHeight = desiredHeight;
                 }
             }
         }
