@@ -160,6 +160,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .gallery input[type="radio"] { display:none; }
 .gallery-frame { position:relative; width:100%; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
 .gallery-slide { position:absolute; inset:0; opacity:0; display:flex; align-items:center; justify-content:center; pointer-events:none; visibility:hidden; }
+.gallery-slide > a { display:block; width:100%; height:100%; }
 .gallery-slide img { width:100%; height:100%; object-fit:contain; object-position:center; }
 .gallery-thumbs { display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin; -webkit-overflow-scrolling: touch; }
 .gallery-thumb { flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; opacity:0.75; background-color:#f0f0f0; display:block; touch-action:manipulation; }
@@ -352,7 +353,7 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
   const cssBindings = images
     .map(
       (_, idx) => `
-      #${galleryId}-${idx}:checked ~ .gallery-frame .slide-${idx} { opacity:1; position:relative; display:flex; pointer-events:auto; visibility:visible; }
+      #${galleryId}-${idx}:checked ~ .gallery-frame .slide-${idx} { opacity:1; position:absolute; display:flex; pointer-events:auto; visibility:visible; }
       #${galleryId}-${idx}:checked ~ .gallery-thumbs .thumb-${idx} { border:3px solid var(--color-primary); opacity:1; }
       #${galleryId}-${idx}:checked ~ .gallery-frame .nav-prev-${idx},
       #${galleryId}-${idx}:checked ~ .gallery-frame .nav-next-${idx} { display:flex; }
