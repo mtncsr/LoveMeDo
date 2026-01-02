@@ -243,9 +243,15 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
 
         if (current.type === 'text' || current.type === 'long-text') {
             // Use estimated height for text elements
-            const fontSize = current.styles?.fontSize || 24;
-            const width = current.size.width || 80;
-            adjustedHeight = estimateTextHeight(current.content || '', fontSize, width, device);
+            if (current.metadata?.manualSize && current.size.height) {
+                // If user manually resized, use that height (respecting their intent)
+                // We assume the size in the store is the intended visual percent height
+                adjustedHeight = current.size.height;
+            } else {
+                const fontSize = current.styles?.fontSize || 24;
+                const width = current.size.width || 80;
+                adjustedHeight = estimateTextHeight(current.content || '', fontSize, width, device);
+            }
             // Don't apply content scaling to heights - heights are already device-aware in estimateTextHeight
             // Content scaling should only affect spacing, not element dimensions
         } else if (current.type === 'gallery') {
@@ -339,18 +345,18 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                     wishCards.push(el);
                 }
             }
-            
+
             // If there are wish cards and the long-text is positioned near them (y: 10-20 range)
             if (wishCards.length >= 2 && current.position.y >= 10 && current.position.y <= 20) {
                 // Sort wish cards by y position
                 wishCards.sort((a, b) => a.position.y - b.position.y);
                 const topWishCard = wishCards[0];
                 const bottomWishCard = wishCards[wishCards.length - 1];
-                
+
                 // Find adjusted positions of wish cards
                 let topWishBottom = topWishCard.position.y + (topWishCard.size.height || 12);
                 let bottomWishTop = bottomWishCard.position.y;
-                
+
                 // Check if wish cards have already been processed and adjusted
                 let topWishFound = false;
                 let bottomWishFound = false;
@@ -366,36 +372,36 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                         }
                     }
                 }
-                
+
                 // If bottom wish card hasn't been processed yet, use original position
                 // The bottom wish card will be processed later, but we need its position now
                 // For the anniversary template, bottom wish card is at y:78 originally
                 // We'll use this as the top of the bottom wish card
-                
+
                 // Position long-text centered between wish cards with equal spacing on both sides
                 const spacing = isMobile ? 1.5 : 1.0;
-                
+
                 // Calculate available space between the cards
                 const spaceBetweenCards = bottomWishTop - topWishBottom;
-                
+
                 // Calculate the maximum height the long text can have (reserving spacing on both sides)
                 // Shrink it a bit to make room for bottom card positioning
                 const shrinkFactor = 0.95; // Shrink by 5% to make room
                 const maxLongTextHeight = (spaceBetweenCards - (spacing * 2)) * shrinkFactor;
-                
+
                 // Use the smaller of: requested height or available space
                 const desiredHeight = Math.min(adjustedHeight, maxLongTextHeight);
-                
+
                 // Center the long text in the available space with equal spacing
                 // Start position = top card bottom + spacing
                 adjustedY = topWishBottom + spacing;
-                
+
                 // Calculate available height (space between cards minus spacing on both sides, with shrink factor)
                 const availableHeight = maxLongTextHeight;
                 if (availableHeight > 0) {
                     // Use the available height - this already accounts for equal spacing on both sides
                     adjustedHeight = availableHeight;
-                    
+
                 }
             }
         }
@@ -486,10 +492,10 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
                 // But leave proper spacing from the next button's frame
                 const spacingFromNextButton = isMobile ? 2.0 : 1.5; // Small padding from next button frame
                 adjustedY = safeAreaBottom - adjustedHeight - spacingFromNextButton;
-                
+
                 // Raise the bottom card by 3% as requested
                 adjustedY -= 3;
-                
+
                 // Ensure it doesn't go above the long text element
                 // Find long text element if it's been processed and ensure proper spacing
                 for (const el of adjustedElements) {

@@ -106,9 +106,11 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
     // Position menu below element by finding it in the DOM
     // Menu can render anywhere on the canvas, not just within the preview window
+    // Position menu below element by finding it in the DOM
+    // Menu can render anywhere on the canvas, not just within the preview window
     useEffect(() => {
-        // Don't auto-position if user has manually dragged the menu
-        if (isManuallyPositioned) return;
+        // Don't auto-position if user has manually dragged the menu or is currently dragging
+        if (isManuallyPositioned || isDragging) return;
 
         setIsPositioned(false);
 
@@ -206,7 +208,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             clearInterval(interval);
             window.removeEventListener('resize', findElement);
         };
-    }, [element.id, isManuallyPositioned]);
+    }, [element.id, isManuallyPositioned, isDragging]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {

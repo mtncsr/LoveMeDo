@@ -345,8 +345,7 @@ const EditableText: React.FC<{
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
     commonProps: any;
     renderResizeHandles: () => React.ReactNode;
-    getAnimationClass: () => string;
-}> = ({ element, mode, isSelected, onUpdate, commonProps, renderResizeHandles, getAnimationClass }) => {
+}> = ({ element, mode, isSelected, onUpdate, commonProps, renderResizeHandles }) => {
     const { content, styles: elStyles } = element;
     const ref = useRef<HTMLDivElement>(null);
     const contentRef = useRef(content);
@@ -417,63 +416,9 @@ const EditableText: React.FC<{
     const showBorderWrapper = isSelected && mode === 'editor';
     const textDirection = detectTextDirection(content);
 
-    // No Box Style - use this when there's no background, even when selected
-    // Apply selection border directly to the main element
-    if (!hasBackground) {
-        const noBoxTextClassName = `${styles.element} ${getAnimationClass()}`;
-        const noBoxTextStyle = {
-            ...commonProps.style,
-            border: showBorderWrapper ? '2px solid var(--color-primary)' : 'none',
-            outline: 'none',
-            boxShadow: 'none',
-            backgroundColor: 'transparent',
-            display: isSelected && mode === 'editor' ? 'block' : 'flex',
-            alignItems: isSelected && mode === 'editor' ? undefined : 'center',
-            justifyContent: isSelected && mode === 'editor' ? undefined : (elStyles.textAlign === 'center' ? 'center' : elStyles.textAlign === 'right' ? 'flex-end' : 'flex-start'),
-            direction: textDirection,
-            padding: showBorderWrapper ? '4px 8px' : undefined,
-            whiteSpace: 'pre-wrap',
-            wordWrap: 'break-word',
-            overflowWrap: 'break-word',
-        };
-
-        return (
-            <div
-                {...commonProps}
-                ref={(node) => {
-                    // Combine refs
-                    if (commonProps.ref) commonProps.ref.current = node;
-                    ref.current = node;
-                }}
-                className={noBoxTextClassName}
-                contentEditable={isSelected && mode === 'editor'}
-                onInput={handleInput}
-                onBlur={(e) => {
-                    // If element is still selected and blur wasn't caused by clicking on menu/controls, refocus
-                    if (isSelected && mode === 'editor' && ref.current) {
-                        const relatedTarget = e.relatedTarget as HTMLElement;
-                        // Don't refocus if user clicked on editing menu or resize handles
-                        const clickedOnMenu = relatedTarget?.closest('[data-editing-menu]');
-                        const clickedOnResizeHandle = relatedTarget?.closest('[class*="resizeHandle"]');
-                        if (!clickedOnMenu && !clickedOnResizeHandle) {
-                            // Use setTimeout to allow the blur to complete, then refocus
-                            setTimeout(() => {
-                                if (isSelected && ref.current && document.activeElement !== ref.current) {
-                                    ref.current.focus();
-                                }
-                            }, 0);
-                        }
-                    }
-                }}
-                suppressContentEditableWarning
-                key={`text-${element.id}-${isSelected ? 'editable' : 'static'}`}
-                style={noBoxTextStyle}
-                dangerouslySetInnerHTML={!isSelected || mode !== 'editor' ? { __html: newlinesToHtml(content || '') } : undefined}
-            >
-                {renderResizeHandles()}
-            </div>
-        );
-    }
+    // Unified rendering: All text elements use the wrapper structure
+    // This ensures resize handles are always siblings to the contentEditable element, not children
+    // preventing issues where handles become part of the editable content or are hidden.
 
     // Box Style
     return (
@@ -728,7 +673,11 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
             onUpdate(element.id, {
                 size: { width: newWidth, height: newHeight },
-                position: { x: newLeft, y: newTop }
+                position: { x: newLeft, y: newTop },
+                metadata: {
+                    ...element.metadata,
+                    manualSize: true
+                }
             });
         };
 
@@ -776,7 +725,11 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         const newHeight = Math.max(5, Math.min(95, pinchStartSizeRef.current.height * scale));
 
         onUpdate(element.id, {
-            size: { width: newWidth, height: newHeight }
+            size: { width: newWidth, height: newHeight },
+            metadata: {
+                ...element.metadata,
+                manualSize: true
+            }
         });
     };
 
@@ -791,11 +744,13 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     const lastTriggerRef = useRef<string>('');
     const isResizingRef = useRef(false);
     const onUpdateRef = useRef(onUpdate);
+    const prevIsResizingRef = useRef(isResizing); // Track previous resize state
 
     // Keep onUpdate ref up to date
     useEffect(() => {
         onUpdateRef.current = onUpdate;
-    }, [onUpdate]);
+        prevIsResizingRef.current = isResizing;
+    }, [onUpdate, isResizing]);
 
     useEffect(() => {
         if (type !== 'text' || !elementRef.current || !onUpdateRef.current || mode !== 'editor' || isResizingRef.current) return;
@@ -804,7 +759,15 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         const triggerKey = `${content}-${scaledFontSize}-${elStyles.fontFamily}`;
 
         // Skip if this exact combination was already processed
-        if (lastTriggerRef.current === triggerKey) return;
+        // ALSO SKIP if user is manually resizing
+        const justFinishedResizing = !isResizing && prevIsResizingRef.current;
+        if (lastTriggerRef.current === triggerKey || isResizing || justFinishedResizing) {
+            // If we just finished resizing, update the trigger key so we don't snap back immediately
+            if (justFinishedResizing || isResizing) {
+                lastTriggerRef.current = triggerKey;
+            }
+            return;
+        }
 
         const element = elementRef.current;
         const textElement = element.querySelector('[contenteditable]') as HTMLElement;
@@ -845,7 +808,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             // Even if size didn't change, mark this trigger as processed
             lastTriggerRef.current = triggerKey;
         }
-    }, [content, scaledFontSize, elStyles.fontFamily, type, element.id, mode, device]);
+    }, [content, scaledFontSize, elStyles.fontFamily, type, element.id, mode, device, isResizing]);
 
     // Auto-resize long-text elements - expand to fit content with limits
     const longTextLastTriggerRef = useRef<string>('');
@@ -858,7 +821,15 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         const triggerKey = `${content}-${scaledFontSize || elStyles.fontSize}-${elStyles.fontFamily}-${position.y}-${position.x}`;
 
         // Skip if this exact combination was already processed
-        if (longTextLastTriggerRef.current === triggerKey) return;
+        // ALSO SKIP if user is manually resizing
+        const justFinishedResizing = !isResizing && prevIsResizingRef.current;
+        if (longTextLastTriggerRef.current === triggerKey || isResizing || justFinishedResizing) {
+            // If we just finished resizing, update the trigger key so we don't snap back immediately
+            if (justFinishedResizing || isResizing) {
+                longTextLastTriggerRef.current = triggerKey;
+            }
+            return;
+        }
 
         const element = elementRef.current;
         const longTextElement = element.querySelector('[contenteditable]') as HTMLElement;
@@ -935,7 +906,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             // Even if size didn't change, mark this trigger as processed
             longTextLastTriggerRef.current = triggerKey;
         }
-    }, [content, scaledFontSize, elStyles.fontSize, elStyles.fontFamily, elStyles.fontWeight, type, element.id, mode, device, position.y, position.x, size.width, size.height, screenType, hasNextButton]);
+    }, [content, scaledFontSize, elStyles.fontSize, elStyles.fontFamily, elStyles.fontWeight, type, element.id, mode, device, position.y, position.x, size.width, size.height, screenType, hasNextButton, isResizing]);
 
     // Safe area calculation for content screens
     // Navigation bar: 60px ≈ 10% on mobile (accounts for nav bar)
@@ -1065,7 +1036,6 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     onUpdate={onUpdate}
                     commonProps={commonProps}
                     renderResizeHandles={renderResizeHandles}
-                    getAnimationClass={getAnimationClass}
                 />
             );
 

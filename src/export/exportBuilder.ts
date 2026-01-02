@@ -197,6 +197,53 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
+
+    .long-text-preview {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 12;
+      overflow: hidden;
+      text-overflow: ellipsis; 
+    }
+
+    .text-lightbox {
+      background: #ffffff;
+      color: #333;
+      padding: 60px 24px 24px 24px;
+      width: 90vw;
+      max-width: 600px;
+      max-height: 80vh;
+      border-radius: 16px;
+      overflow-y: auto;
+      font-family: var(--font-body);
+      font-size: 18px;
+      line-height: 1.6;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 2;
+    }
+    .text-lightbox .lightbox-content {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .text-lightbox-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 24px;
+        line-height: 1;
+        border: none;
+        cursor: pointer;
+    }
 `;
 
 const buildGlobalCSS = async (): Promise<string> => {
@@ -282,6 +329,54 @@ const buildOverlayHtml = (screen: Screen): string => {
   }
 
   return `<div class="overlay-container">${nodes.join('')}</div>`;
+};
+
+// Helper to check if text overflows a container
+const checkTextOverflow = (
+  text: string,
+  styles: any,
+  containerWidthPercent: number,
+  containerHeightPercent: number,
+  fontSize: number
+): boolean => {
+  // Create a dummy element to measure
+  const measureEl = document.createElement('div');
+  measureEl.style.position = 'absolute';
+  measureEl.style.visibility = 'hidden';
+  measureEl.style.height = 'auto';
+  measureEl.style.width = 'auto'; // Will set concrete width below
+  measureEl.style.whiteSpace = 'pre-wrap';
+  measureEl.style.wordWrap = 'break-word';
+
+  // Approximate a mobile screen (375px width, 667px height safe area ~600px)
+  // Using 340px as safe inner content width
+  const screenWidth = 375;
+  const safeHeight = 600; // rough safe height
+
+  // Calculate simulated pixel dimensions
+  // widthPercent is likely 'fit-content' or a number. If 'fit-content', assume max width?
+  // For long-text, width is usually restricted by padding or max-width. 
+  // Let's assume a standard padded text box width ~335px if it's full width.
+  // If exact width % is known, use it.
+  const simWidth = containerWidthPercent ? (containerWidthPercent / 100) * screenWidth : 335;
+  const simHeight = containerHeightPercent ? (containerHeightPercent / 100) * safeHeight : 100;
+
+  measureEl.style.width = `${simWidth}px`;
+
+  // Apply font styles
+  measureEl.style.fontSize = `${fontSize}px`;
+  if (styles.fontFamily) measureEl.style.fontFamily = styles.fontFamily;
+  if (styles.fontWeight) measureEl.style.fontWeight = String(styles.fontWeight);
+  if (styles.lineHeight) measureEl.style.lineHeight = String(styles.lineHeight);
+
+  measureEl.innerText = text;
+
+  document.body.appendChild(measureEl);
+  const scrollHeight = measureEl.scrollHeight;
+  document.body.removeChild(measureEl);
+
+  // If text height > container height, it overflows
+  return scrollHeight > simHeight;
 };
 
 type GalleryBuild = { html: string; lightboxes: string[] };
@@ -402,13 +497,30 @@ const buildElementHtml = (
   const fontScaleFactor = 1.1;
   const scaledFontSize = elem.styles?.fontSize ? elem.styles.fontSize * fontScaleFactor : undefined;
 
+  // Auto-center logic for buttons on overlay screens
+  // If button midpoint is roughly 50% (+/- 5%), force true centering
+  const centerPoint = elem.position.x + (elem.size.width || 0) / 2;
+  const isCenteredButton = !isContentScreen && elem.type === 'button' && centerPoint >= 45 && centerPoint <= 55;
+  const transformPrefix = isCenteredButton ? 'translateX(-50%) ' : '';
+
   let style = ``;
   if (!isContentScreen) {
-    style = `
-    left:${elem.position.x}%; top:${adjustedY}%;
-    width:${elem.size.width ? elem.size.width + '%' : 'auto'};
-    height:${adjustedHeight ? adjustedHeight + '%' : 'auto'};
-    `;
+    if (elem.type === 'button') {
+      style = `
+      left:${isCenteredButton ? '50' : elem.position.x}%; top:${adjustedY}%;
+      width:fit-content;
+      height:auto;
+      min-width:${elem.size.width ? elem.size.width + '%' : 'auto'};
+      padding:12px 32px;
+      white-space:nowrap;
+      `;
+    } else {
+      style = `
+      left:${elem.position.x}%; top:${adjustedY}%;
+      width:${elem.size.width ? elem.size.width + '%' : 'auto'};
+      height:${adjustedHeight ? adjustedHeight + '%' : 'auto'};
+      `;
+    }
   }
 
   style += `
@@ -418,8 +530,10 @@ const buildElementHtml = (
     font-family:${elem.styles?.fontFamily || ''};
     text-align:${elem.styles.textAlign || 'left'};
     border-radius:${elem.styles.borderRadius || 0}px;
-    transform: rotate(${elem.styles.rotation || 0}deg);
+    transform: ${transformPrefix}rotate(${elem.styles.rotation || 0}deg);
     z-index:${elem.styles.zIndex || 10};
+    white-space: pre-wrap;
+    word-wrap: break-word;
     ${elem.styles.shadow ? 'box-shadow: 0 4px 10px rgba(0,0,0,0.2);' : ''}
     ${elem.styles.opacity ? 'opacity:' + elem.styles.opacity + ';' : ''}
   `;
@@ -474,9 +588,68 @@ const buildElementHtml = (
     className += '" data-type="video';
   } else if (elem.type === 'long-text') {
     const textContent = escapeHtml(elem.content);
-    contentHtml = `<div style="padding:16px; background-color:${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:${elem.styles.borderRadius || 16}px; width:100%; height:100%; display:flex; align-items:flex-start; justify-content:flex-start; box-sizing:border-box;">
-      <div style="display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:pre-wrap; word-wrap:break-word; width:100%; height:100%; -webkit-line-clamp:999; line-clamp:999; color:${elem.styles.color || 'inherit'}; font-size:${elem.styles.fontSize ? elem.styles.fontSize + 'px' : 'inherit'}; font-family:${elem.styles.fontFamily || 'inherit'}; font-weight:${elem.styles.fontWeight || 'normal'}; text-align:${elem.styles.textAlign || 'left'};">${textContent}</div>
-    </div>`;
+
+    // Check for overflow
+    // Use stored width/height if available, otherwise assume defaults or 'fit-content'
+    // For long-text, width is usually constrained by margins/padding, height is 'auto' in editor but restricted in export layout if fixed?
+    // In export, we set height: something% or auto. 
+    // Line 410: height:${adjustedHeight ? adjustedHeight + '%' : 'auto'};
+    // If height is 'auto', it won't overflow vertically (it just grows).
+    // BUT the requirement implies the *container* might be fixed or small, OR we want to cap it.
+    // Actually, earlier we fixed vertical resizing. So `adjustedHeight` should be the user-set height.
+    // If user set a height, we respect it. If it overflows THAT height, we show ellipsis.
+    // If height is auto, checking overflow is tricky (it never overflows).
+    // However, the user said "only when the text is overflowing the long text window". 
+    // This implies a fixed height window.
+
+    const fontSizeVal = scaledFontSize || 16;
+    const checkHeight = adjustedHeight || 0; // If 0/undefined/auto, we might not overflow unless we enforce max-height?
+    // If height is auto, we CAN'T overflow.
+    // Assuming user resized it (so `adjustedHeight` > 0).
+    // If `adjustedHeight` is missing, we assume it fits? 
+    // Or maybe we treat 'auto' effectively as "fits"?
+
+    const isOverflowing = checkHeight > 0 && checkTextOverflow(
+      elem.content,
+      elem.styles,
+      elem.size.width || 90,
+      checkHeight,
+      fontSizeVal
+    );
+
+    // Inject specific styles for long-text into the main style variable
+    // This allows us to use the single outer container for everything
+    style += `
+      padding:16px;
+      background-color:${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'};
+      border-radius:${elem.styles.borderRadius || 16}px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    `;
+
+    // Add the preview class to the outer wrapper to handle line-clamping
+    className += ' long-text-preview';
+
+    if (isOverflowing) {
+      const lbId = `lb-text-${elem.id}`;
+      // Create Lightbox
+      lightboxes.push(
+        `<div class="lightbox" id="${lbId}">
+                <a class="lightbox-backdrop" href="#screen-${screen.id}" aria-label="Close"></a>
+                <div class="text-lightbox" onclick="event.stopPropagation()">
+                    <a class="text-lightbox-close" href="#screen-${screen.id}" aria-label="Close">×</a>
+                    <div class="lightbox-content" style="font-size:${fontSizeVal}px; font-family:${elem.styles.fontFamily || 'inherit'}">${textContent}</div>
+                </div>
+            </div>`
+      );
+
+      // Just the text wrapped in a link
+      contentHtml = `<a href="#${lbId}" style="text-decoration:none; color:inherit;">${textContent}</a>`;
+    } else {
+      // Just the text
+      contentHtml = textContent;
+    }
+
     className += '" data-type="long-text';
   } else if (elem.type === 'shape') {
     const isCircle = elem.styles.borderRadius && elem.styles.borderRadius >= 50;
