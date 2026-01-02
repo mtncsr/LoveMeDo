@@ -108,14 +108,24 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .screen { position:absolute; inset:0; width:100%; height:100%; display:none; z-index:1; }
 .screen:target { display:block; z-index:2; }
 .screen.default-visible { display:block; z-index:1; }
+.screen.content-screen { display:none; flex-direction:column; background:white; }
+.screen.content-screen:target, .screen.content-screen.default-visible { display:flex; }
+.content-wrapper { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; width:100%; position:relative; }
+
 .background { position:absolute; inset:0; width:100%; height:100%; overflow:hidden; }
 .background img, .background video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
-.nav-bar { position: absolute; top:0; left:0; width:100%; height:60px; display:flex; align-items:center; z-index:100; padding:0 16px; pointer-events: none; }
+.nav-bar { position: relative; width:100%; height:60px; display:flex; align-items:center; z-index:100; padding:0 20px; pointer-events: none; flex-shrink:0; }
 .nav-btn { pointer-events: auto; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 20px; text-decoration:none; touch-action:manipulation; }
 .screen-title { flex:1; text-align:center; color:white; font-family: var(--font-heading); font-weight:700; text-shadow:0 2px 4px rgba(0,0,0,0.2); }
 
 .element { position: absolute; z-index: 10; cursor: pointer; }
+.content-screen .element { position:relative !important; inset:auto !important; width:100% !important; height:auto !important; margin-bottom:12px; padding:0 20px; flex-shrink:0; }
+.content-screen .element[data-type="gallery"],
+.content-screen .element[data-type="image"],
+.content-screen .element[data-type="video"] { flex-grow:1; flex-basis:0 !important; height:0 !important; display:flex; flex-direction:column; min-height:0; margin-bottom:0; padding:10px 20px; }
+.content-screen .element[data-type="image"] > a { display:block; width:100%; height:100%; }
+.content-screen .element[data-type="video"] .video-wrapper { width:100%; height:100%; }
 .element[data-type="sticker"] { animation: float 4s ease-in-out infinite; pointer-events: none; }
 @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-10px) rotate(5deg); } }
 .element-button { display:flex; align-items:center; justify-content:center; background: var(--color-primary); color:white; border-radius:999px; font-weight:bold; border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration:none; }
@@ -141,14 +151,14 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .nav-pill-number { font-size:18px; font-weight:700; color:var(--color-primary); background:rgba(74,144,226,0.1); border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--font-heading); }
 .nav-pill-title { font-size:16px; font-weight:600; color:var(--color-text); text-align:left; flex:1; font-family:var(--font-body); }
 
-.next-button-container { position:absolute; bottom:20px; left:50%; transform:translateX(-50%); z-index:150; width:100%; display:flex; justify-content:center; padding:0 20px; }
+.next-button-container { position:relative; margin-top:auto; padding:12px 20px 20px 20px; z-index:150; width:100%; display:flex; justify-content:center; flex-shrink:0; }
 .next-button { background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:var(--color-primary); border:none; padding:12px 32px; border-radius:999px; font-size:1rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; display:flex; align-items:center; text-decoration:none; touch-action:manipulation; }
 .next-button:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
 .next-button:active { transform:translateY(0); transition:none; }
 
 .gallery { display:flex; flex-direction:column; width:100%; height:100%; padding:6px; box-sizing:border-box; }
 .gallery input[type="radio"] { display:none; }
-.gallery-frame { position:relative; width:100%; flex:1; min-height:60%; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
+.gallery-frame { position:relative; width:100%; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
 .gallery-slide { position:absolute; inset:0; opacity:0; display:flex; align-items:center; justify-content:center; pointer-events:none; visibility:hidden; }
 .gallery-slide img { width:100%; height:100%; object-fit:contain; object-position:center; }
 .gallery-thumbs { display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin; -webkit-overflow-scrolling: touch; }
@@ -390,10 +400,16 @@ const buildElementHtml = (
   const fontScaleFactor = 0.7;
   const scaledFontSize = elem.styles?.fontSize ? elem.styles.fontSize * fontScaleFactor : undefined;
 
-  let style = `
+  let style = ``;
+  if (!isContentScreen) {
+    style = `
     left:${elem.position.x}%; top:${adjustedY}%;
     width:${elem.size.width ? elem.size.width + '%' : 'auto'};
     height:${adjustedHeight ? adjustedHeight + '%' : 'auto'};
+    `;
+  }
+
+  style += `
     color:${elem.styles?.color || 'inherit'};
     background-color:${elem.styles?.backgroundColor || 'transparent'};
     font-size:${scaledFontSize ? scaledFontSize + 'px' : ''};
@@ -423,6 +439,7 @@ const buildElementHtml = (
         <img src="${imageSrc}" alt="">
       </div>`
     );
+    className += '" data-type="image';
   } else if (elem.type === 'button') {
     className += ' element-button';
     const target = elem.metadata?.target;
@@ -440,6 +457,7 @@ const buildElementHtml = (
     const gallery = buildGalleryHtml(elem, project, screen.id);
     contentHtml = gallery.html;
     lightboxes = gallery.lightboxes;
+    className += '" data-type="gallery'; // Add data attribute for CSS targeting
   } else if (elem.type === 'video') {
     const videoSrc = resolveMedia(elem.content, project);
     const lbId = `lb-video-${elem.id}`;
@@ -451,6 +469,7 @@ const buildElementHtml = (
         <video src="${videoSrc}" controls preload="metadata"></video>
       </div>`
     );
+    className += '" data-type="video';
   } else if (elem.type === 'long-text') {
     const textContent = escapeHtml(elem.content);
     contentHtml = `<div style="padding:16px; background-color:${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:${elem.styles.borderRadius || 16}px; width:100%; height:100%; display:flex; align-items:flex-start; justify-content:flex-start; box-sizing:border-box;">
@@ -530,9 +549,17 @@ const buildScreenHtml = (screen: Screen, project: Project, idx: number, audioHtm
   const navPills = buildNavPills(screen, project);
   const nextButton = buildNextButton(screen, nextId);
 
-  const elementsSorted = [...screen.elements].sort(
-    (a, b) => (a.styles?.zIndex || 10) - (b.styles?.zIndex || 10)
+  // Filter out explicit next buttons for content screens to avoid duplication with footer button
+  const elementsToRender = screen.elements.filter(el =>
+    screen.type !== 'content' || el.type !== 'button' || el.metadata?.target !== 'next'
   );
+
+  const elementsSorted = [...elementsToRender].sort((a, b) => {
+    if (screen.type === 'content') {
+      return a.position.y - b.position.y;
+    }
+    return (a.styles?.zIndex || 10) - (b.styles?.zIndex || 10);
+  });
   const elementBuilds = elementsSorted.map((el) => buildElementHtml(screen, el, project, prevId, nextId));
   const elementsHtml = elementBuilds.map((b) => b.html).join('');
   const overlayHtml = buildOverlayHtml(screen);
@@ -540,14 +567,19 @@ const buildScreenHtml = (screen: Screen, project: Project, idx: number, audioHtm
 
   const lightboxes = elementBuilds.flatMap((b) => b.lightboxes);
 
+  let innerContent = elementsHtml;
+  if (screen.type === 'content') {
+    innerContent = `<div class="content-wrapper">${elementsHtml}</div>`;
+  }
+
   return {
     html: `
-    <section class="screen${idx === 0 ? ' default-visible' : ''}" id="screen-${screen.id}">
+    <section class="screen${idx === 0 ? ' default-visible' : ''}${screen.type === 'content' ? ' content-screen' : ''}" id="screen-${screen.id}">
       ${bgHtml}
       ${overlayHtml}
       ${navBar}
       ${navPills}
-      ${elementsHtml}
+      ${innerContent}
       ${nextButton}
       ${audioHtml}
     </section>
