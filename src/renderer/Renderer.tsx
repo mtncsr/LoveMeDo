@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Project } from '../types/model';
 import { ScreenRenderer } from './ScreenRenderer';
 import { Lightbox } from './Lightbox';
-import { useUIStore } from '../store/uiStore';
+
 import styles from './styles.module.css';
 
 interface Props {
@@ -29,8 +29,8 @@ export const Renderer: React.FC<Props> = ({
     device,
     selectedElementId
 }) => {
-    const { setMediaLibraryOpen } = useUIStore();
-    
+
+
     // State for internal navigation (Preview/Export)
     const [internalActiveId, setInternalActiveId] = useState<string>(
         project.screens[0]?.id || ''
@@ -131,7 +131,7 @@ export const Renderer: React.FC<Props> = ({
         }
 
         const currentScreen = project.screens.find(s => s.id === activeId);
-        
+
         // Stop previous screen music immediately
         if (screenAudioRef.current) {
             screenAudioRef.current.pause();
@@ -309,9 +309,9 @@ export const Renderer: React.FC<Props> = ({
                         if (imageUrl && imageUrl.trim() !== '') {
                             // Add images as belonging to this gallery ID but they are individual items in lightbox
                             // Store gallery element ID and image index for proper starting position
-                            allItems.push({ 
-                                type: 'image', 
-                                content: imageUrl, 
+                            allItems.push({
+                                type: 'image',
+                                content: imageUrl,
                                 id: `${elem.id}_${imgIndex}` // Include index to identify specific image
                             });
                         }
@@ -358,9 +358,6 @@ export const Renderer: React.FC<Props> = ({
                 setLightboxItems(allItems);
                 setLightboxIndex(startIndex);
             }
-        } else if (mode === 'editor') {
-            // For non-image elements in editor, just select
-            onElementSelect?.(elementId);
         } else {
             // Other interactions in preview/export mode
             if (el?.type === 'button' && el.metadata?.action === 'navigate') {

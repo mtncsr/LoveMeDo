@@ -149,7 +149,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .gallery { display:flex; flex-direction:column; width:100%; height:100%; padding:6px; box-sizing:border-box; }
 .gallery input[type="radio"] { display:none; }
 .gallery-frame { position:relative; width:100%; flex:1; min-height:60%; display:flex; align-items:center; justify-content:center; background-color:#f0f0f0; border-radius:10px; overflow:hidden; margin-bottom:8px; }
-.gallery-slide { position:absolute; inset:0; opacity:0; transition:opacity 0.2s; display:flex; align-items:center; justify-content:center; }
+.gallery-slide { position:absolute; inset:0; opacity:0; transition:opacity 0.2s; display:flex; align-items:center; justify-content:center; pointer-events:none; visibility:hidden; }
 .gallery-slide img { width:100%; height:100%; object-fit:contain; object-position:center; }
 .gallery-thumbs { display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin; -webkit-overflow-scrolling: touch; }
 .gallery-thumb { flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; opacity:0.75; transition:all 0.2s; background-color:#f0f0f0; display:block; }
@@ -158,10 +158,23 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .gallery-nav.prev { left:8px; }
 .gallery-nav.next { right:8px; }
 
-.lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.92); display:none; align-items:center; justify-content:center; z-index:9999; padding:16px; }
+.lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.95); display:none; align-items:center; justify-content:center; z-index:9999; padding:0; }
 .lightbox:target { display:flex; }
-.lightbox img { max-width:92vw; max-height:92vh; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,0.5); }
-.lightbox-close { position:absolute; top:20px; right:20px; width:48px; height:48px; border:none; border-radius:50%; background:rgba(0,0,0,0.5); color:white; font-size:28px; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; }
+.lightbox .lb-slide { display:none; position:relative; width:100%; height:100%; align-items:center; justify-content:center; }
+.lightbox .lb-slide.active { display:flex; }
+/* Backdrop handles click-outside-to-close */
+.lightbox-backdrop { position:fixed; inset:0; width:100%; height:100%; z-index:1; cursor:default; }
+.lightbox .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.4); border:none; border-radius:50%; width:56px; height:56px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; font-size:32px; text-decoration:none; z-index:10; transition:background 0.2s; }
+.lightbox .gallery-nav:hover { background:rgba(0,0,0,0.7); }
+.lightbox .gallery-nav.prev { left:24px; }
+.lightbox .gallery-nav.next { right:24px; }
+.lightbox img { max-width:92vw; max-height:92vh; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.5); position:relative; z-index:2; pointer-events:none; }
+.lightbox video { max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.5); background:#000; position:relative; z-index:2; }
+.lightbox-close { position:absolute; top:20px; right:20px; width:48px; height:48px; border:none; border-radius:50%; background:rgba(255,255,255,0.2); color:white; font-size:32px; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; z-index:20; transition:background 0.2s; }
+.lightbox-close:hover { background:rgba(255,255,255,0.4); }
+.video-wrapper { position:relative; width:100%; height:100%; }
+.video-wrapper video { width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit; pointer-events:none; }
+.video-lightbox-trigger { position:absolute; inset:0; z-index:5; }
 
 .audio-box { position:absolute; bottom:20px; right:20px; z-index:50; background:rgba(0,0,0,0.4); padding:10px 12px; border-radius:12px; }
 .audio-box audio { display:block; }
@@ -272,16 +285,16 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
   images = images.map((id) => resolveMedia(id, project));
 
   const galleryId = `gallery-${elem.id.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  const lightboxes: string[] = [];
-
   const inputs = images
     .map((_, idx) => `<input type="radio" name="${galleryId}" id="${galleryId}-${idx}" ${idx === 0 ? 'checked' : ''}>`)
     .join('');
 
+
+
   const slides = images
     .map(
       (src, idx) => `<div class="gallery-slide slide-${idx}">
-        <a href="#lb-${galleryId}-${idx}"><img src="${src}" alt="" loading="lazy" decoding="async"></a>
+        <a href="#lb-${galleryId}-${idx}" data-gallery-open><img src="${src}" alt="" loading="lazy" decoding="async"></a>
       </div>`
     )
     .join('');
@@ -296,30 +309,40 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
   const navPrevNext =
     images.length > 1
       ? images
-          .map((_, idx) => {
-            const prevIdx = (idx - 1 + images.length) % images.length;
-            const nextIdx = (idx + 1) % images.length;
-            return `
+        .map((_, idx) => {
+          const prevIdx = (idx - 1 + images.length) % images.length;
+          const nextIdx = (idx + 1) % images.length;
+          return `
             <label class="gallery-nav prev nav-prev-${idx}" for="${galleryId}-${prevIdx}">‹</label>
             <label class="gallery-nav next nav-next-${idx}" for="${galleryId}-${nextIdx}">›</label>
           `;
-          })
-          .join('')
+        })
+        .join('')
       : '';
 
-  images.forEach((src, idx) => {
-    lightboxes.push(
-      `<div class="lightbox" id="lb-${galleryId}-${idx}">
-        <a class="lightbox-close" href="#${screenId}">×</a>
+  const lightboxes = images.map((src, idx) => {
+    const prevIdx = (idx - 1 + images.length) % images.length;
+    const nextIdx = (idx + 1) % images.length;
+    return `
+      <div class="lightbox" id="lb-${galleryId}-${idx}">
+        <a class="lightbox-backdrop" href="#screen-${screenId}" aria-label="Close"></a>
+        <a class="lightbox-close" href="#screen-${screenId}" aria-label="Close">×</a>
         <img src="${src}" alt="">
-      </div>`
-    );
+        ${images.length > 1
+        ? `
+              <a class="gallery-nav prev" href="#lb-${galleryId}-${prevIdx}">‹</a>
+              <a class="gallery-nav next" href="#lb-${galleryId}-${nextIdx}">›</a>
+            `
+        : ''
+      }
+      </div>
+    `;
   });
 
   const cssBindings = images
     .map(
       (_, idx) => `
-      #${galleryId}-${idx}:checked ~ .gallery-frame .slide-${idx} { opacity:1; position:relative; }
+      #${galleryId}-${idx}:checked ~ .gallery-frame .slide-${idx} { opacity:1; position:relative; display:flex; pointer-events:auto; visibility:visible; }
       #${galleryId}-${idx}:checked ~ .gallery-thumbs .thumb-${idx} { border:3px solid var(--color-primary); opacity:1; }
       #${galleryId}-${idx}:checked ~ .gallery-frame .nav-prev-${idx},
       #${galleryId}-${idx}:checked ~ .gallery-frame .nav-next-${idx} { display:flex; }
@@ -336,6 +359,7 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
         ${navPrevNext}
       </div>
       ${images.length > 1 ? `<div class="gallery-thumbs">${thumbs}</div>` : ''}
+
     </div>
   `;
 
@@ -394,7 +418,8 @@ const buildElementHtml = (
     contentHtml = `<a href="#${lbId}"><img src="${imageSrc}" alt="" style="width:100%; height:100%; object-fit:contain; object-position:center; display:block; border-radius:inherit;" /></a>`;
     lightboxes.push(
       `<div class="lightbox" id="${lbId}">
-        <a class="lightbox-close" href="#screen-${screen.id}">×</a>
+        <a class="lightbox-backdrop" href="#screen-${screen.id}" aria-label="Close"></a>
+        <a class="lightbox-close" href="#screen-${screen.id}" aria-label="Close">×</a>
         <img src="${imageSrc}" alt="">
       </div>`
     );
@@ -412,12 +437,20 @@ const buildElementHtml = (
     style += `font-size:${elem.styles.fontSize || 40}px;`;
     className += '" data-type="sticker';
   } else if (elem.type === 'gallery') {
-    const gallery = buildGalleryHtml(elem, project, `screen-${screen.id}`);
+    const gallery = buildGalleryHtml(elem, project, screen.id);
     contentHtml = gallery.html;
     lightboxes = gallery.lightboxes;
   } else if (elem.type === 'video') {
     const videoSrc = resolveMedia(elem.content, project);
-    contentHtml = `<video src="${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls preload="metadata"></video>`;
+    const lbId = `lb-video-${elem.id}`;
+    contentHtml = `<div class="video-wrapper"><a class="video-lightbox-trigger" href="#${lbId}" aria-label="Open video"></a><video src="${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls preload="metadata"></video></div>`;
+    lightboxes.push(
+      `<div class="lightbox" id="${lbId}">
+        <a class="lightbox-backdrop" href="#screen-${screen.id}" aria-label="Close"></a>
+        <a class="lightbox-close" href="#screen-${screen.id}" aria-label="Close">×</a>
+        <video src="${videoSrc}" controls preload="metadata"></video>
+      </div>`
+    );
   } else if (elem.type === 'long-text') {
     const textContent = escapeHtml(elem.content);
     contentHtml = `<div style="padding:16px; background-color:${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:${elem.styles.borderRadius || 16}px; width:100%; height:100%; display:flex; align-items:flex-start; justify-content:flex-start; box-sizing:border-box;">
@@ -452,10 +485,9 @@ const buildBackgroundHtml = (screen: Screen, project: Project): string => {
   return `<div class="background"></div>`;
 };
 
-const buildNavigationBar = (screen: Screen, prevId: string | null, nextId: string | null): string => {
+const buildNavigationBar = (screen: Screen, prevId: string | null): string => {
   if (screen.type !== 'content') return '';
   const prevHref = prevId ? `#${prevId}` : `#screen-${screen.id}`;
-  const nextHref = nextId ? `#${nextId}` : `#screen-${screen.id}`;
   return `
     <div class="nav-bar">
       <a class="nav-btn" href="${prevHref}">←</a>
@@ -494,7 +526,7 @@ type ScreenBuild = { html: string; lightboxes: string[] };
 const buildScreenHtml = (screen: Screen, project: Project, idx: number, audioHtml: string): ScreenBuild => {
   const prevId = idx > 0 ? `screen-${project.screens[idx - 1].id}` : null;
   const nextId = idx < project.screens.length - 1 ? `screen-${project.screens[idx + 1].id}` : null;
-  const navBar = buildNavigationBar(screen, prevId, nextId);
+  const navBar = buildNavigationBar(screen, prevId);
   const navPills = buildNavPills(screen, project);
   const nextButton = buildNextButton(screen, nextId);
 
