@@ -124,6 +124,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .content-screen .element[data-type="gallery"],
 .content-screen .element[data-type="image"],
 .content-screen .element[data-type="video"] { flex-grow:1; flex-basis:0 !important; height:0 !important; display:flex; flex-direction:column; min-height:0; margin-bottom:0; padding:10px 20px; }
+.content-screen .element[data-type="long-text"] { width:fit-content !important; max-width:100%; margin-left:auto; margin-right:auto; height:auto !important; }
 .content-screen .element[data-type="image"] > a { display:block; width:100%; height:100%; }
 .content-screen .element[data-type="video"] .video-wrapper { width:100%; height:100%; }
 .element[data-type="sticker"] { animation: float 4s ease-in-out infinite; pointer-events: none; }
@@ -398,7 +399,7 @@ const buildElementHtml = (
     if (adjustedHeight) adjustedHeight = (adjustedHeight / 100) * safeAreaHeight;
   }
 
-  const fontScaleFactor = 0.7;
+  const fontScaleFactor = 1.1;
   const scaledFontSize = elem.styles?.fontSize ? elem.styles.fontSize * fontScaleFactor : undefined;
 
   let style = ``;
@@ -476,6 +477,7 @@ const buildElementHtml = (
     contentHtml = `<div style="padding:16px; background-color:${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'}; border-radius:${elem.styles.borderRadius || 16}px; width:100%; height:100%; display:flex; align-items:flex-start; justify-content:flex-start; box-sizing:border-box;">
       <div style="display:-webkit-box; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; white-space:pre-wrap; word-wrap:break-word; width:100%; height:100%; -webkit-line-clamp:999; line-clamp:999; color:${elem.styles.color || 'inherit'}; font-size:${elem.styles.fontSize ? elem.styles.fontSize + 'px' : 'inherit'}; font-family:${elem.styles.fontFamily || 'inherit'}; font-weight:${elem.styles.fontWeight || 'normal'}; text-align:${elem.styles.textAlign || 'left'};">${textContent}</div>
     </div>`;
+    className += '" data-type="long-text';
   } else if (elem.type === 'shape') {
     const isCircle = elem.styles.borderRadius && elem.styles.borderRadius >= 50;
     contentHtml = `<div style="width:100%; height:100%; background-color:${elem.styles.backgroundColor || '#ccc'}; border-radius:${isCircle ? '50%' : (elem.styles.borderRadius || 0) + 'px'};"></div>`;

@@ -3,7 +3,7 @@ import { useUIStore } from '../store/uiStore';
 import { useProjectStore } from '../store/projectStore';
 import type { ScreenElement } from '../types/model';
 import {
-    Trash2, Type, Palette, MoveUp, MoveDown, 
+    Trash2, Type, Palette, MoveUp, MoveDown,
     Bold, Underline, Italic, Minus, Plus,
     Sparkles, Image as ImageIcon, X, FolderOpen,
     AlignLeft, AlignCenter, AlignRight, GripVertical
@@ -50,7 +50,6 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const [showFontPicker, setShowFontPicker] = useState(false);
     const [showStickerPicker, setShowStickerPicker] = useState(false);
     const [showFrameShapePicker, setShowFrameShapePicker] = useState(false);
-    const [isEditingText, setIsEditingText] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const dragHandleRef = useRef<HTMLDivElement>(null);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -66,19 +65,19 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         const handleMouseMove = (e: MouseEvent) => {
             const newLeft = e.clientX - dragOffset.x;
             const newTop = e.clientY - dragOffset.y;
-            
+
             // Clamp to viewport bounds
             const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
             const menuRect = menuRef.current?.getBoundingClientRect();
-            
+
             if (menuRect) {
                 const padding = 8;
                 const minLeft = padding;
                 const maxLeft = viewportWidth - menuRect.width - padding;
                 const minTop = padding;
                 const maxTop = viewportHeight - menuRect.height - padding;
-                
+
                 setMenuPosition({
                     left: Math.max(minLeft, Math.min(maxLeft, newLeft)),
                     top: Math.max(minTop, Math.min(maxTop, newTop))
@@ -110,9 +109,9 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     useEffect(() => {
         // Don't auto-position if user has manually dragged the menu
         if (isManuallyPositioned) return;
-        
+
         setIsPositioned(false);
-        
+
         const findElement = () => {
             // For hidden navigation button elements, find the automatic next button instead
             let elementEl: HTMLElement | null = null;
@@ -127,12 +126,12 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 // Get viewport dimensions to prevent scrolling
                 const viewportWidth = window.innerWidth;
                 const viewportHeight = window.innerHeight;
-                
+
                 const elementRect = elementEl.getBoundingClientRect();
                 const menuRect = menuRef.current.getBoundingClientRect();
-                
+
                 const padding = 8; // Padding between element and menu
-                
+
                 // Use viewport coordinates (getBoundingClientRect gives us viewport-relative positions)
                 const elementTop = elementRect.top;
                 const elementBottom = elementRect.bottom;
@@ -140,16 +139,16 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 const elementRight = elementRect.right;
                 const elementCenterX = elementRect.left + elementRect.width / 2;
                 const elementCenterY = elementRect.top + elementRect.height / 2;
-                
+
                 // Check available space in viewport
                 const spaceBelow = viewportHeight - elementBottom;
                 const spaceAbove = elementTop;
                 const spaceRight = viewportWidth - elementRight;
                 const spaceLeft = elementLeft;
-                
+
                 let top: number;
                 let left: number;
-                
+
                 // Smart positioning: prefer below, but use side if no room
                 if (spaceBelow >= menuRect.height + padding) {
                     // Enough space below - position below element
@@ -175,16 +174,16 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                         left = elementCenterX - (menuRect.width / 2);
                     }
                 }
-                
+
                 // Clamp to viewport bounds to prevent scrolling
                 const minLeft = padding;
                 const maxLeft = viewportWidth - menuRect.width - padding;
                 const minTop = padding;
                 const maxTop = viewportHeight - menuRect.height - padding;
-                
+
                 const clampedLeft = Math.max(minLeft, Math.min(maxLeft, left));
                 const clampedTop = Math.max(minTop, Math.min(maxTop, top));
-                
+
                 setMenuPosition({
                     top: clampedTop,
                     left: clampedLeft
@@ -199,7 +198,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 findElement();
             });
         });
-        
+
         const interval = setInterval(findElement, 100);
         window.addEventListener('resize', findElement);
 
@@ -273,7 +272,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
     const handleTextStyleToggle = (style: 'bold' | 'underline' | 'italic') => {
         const updates: any = { ...element.styles };
-        
+
         if (style === 'bold') {
             updates.fontWeight = element.styles.fontWeight === 'bold' ? 'normal' : 'bold';
         } else if (style === 'underline') {
@@ -281,7 +280,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         } else if (style === 'italic') {
             updates.fontStyle = element.styles.fontStyle === 'italic' ? 'normal' : 'italic';
         }
-        
+
         updateElement(activeScreenId, element.id, { styles: updates });
     };
 
@@ -311,13 +310,12 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     };
 
     const handleEditText = () => {
-        setIsEditingText(true);
         // Focus will be handled by contentEditable in ElementRenderer
     };
 
     const handleDragStart = (e: React.MouseEvent) => {
         if (!menuRef.current) return;
-        
+
         const menuRect = menuRef.current.getBoundingClientRect();
         setDragOffset({
             x: e.clientX - menuRect.left,
@@ -453,322 +451,322 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
                 {/* Text/Button Color Picker */}
                 {(element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
-                <div className={styles.dropdownContainer}>
-                    <button
-                        className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'color' ? null : 'color')}
-                        title="Text Color"
-                    >
-                        <Palette size={18} />
-                    </button>
-                    {showColorPicker === 'color' && (
-                        <div className={styles.colorPicker}>
-                            <div className={styles.colorPickerHeader}>
-                                <span>Text Color</span>
-                                <button onClick={() => setShowColorPicker(null)}>
-                                    <X size={16} />
-                                </button>
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onClick={() => setShowColorPicker(showColorPicker === 'color' ? null : 'color')}
+                            title="Text Color"
+                        >
+                            <Palette size={18} />
+                        </button>
+                        {showColorPicker === 'color' && (
+                            <div className={styles.colorPicker}>
+                                <div className={styles.colorPickerHeader}>
+                                    <span>Text Color</span>
+                                    <button onClick={() => setShowColorPicker(null)}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className={styles.colorSwatches}>
+                                    {COMMON_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            className={styles.colorSwatch}
+                                            style={{ backgroundColor: color }}
+                                            onClick={() => handleColorChange(color)}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                                <input
+                                    type="color"
+                                    value={element.styles.color || '#000000'}
+                                    onChange={(e) => handleColorChange(e.target.value)}
+                                    className={styles.colorInput}
+                                />
                             </div>
-                            <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        className={styles.colorSwatch}
-                                        style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
-                            <input
-                                type="color"
-                                value={element.styles.color || '#000000'}
-                                onChange={(e) => handleColorChange(e.target.value)}
-                                className={styles.colorInput}
-                            />
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Background Color (for text/button) */}
                 {(element.type === 'text' || element.type === 'button') && (
-                <div className={styles.dropdownContainer}>
-                    <button
-                        className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'backgroundColor' ? null : 'backgroundColor')}
-                        title="Background Color"
-                    >
-                        <Palette size={18} />
-                    </button>
-                    {showColorPicker === 'backgroundColor' && (
-                        <div className={styles.colorPicker}>
-                            <div className={styles.colorPickerHeader}>
-                                <span>Background Color</span>
-                                <button onClick={() => setShowColorPicker(null)}>
-                                    <X size={16} />
-                                </button>
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onClick={() => setShowColorPicker(showColorPicker === 'backgroundColor' ? null : 'backgroundColor')}
+                            title="Background Color"
+                        >
+                            <Palette size={18} />
+                        </button>
+                        {showColorPicker === 'backgroundColor' && (
+                            <div className={styles.colorPicker}>
+                                <div className={styles.colorPickerHeader}>
+                                    <span>Background Color</span>
+                                    <button onClick={() => setShowColorPicker(null)}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className={styles.colorSwatches}>
+                                    {COMMON_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            className={styles.colorSwatch}
+                                            style={{ backgroundColor: color }}
+                                            onClick={() => handleColorChange(color)}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                                <input
+                                    type="color"
+                                    value={element.styles.backgroundColor || '#FFFFFF'}
+                                    onChange={(e) => handleColorChange(e.target.value)}
+                                    className={styles.colorInput}
+                                />
                             </div>
-                            <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        className={styles.colorSwatch}
-                                        style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
-                            <input
-                                type="color"
-                                value={element.styles.backgroundColor || '#FFFFFF'}
-                                onChange={(e) => handleColorChange(e.target.value)}
-                                className={styles.colorInput}
-                            />
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Contents Button (for all content items: image, video, gallery) */}
                 {(element.type === 'image' || element.type === 'video' || element.type === 'gallery') && (
-                <button
-                    className={`${styles.menuButton} ${styles.contentsButton}`}
-                    onClick={() => {
-                        if (activeScreenId) {
-                            setMediaLibraryOpen(true, 'manage', {
-                                elementId: element.id,
-                                screenId: activeScreenId,
-                                elementType: element.type as 'image' | 'video' | 'gallery'
-                            });
-                        }
-                    }}
-                    title="Contents"
-                >
-                    <FolderOpen size={18} />
-                    <span className={styles.buttonLabel}>Contents</span>
-                </button>
+                    <button
+                        className={`${styles.menuButton} ${styles.contentsButton}`}
+                        onClick={() => {
+                            if (activeScreenId) {
+                                setMediaLibraryOpen(true, 'manage', {
+                                    elementId: element.id,
+                                    screenId: activeScreenId,
+                                    elementType: element.type as 'image' | 'video' | 'gallery'
+                                });
+                            }
+                        }}
+                        title="Contents"
+                    >
+                        <FolderOpen size={18} />
+                        <span className={styles.buttonLabel}>Contents</span>
+                    </button>
                 )}
 
                 {/* Frame Color (for gallery items) */}
                 {(element.type === 'image' || element.type === 'video' || element.type === 'gallery' || element.type === 'long-text') && (
-                <div className={styles.dropdownContainer}>
-                    <button
-                        className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor')}
-                        title="Frame Color"
-                    >
-                        <ImageIcon size={18} />
-                    </button>
-                    {showColorPicker === 'frameColor' && (
-                        <div className={styles.colorPicker}>
-                            <div className={styles.colorPickerHeader}>
-                                <span>Frame Color</span>
-                                <button onClick={() => setShowColorPicker(null)}>
-                                    <X size={16} />
-                                </button>
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onClick={() => setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor')}
+                            title="Frame Color"
+                        >
+                            <ImageIcon size={18} />
+                        </button>
+                        {showColorPicker === 'frameColor' && (
+                            <div className={styles.colorPicker}>
+                                <div className={styles.colorPickerHeader}>
+                                    <span>Frame Color</span>
+                                    <button onClick={() => setShowColorPicker(null)}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className={styles.colorSwatches}>
+                                    {COMMON_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            className={styles.colorSwatch}
+                                            style={{ backgroundColor: color }}
+                                            onClick={() => handleColorChange(color)}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                                <input
+                                    type="color"
+                                    value={element.styles.frameColor || '#000000'}
+                                    onChange={(e) => {
+                                        setShowColorPicker('frameColor');
+                                        handleColorChange(e.target.value);
+                                    }}
+                                    className={styles.colorInput}
+                                />
                             </div>
-                            <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        className={styles.colorSwatch}
-                                        style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
-                            <input
-                                type="color"
-                                value={element.styles.frameColor || '#000000'}
-                                onChange={(e) => {
-                                    setShowColorPicker('frameColor');
-                                    handleColorChange(e.target.value);
-                                }}
-                                className={styles.colorInput}
-                            />
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Frame Shape (for buttons) */}
                 {element.type === 'button' && (
-                <div className={styles.dropdownContainer}>
-                    <button
-                        className={styles.menuButton}
-                        onClick={() => setShowFrameShapePicker(!showFrameShapePicker)}
-                        title="Frame Shape"
-                    >
-                        <ImageIcon size={18} />
-                    </button>
-                    {showFrameShapePicker && (
-                        <div className={styles.dropdown}>
-                            <button
-                                className={`${styles.dropdownItem} ${!element.metadata?.frameShape ? styles.active : ''}`}
-                                onClick={() => {
-                                    const newMetadata = { ...element.metadata };
-                                    delete newMetadata.frameShape;
-                                    updateElement(activeScreenId!, element.id, { metadata: newMetadata });
-                                    setShowFrameShapePicker(false);
-                                }}
-                            >
-                                None
-                            </button>
-                            <button
-                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'heart' ? styles.active : ''}`}
-                                onClick={() => {
-                                    updateElement(activeScreenId!, element.id, { 
-                                        metadata: { ...element.metadata, frameShape: 'heart' }
-                                    });
-                                    setShowFrameShapePicker(false);
-                                }}
-                            >
-                                ❤️ Heart
-                            </button>
-                            <button
-                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'star' ? styles.active : ''}`}
-                                onClick={() => {
-                                    updateElement(activeScreenId!, element.id, { 
-                                        metadata: { ...element.metadata, frameShape: 'star' }
-                                    });
-                                    setShowFrameShapePicker(false);
-                                }}
-                            >
-                                ⭐ Star
-                            </button>
-                            <button
-                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'circle' ? styles.active : ''}`}
-                                onClick={() => {
-                                    updateElement(activeScreenId!, element.id, { 
-                                        metadata: { ...element.metadata, frameShape: 'circle' }
-                                    });
-                                    setShowFrameShapePicker(false);
-                                }}
-                            >
-                                ⭕ Circle
-                            </button>
-                            <button
-                                className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'diamond' ? styles.active : ''}`}
-                                onClick={() => {
-                                    updateElement(activeScreenId!, element.id, { 
-                                        metadata: { ...element.metadata, frameShape: 'diamond' }
-                                    });
-                                    setShowFrameShapePicker(false);
-                                }}
-                            >
-                                💎 Diamond
-                            </button>
-                        </div>
-                    )}
-                </div>
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onClick={() => setShowFrameShapePicker(!showFrameShapePicker)}
+                            title="Frame Shape"
+                        >
+                            <ImageIcon size={18} />
+                        </button>
+                        {showFrameShapePicker && (
+                            <div className={styles.dropdown}>
+                                <button
+                                    className={`${styles.dropdownItem} ${!element.metadata?.frameShape ? styles.active : ''}`}
+                                    onClick={() => {
+                                        const newMetadata = { ...element.metadata };
+                                        delete newMetadata.frameShape;
+                                        updateElement(activeScreenId!, element.id, { metadata: newMetadata });
+                                        setShowFrameShapePicker(false);
+                                    }}
+                                >
+                                    None
+                                </button>
+                                <button
+                                    className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'heart' ? styles.active : ''}`}
+                                    onClick={() => {
+                                        updateElement(activeScreenId!, element.id, {
+                                            metadata: { ...element.metadata, frameShape: 'heart' }
+                                        });
+                                        setShowFrameShapePicker(false);
+                                    }}
+                                >
+                                    ❤️ Heart
+                                </button>
+                                <button
+                                    className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'star' ? styles.active : ''}`}
+                                    onClick={() => {
+                                        updateElement(activeScreenId!, element.id, {
+                                            metadata: { ...element.metadata, frameShape: 'star' }
+                                        });
+                                        setShowFrameShapePicker(false);
+                                    }}
+                                >
+                                    ⭐ Star
+                                </button>
+                                <button
+                                    className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'circle' ? styles.active : ''}`}
+                                    onClick={() => {
+                                        updateElement(activeScreenId!, element.id, {
+                                            metadata: { ...element.metadata, frameShape: 'circle' }
+                                        });
+                                        setShowFrameShapePicker(false);
+                                    }}
+                                >
+                                    ⭕ Circle
+                                </button>
+                                <button
+                                    className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'diamond' ? styles.active : ''}`}
+                                    onClick={() => {
+                                        updateElement(activeScreenId!, element.id, {
+                                            metadata: { ...element.metadata, frameShape: 'diamond' }
+                                        });
+                                        setShowFrameShapePicker(false);
+                                    }}
+                                >
+                                    💎 Diamond
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Frame Color (for buttons with frames) */}
                 {element.type === 'button' && element.metadata?.frameShape && (
-                <div className={styles.dropdownContainer}>
-                    <button
-                        className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor')}
-                        title="Frame Color"
-                    >
-                        <Palette size={18} />
-                    </button>
-                    {showColorPicker === 'frameColor' && (
-                        <div className={styles.colorPicker}>
-                            <div className={styles.colorPickerHeader}>
-                                <span>Frame Color</span>
-                                <button onClick={() => setShowColorPicker(null)}>
-                                    <X size={16} />
-                                </button>
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onClick={() => setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor')}
+                            title="Frame Color"
+                        >
+                            <Palette size={18} />
+                        </button>
+                        {showColorPicker === 'frameColor' && (
+                            <div className={styles.colorPicker}>
+                                <div className={styles.colorPickerHeader}>
+                                    <span>Frame Color</span>
+                                    <button onClick={() => setShowColorPicker(null)}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className={styles.colorSwatches}>
+                                    {COMMON_COLORS.map(color => (
+                                        <button
+                                            key={color}
+                                            className={styles.colorSwatch}
+                                            style={{ backgroundColor: color }}
+                                            onClick={() => handleColorChange(color)}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                                <input
+                                    type="color"
+                                    value={element.styles.frameColor || '#000000'}
+                                    onChange={(e) => {
+                                        setShowColorPicker('frameColor');
+                                        handleColorChange(e.target.value);
+                                    }}
+                                    className={styles.colorInput}
+                                />
                             </div>
-                            <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
-                                    <button
-                                        key={color}
-                                        className={styles.colorSwatch}
-                                        style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
-                            <input
-                                type="color"
-                                value={element.styles.frameColor || '#000000'}
-                                onChange={(e) => {
-                                    setShowColorPicker('frameColor');
-                                    handleColorChange(e.target.value);
-                                }}
-                                className={styles.colorInput}
-                            />
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
                 )}
 
                 {/* Animation Selector */}
                 <div className={styles.dropdownContainer}>
-                <button
-                    className={styles.menuButton}
-                    onClick={() => setShowAnimationPicker(!showAnimationPicker)}
-                    title="Animation"
-                >
-                    <Sparkles size={18} />
-                </button>
-                {showAnimationPicker && (
-                    <div className={styles.dropdown}>
-                        {ANIMATIONS.map(anim => (
-                            <button
-                                key={anim.value}
-                                className={`${styles.dropdownItem} ${element.styles.animation === anim.value ? styles.active : ''}`}
-                                onClick={() => handleAnimationChange(anim.value)}
-                            >
-                                {anim.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                    <button
+                        className={styles.menuButton}
+                        onClick={() => setShowAnimationPicker(!showAnimationPicker)}
+                        title="Animation"
+                    >
+                        <Sparkles size={18} />
+                    </button>
+                    {showAnimationPicker && (
+                        <div className={styles.dropdown}>
+                            {ANIMATIONS.map(anim => (
+                                <button
+                                    key={anim.value}
+                                    className={`${styles.dropdownItem} ${element.styles.animation === anim.value ? styles.active : ''}`}
+                                    onClick={() => handleAnimationChange(anim.value)}
+                                >
+                                    {anim.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Font Selector */}
                 {showFontPicker && (element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
-                <div className={styles.dropdown}>
-                    {FONTS.map(font => (
-                        <button
-                            key={font.value}
-                            className={`${styles.dropdownItem} ${element.styles.fontFamily === font.value ? styles.active : ''}`}
-                            onClick={() => handleFontChange(font.value)}
-                        >
-                            {font.label}
-                        </button>
-                    ))}
-                </div>
+                    <div className={styles.dropdown}>
+                        {FONTS.map(font => (
+                            <button
+                                key={font.value}
+                                className={`${styles.dropdownItem} ${element.styles.fontFamily === font.value ? styles.active : ''}`}
+                                onClick={() => handleFontChange(font.value)}
+                            >
+                                {font.label}
+                            </button>
+                        ))}
+                    </div>
                 )}
 
                 {/* Sticker Picker (for buttons) */}
                 {showStickerPicker && element.type === 'button' && (
-                <div className={styles.stickerPicker}>
-                    <div className={styles.stickerPickerHeader}>
-                        <span>Sticker</span>
-                        <button onClick={() => setShowStickerPicker(false)}>
-                            <X size={16} />
-                        </button>
-                    </div>
-                    <div className={styles.stickerGrid}>
-                        {STICKERS.map(sticker => (
-                            <button
-                                key={sticker}
-                                className={styles.stickerButton}
-                                onClick={() => handleStickerSelect(sticker)}
-                            >
-                                {sticker}
+                    <div className={styles.stickerPicker}>
+                        <div className={styles.stickerPickerHeader}>
+                            <span>Sticker</span>
+                            <button onClick={() => setShowStickerPicker(false)}>
+                                <X size={16} />
                             </button>
-                        ))}
+                        </div>
+                        <div className={styles.stickerGrid}>
+                            {STICKERS.map(sticker => (
+                                <button
+                                    key={sticker}
+                                    className={styles.stickerButton}
+                                    onClick={() => handleStickerSelect(sticker)}
+                                >
+                                    {sticker}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
                 )}
 
                 {/* Layer Controls */}
@@ -787,14 +785,14 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                     <MoveDown size={18} />
                 </button>
 
-            {/* Delete */}
-            <button
-                className={`${styles.menuButton} ${styles.deleteButton}`}
-                onClick={handleDelete}
-                title="Delete"
-            >
-                <Trash2 size={18} />
-            </button>
+                {/* Delete */}
+                <button
+                    className={`${styles.menuButton} ${styles.deleteButton}`}
+                    onClick={handleDelete}
+                    title="Delete"
+                >
+                    <Trash2 size={18} />
+                </button>
             </div>
 
             {/* Bottom Row: Title/Subtitle Inputs (only for certain element types) */}

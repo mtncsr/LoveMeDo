@@ -25,7 +25,7 @@ const LongTextElement: React.FC<{
     onMouseDown: (e: React.MouseEvent) => void;
     onClick: (e: React.MouseEvent) => void;
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
-}> = ({ element, style, mode, isSelected, onMouseDown, onClick, onUpdate }) => {
+}> = ({ element, mode, isSelected, onMouseDown, onClick, onUpdate }) => {
     const { content, styles: elStyles, size } = element;
     const ref = useRef<HTMLDivElement>(null);
     const contentRef = useRef(content);
@@ -168,12 +168,11 @@ const EditableButton: React.FC<{
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
     commonProps: any;
     renderResizeHandles: () => React.ReactNode;
-    getAnimationClass: () => string;
     buttonStyle: React.CSSProperties;
     buttonClassName: string;
     sticker?: string;
-}> = ({ element, mode, isSelected, onUpdate, commonProps, renderResizeHandles, getAnimationClass, buttonStyle, buttonClassName, sticker }) => {
-    const { content, styles: elStyles } = element;
+}> = ({ element, mode, isSelected, onUpdate, commonProps, renderResizeHandles, buttonStyle, buttonClassName, sticker }) => {
+    const { content } = element;
     const ref = useRef<HTMLDivElement>(null);
     const contentRef = useRef(content);
 
@@ -201,7 +200,7 @@ const EditableButton: React.FC<{
 
     // Track if we've already initialized focus to avoid resetting cursor position
     const hasInitializedFocusRef = useRef(false);
-    
+
     // Initialize and focus contentEditable when element becomes selected
     useEffect(() => {
         // Initialize and focus the contentEditable when element becomes selected
@@ -244,7 +243,7 @@ const EditableButton: React.FC<{
 
     const textDirection = detectTextDirection(content);
     const isEditable = isSelected && mode === 'editor';
-    
+
     // When editing, use a div styled like a button. Otherwise use a real button element.
     if (isEditable) {
         // In editor mode when selected, use div styled as button for contentEditable
@@ -302,12 +301,12 @@ const EditableButton: React.FC<{
                         }}
                     />
                     {sticker && <span>{sticker}</span>}
-            </div>
+                </div>
                 {renderResizeHandles()}
             </div>
         );
     }
-    
+
     // In preview/export mode, use actual button element
     return (
         <div
@@ -362,8 +361,8 @@ const EditableText: React.FC<{
         if (ref.current) {
             // If contentEditable is enabled and element is empty, initialize it with content
             if (isSelected && mode === 'editor' && ref.current.contentEditable === 'true' && !ref.current.innerText && content) {
-            ref.current.innerText = content;
-        }
+                ref.current.innerText = content;
+            }
             // Otherwise, only update if content changed externally (not when focused/editing)
             else if (ref.current.innerText !== content && !(isSelected && mode === 'editor' && document.activeElement === ref.current)) {
                 ref.current.innerText = content || '';
@@ -373,7 +372,7 @@ const EditableText: React.FC<{
 
     // Track if we've already initialized focus to avoid resetting cursor position
     const hasInitializedFocusRef = useRef(false);
-    
+
     // Initialize and focus contentEditable when element becomes selected
     useEffect(() => {
         // Only initialize focus when element first becomes selected
@@ -545,7 +544,7 @@ interface Props {
     element: ScreenElement;
     mode: 'templatePreview' | 'editor' | 'export';
     isSelected?: boolean;
-    onClick?: (e: React.MouseEvent) => void;
+    onClick?: (e?: React.MouseEvent | string) => void;
     onUpdate?: (id: string, changes: Partial<ScreenElement>) => void;
     screenType?: 'overlay' | 'content' | 'navigation'; // Screen type for safe area calculation
     device?: 'mobile' | 'desktop'; // Device type for responsive font sizing
@@ -595,18 +594,18 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
         // Select element immediately on mouse down (even if onUpdate is not available)
         onClick?.(e);
-        
+
         // For text and button elements, check if we should allow the click to propagate to contentEditable
         const target = e.target as HTMLElement;
         const isTextElement = type === 'text';
         const isButtonElement = type === 'button';
-        
+
         // For text/button elements that are already selected, allow clicks to reach contentEditable
         if ((isTextElement || isButtonElement) && isSelected) {
             // Find the contentEditable element within this element
             const currentTarget = e.currentTarget as HTMLElement;
             const contentEditableEl = currentTarget.querySelector('[contenteditable="true"]') as HTMLElement;
-            
+
             // If clicking on the wrapper but there's a contentEditable child, don't stop propagation
             // so the click can reach the contentEditable for proper focus
             if (contentEditableEl && target === currentTarget) {
@@ -616,7 +615,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 return;
             }
         }
-        
+
         // For non-text elements or unselected text elements, stop propagation
         e.stopPropagation();
 
@@ -851,7 +850,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     // Auto-resize long-text elements - expand to fit content with limits
     const longTextLastTriggerRef = useRef<string>('');
     const longTextIsResizingRef = useRef(false);
-    
+
     useEffect(() => {
         if (type !== 'long-text' || !elementRef.current || !onUpdateRef.current || mode !== 'editor' || longTextIsResizingRef.current || isResizingRef.current) return;
 
@@ -882,11 +881,11 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         document.body.appendChild(measureDiv);
 
         const parentHeight = element.offsetParent.clientHeight;
-        
+
         // Calculate content height
         const contentHeightPx = measureDiv.scrollHeight;
         const contentHeightPercent = (contentHeightPx / parentHeight) * 100;
-        
+
         document.body.removeChild(measureDiv);
 
         // Calculate maximum height based on next button area or bottom edge
@@ -908,16 +907,16 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
         // Calculate desired height (content height, but not exceeding max)
         const desiredHeight = Math.min(contentHeightPercent, maxHeightPercent);
-        
+
         // Respect user-set size if they've manually shrunk it further
         const currentHeight = size.height || 0;
         // If current height is smaller than desired, user may have manually resized
         // But only respect it if it's significantly smaller (more than 2% difference)
         const userSetHeight = currentHeight < desiredHeight - 2 ? currentHeight : null;
-        
+
         // Only auto-expand if content is larger than current size
         // But respect user-set size if they've manually shrunk it
-        const finalHeight = userSetHeight && userSetHeight < desiredHeight 
+        const finalHeight = userSetHeight && userSetHeight < desiredHeight
             ? userSetHeight // User has manually shrunk it, respect that
             : Math.max(currentHeight, Math.min(desiredHeight, maxHeightPercent)); // Auto-expand but don't exceed max
 
@@ -1055,7 +1054,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     };
 
     const isInteractive = mode !== 'editor';
-    
+
     switch (type) {
         case 'text':
             return (
@@ -1191,11 +1190,11 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             const buttonSticker = element.metadata?.sticker;
             const frameShape = element.metadata?.frameShape;
             const frameColor = elStyles.frameColor || '#000000';
-            
+
             // Calculate frame shape clip-path or border-radius
             const getFrameStyle = () => {
                 if (!frameShape) return {};
-                
+
                 switch (frameShape) {
                     case 'heart':
                         return {
@@ -1220,32 +1219,32 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         return {};
                 }
             };
-            
+
             const frameStyle = getFrameStyle();
             const hasFrame = frameShape && elStyles.frameColor;
-            
+
             const buttonWrapperProps = {
                 ...commonProps,
                 style: {
-                        ...commonProps.style,
+                    ...commonProps.style,
                     border: hasFrame ? `4px solid ${frameColor}` : 'none',
                     padding: hasFrame ? '4px' : '0',
                     ...(hasFrame && frameStyle),
                 }
             };
-            
+
             const buttonStyle: React.CSSProperties = {
-                            border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : undefined,
-                            padding: '12px 24px',
-                            width: 'fit-content',
-                            minWidth: 'fit-content',
-                            margin: 0,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
+                border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : undefined,
+                padding: '12px 24px',
+                width: 'fit-content',
+                minWidth: 'fit-content',
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
             };
-            
+
             return (
                 <EditableButton
                     element={element}
@@ -1254,7 +1253,6 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     onUpdate={onUpdate}
                     commonProps={buttonWrapperProps}
                     renderResizeHandles={renderResizeHandles}
-                    getAnimationClass={getAnimationClass}
                     buttonStyle={buttonStyle}
                     buttonClassName={`${styles.elementButton} ${getAnimationClass()}`}
                     sticker={buttonSticker}
@@ -1277,7 +1275,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             } catch (e) {
                 images = [content];
             }
-            
+
             // Resolve media URLs for all gallery images
             const resolvedImages = images.map(imgId => resolveMediaUrl(imgId));
 
@@ -1650,8 +1648,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                         )}
                         <LongTextElement
                             element={element}
-                            style={{ 
-                                ...style, 
+                            style={{
+                                ...style,
                                 border: 'none', // Remove border from style since outer wrapper handles it
                                 position: 'relative', // Override absolute positioning from style
                                 left: 0,
@@ -1682,7 +1680,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 );
             }
             return (
-                <div {...commonProps} style={{ 
+                <div {...commonProps} style={{
                     ...commonProps.style,
                     padding: '0', // Remove padding from outer wrapper since LongTextElement handles it
                     backgroundColor: 'transparent', // Remove background from outer wrapper
@@ -1690,15 +1688,15 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                     alignItems: 'flex-start',
                     justifyContent: 'flex-start',
                 }}>
-                <LongTextElement
-                    element={element}
-                    style={style}
-                    mode={mode}
-                    isSelected={isSelected}
-                    onMouseDown={handleMouseDown}
-                    onClick={handleInteraction}
+                    <LongTextElement
+                        element={element}
+                        style={style}
+                        mode={mode}
+                        isSelected={isSelected}
+                        onMouseDown={handleMouseDown}
+                        onClick={handleInteraction}
                         onUpdate={onUpdate}
-                />
+                    />
                     {renderResizeHandles()}
                 </div>
             );
