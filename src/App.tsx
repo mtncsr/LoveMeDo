@@ -8,10 +8,65 @@ import ExportScreen from './components/ExportScreen';
 import React from 'react';
 
 const App: React.FC = () => {
-  try {
-    const mode = useUIStore(state => state.mode);
-    console.log('App mode:', mode);
+  const [isLocked, setIsLocked] = React.useState(true);
 
+  React.useEffect(() => {
+    const isAuthorized = localStorage.getItem('lovemedo_authorized');
+    if (isAuthorized === 'true') {
+      setIsLocked(false);
+    }
+  }, []);
+
+  const handleUnlock = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.value === '07032908') {
+      localStorage.setItem('lovemedo_authorized', 'true');
+      setIsLocked(false);
+    }
+  };
+
+  /* Hook must be called unconditionally at the top level */
+  const mode = useUIStore(state => state.mode);
+
+  if (isLocked) {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: '#000',
+        color: '#fff',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: "'Outfit', sans-serif"
+      }}>
+        <h1 style={{ marginBottom: '20px', fontSize: '24px', fontWeight: 500 }}>Know the numbers?</h1>
+        <input
+          type="tel"
+          autoFocus
+          placeholder="Enter code"
+          onChange={handleUnlock}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: '2px solid #333',
+            color: '#fff',
+            fontSize: '32px',
+            textAlign: 'center',
+            width: '200px',
+            outline: 'none',
+            letterSpacing: '4px',
+            padding: '10px 0'
+          }}
+        />
+      </div>
+    );
+  }
+
+  console.log('App mode:', mode);
+
+  try {
     switch (mode) {
       case 'landing':
         return <Landing />;
