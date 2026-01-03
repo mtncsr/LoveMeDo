@@ -609,15 +609,75 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         window.addEventListener('mouseup', handleMouseUp);
     };
 
+    // Handle touch drag
+    const handleTouchDragStart = (e: React.TouchEvent) => {
+        if (mode !== 'editor' || isResizing || e.touches.length !== 1) return;
+
+        // Select element
+        onClick?.(e as any);
+        e.stopPropagation();
+
+        if (!onUpdate) return;
+
+        const touch = e.touches[0];
+        const startX = touch.clientX;
+        const startY = touch.clientY;
+        const startLeft = position.x;
+        const startTop = position.y;
+
+        const currentTarget = e.currentTarget as HTMLElement;
+        const parent = currentTarget.offsetParent as HTMLElement;
+        if (!parent) return;
+
+        const parentWidth = parent.clientWidth;
+        const parentHeight = parent.clientHeight;
+
+        const handleTouchMove = (tm: TouchEvent) => {
+            if (tm.touches.length !== 1) return;
+            const t = tm.touches[0];
+            const dx = Math.abs(t.clientX - startX);
+            const dy = Math.abs(t.clientY - startY);
+
+            // Only start dragging if moved slightly
+            if (dx > 3 || dy > 3) {
+                // Prevent scrolling
+                if (tm.cancelable) tm.preventDefault();
+
+                const dxPl = ((t.clientX - startX) / parentWidth) * 100;
+                const dyPl = ((t.clientY - startY) / parentHeight) * 100;
+
+                onUpdate(element.id, {
+                    position: {
+                        x: Math.min(100, Math.max(0, startLeft + dxPl)),
+                        y: Math.min(100, Math.max(0, startTop + dyPl))
+                    }
+                });
+            }
+        };
+
+        const handleTouchEnd = () => {
+            window.removeEventListener('touchmove', handleTouchMove);
+            window.removeEventListener('touchend', handleTouchEnd);
+        };
+
+        window.addEventListener('touchmove', handleTouchMove, { passive: false });
+        window.addEventListener('touchend', handleTouchEnd);
+    };
+
     // Handle resize
-    const handleResizeStart = (e: React.MouseEvent, handle: string) => {
+    const handleResizeStart = (e: React.MouseEvent | React.TouchEvent, handle: string) => {
         if (mode !== 'editor' || !onUpdate) return;
         e.stopPropagation();
+
+        // Normalize event coordinates
+        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
         setIsResizing(true);
         resizeHandleRef.current = handle;
 
-        const startX = e.clientX;
-        const startY = e.clientY;
+        const startX = clientX;
+        const startY = clientY;
         const startWidth = size.width || 20;
         const startHeight = size.height || 20;
         const startLeft = position.x;
@@ -630,17 +690,23 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         const parentWidth = parent.clientWidth;
         const parentHeight = parent.clientHeight;
 
-        const handleMouseMove = (mv: MouseEvent) => {
-            mv.preventDefault();
-            const dx = (mv.clientX - startX) / parentWidth * 100;
-            const dy = (mv.clientY - startY) / parentHeight * 100;
+
+        const handleMove = (mv: MouseEvent | TouchEvent) => {
+            const currentX = 'touches' in mv ? (mv as TouchEvent).touches[0].clientX : (mv as MouseEvent).clientX;
+            const currentY = 'touches' in mv ? (mv as TouchEvent).touches[0].clientY : (mv as MouseEvent).clientY;
+
+            // Prevent scrolling on touch
+            if ('touches' in mv && mv.cancelable) mv.preventDefault();
+
+            const dx = (currentX - startX) / parentWidth * 100;
+            const dy = (currentY - startY) / parentHeight * 100;
 
             let newWidth = startWidth;
             let newHeight = startHeight;
             let newLeft = startLeft;
             let newTop = startTop;
 
-            const maintainAspect = mv.shiftKey;
+            const maintainAspect = 'shiftKey' in mv ? (mv as MouseEvent).shiftKey : false; // No shift key on touch
 
             if (handle.includes('e')) { // East (right)
                 newWidth = Math.max(5, Math.min(95, startWidth + dx));
@@ -681,62 +747,25 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             });
         };
 
-        const handleMouseUp = () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+        const handleUp = () => {
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mouseup', handleUp);
+            window.removeEventListener('touchmove', handleMove);
+            window.removeEventListener('touchend', handleUp);
             setIsResizing(false);
             resizeHandleRef.current = null;
         };
 
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleUp);
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('touchend', handleUp);
     };
 
-    // Handle pinch-to-resize
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (mode !== 'editor' || !onUpdate || e.touches.length !== 2) return;
-        e.stopPropagation();
-
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const distance = Math.hypot(
-            touch2.clientX - touch1.clientX,
-            touch2.clientY - touch1.clientY
-        );
-
-        pinchStartDistanceRef.current = distance;
-        pinchStartSizeRef.current = { width: size.width || 20, height: size.height || 20 };
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (mode !== 'editor' || !onUpdate || e.touches.length !== 2 || !pinchStartDistanceRef.current || !pinchStartSizeRef.current) return;
-        e.preventDefault();
-        e.stopPropagation();
-
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const distance = Math.hypot(
-            touch2.clientX - touch1.clientX,
-            touch2.clientY - touch1.clientY
-        );
-
-        const scale = distance / pinchStartDistanceRef.current;
-        const newWidth = Math.max(5, Math.min(95, pinchStartSizeRef.current.width * scale));
-        const newHeight = Math.max(5, Math.min(95, pinchStartSizeRef.current.height * scale));
-
-        onUpdate(element.id, {
-            size: { width: newWidth, height: newHeight },
-            metadata: {
-                ...element.metadata,
-                manualSize: true
-            }
-        });
-    };
-
-    const handleTouchEnd = () => {
-        pinchStartDistanceRef.current = null;
-        pinchStartSizeRef.current = null;
-    };
+    // REMOVED pinch-to-resize handlers
+    // const handleTouchStart ...
+    // const handleTouchMove ...
+    // const handleTouchEnd ...
 
 
 
@@ -1000,6 +1029,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                             zIndex: 10001,
                         }}
                         onMouseDown={(e) => handleResizeStart(e, handle.id)}
+                        onTouchStart={(e) => handleResizeStart(e, handle.id)}
                     />
                 ))}
             </>
@@ -1017,11 +1047,12 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         },
         'data-type': type,
         'data-element-id': element.id,
+        'data-element-id': element.id,
         onMouseDown: handleMouseDown,
         onClick: handleInteraction,
-        onTouchStart: handleTouchStart,
-        onTouchMove: handleTouchMove,
-        onTouchEnd: handleTouchEnd,
+        onTouchStart: handleTouchDragStart, // Use the new Drag Start handler
+        // onTouchMove: handleTouchMove, // Removed pinch logic
+        // onTouchEnd: handleTouchEnd,   // Removed pinch logic
     };
 
     const isInteractive = mode !== 'editor';
