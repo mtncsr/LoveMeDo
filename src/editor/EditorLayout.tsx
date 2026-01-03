@@ -342,11 +342,13 @@ const EditorLayout: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Element Editing Menu - Render outside canvas wrapper so it can appear anywhere on canvas */}
+            </div>
+
+            {/* Design Menu (Element Editing) - Fixed Bottom Bar */}
+            <div className={styles.designMenuContainer}>
                 {selectedElementId && activeScreenId && (() => {
                     const currentScreen = project.screens.find(s => s.id === activeScreenId);
                     const selectedElement = currentScreen?.elements.find(e => e.id === selectedElementId);
-                    console.log('Rendering menu check - selectedElementId:', selectedElementId, 'activeScreenId:', activeScreenId, 'element found:', !!selectedElement, 'screen elements count:', currentScreen?.elements.length);
                     if (selectedElement) {
                         return (
                             <ElementEditingMenu
