@@ -188,6 +188,11 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .lightbox-img { width:92vw; height:92vh; background-size:contain; background-position:center; background-repeat:no-repeat; pointer-events:none; }
 .lightbox video { max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.5); background:#000; position:relative; z-index:2; }
 
+.lightbox .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.4); border:none; border-radius:50%; width:56px; height:56px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; font-size:32px; text-decoration:none; z-index:10; transition:background 0.2s; }
+.lightbox .gallery-nav:hover { background:rgba(0,0,0,0.7); }
+.lightbox .gallery-nav.prev { left:24px; }
+.lightbox .gallery-nav.next { right:24px; }
+
 .lightbox-close { position:absolute; top:20px; right:20px; width:48px; height:48px; border:none; border-radius:50%; background:rgba(255,255,255,0.2); color:white; font-size:32px; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; z-index:20; transition:background 0.2s; touch-action:manipulation; }
 .lightbox-close:hover { background:rgba(255,255,255,0.4); }
 
@@ -400,7 +405,7 @@ const checkTextOverflow = (
   return scrollHeight > simHeight;
 };
 
-const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: string): GalleryBuild => {
+const buildGalleryHtml = (elem: ScreenElement, project: Project): GalleryBuild => {
   let imageIds: string[] = [];
   try {
     imageIds = JSON.parse(elem.content);
@@ -413,6 +418,11 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
   // resolved images will be handled via getMediaCssVal
 
   const galleryId = `gallery-${safeId(elem.id)}`;
+  const lbGroupName = `lb-group-${galleryId}`;
+  const closeRadioId = `close-${galleryId}`;
+
+  // Close radio (hidden, resets selection)
+  const closeRadio = `<input type="radio" name="${lbGroupName}" id="${closeRadioId}" class="lb-toggle" style="display:none">`;
 
   const inputs = imageIds
     .map((_, idx) => `<input type="radio" name="${galleryId}" id="${galleryId}-${idx}" ${idx === 0 ? 'checked' : ''}>`)
@@ -422,7 +432,7 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
     .map(
       (imgId, idx) => {
         const bgStyle = getMediaCssVal(imgId, project);
-        // Slide opens the lightbox via label for checkbox
+        // Slide opens the lightbox via label for specfic radio
         return `<div class="gallery-slide slide-${idx}">
           <label for="lb-${galleryId}-${idx}" class="gallery-img-container" style="background-image: ${bgStyle};"></label>
         </div>`;
@@ -454,21 +464,35 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
       : '';
 
   const lightboxes = imageIds.map((imgId, idx) => {
-    // Checkbox Hack for Lightbox
+    // Radio Hack for Lightbox Navigation
     const lbId = `lb-${galleryId}-${idx}`;
     const bgStyle = getMediaCssVal(imgId, project);
 
-    // Structure: Input (sibling of root) + Overlay Label
+    // Navigation IDs
+    const prevIdx = (idx - 1 + imageIds.length) % imageIds.length;
+    const nextIdx = (idx + 1) % imageIds.length;
+    const prevLbId = `lb-${galleryId}-${prevIdx}`;
+    const nextLbId = `lb-${galleryId}-${nextIdx}`;
+
+    const navArrows = imageIds.length > 1 ? `
+      <label class="gallery-nav prev" for="${prevLbId}" style="pointer-events:auto;">‹</label>
+      <label class="gallery-nav next" for="${nextLbId}" style="pointer-events:auto;">›</label>
+    ` : '';
+
     return `
-      <input type="checkbox" id="${lbId}" class="lb-toggle">
-      <label class="lightbox" for="${lbId}">
-        <div class="lightbox-content">
-          <label class="lightbox-close" for="${lbId}">×</label>
-          <div class="lightbox-img" style="background-image: ${bgStyle};"></div>
+      <input type="radio" name="${lbGroupName}" id="${lbId}" class="lb-toggle">
+      <div class="lightbox">
+        <label class="lightbox-backdrop" for="${closeRadioId}" style="position:absolute; inset:0; width:100%; height:100%; cursor:default;"></label>
+        <div class="lightbox-content" style="position:relative; pointer-events:none;">
+          <label class="lightbox-close" for="${closeRadioId}" style="pointer-events:auto;">×</label>
+          <div class="lightbox-img" style="background-image: ${bgStyle}; pointer-events:auto;"></div>
+          ${navArrows}
         </div>
-      </label>
+      </div>
     `;
   });
+
+  lightboxes.unshift(closeRadio);
 
   const cssBindings = imageIds
     .map(
@@ -601,7 +625,7 @@ const buildElementHtml = (
     style += `font-size:${elem.styles.fontSize || 40}px;`;
     className += '" data-type="sticker';
   } else if (elem.type === 'gallery') {
-    const gallery = buildGalleryHtml(elem, project, screen.id);
+    const gallery = buildGalleryHtml(elem, project);
     contentHtml = gallery.html;
     lightboxes = gallery.lightboxes;
     className += '" data-type="gallery';
