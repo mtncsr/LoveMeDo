@@ -9,7 +9,18 @@ const escapeHtml = (input: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const resolveMedia = (value: string, project: Project): string =>
+const safeId = (id: string): string => id.replace(/[^a-zA-Z0-9-]/g, '_');
+
+// Helper for CSS url() values - returns duplicate-free var(...) or direct url()
+const getMediaCssVal = (value: string, project: Project): string => {
+  if (project.mediaLibrary[value] && project.mediaLibrary[value].type === 'image') {
+    return `var(--media-${safeId(value)})`;
+  }
+  return `url('${value}')`;
+};
+
+// Helper for direct src values (Video/Audio) - still duplicated, as per constraints
+const getMediaSrc = (value: string, project: Project): string =>
   project.mediaLibrary[value]?.data || value;
 
 const rand = (min: number, max: number): number => Math.random() * (max - min) + min;
@@ -113,7 +124,8 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .content-wrapper { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; width:100%; position:relative; }
 
 .background { position:absolute; inset:0; width:100%; height:100%; overflow:hidden; }
-.background img, .background video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.background-media { position:absolute; inset:0; width:100%; height:100%; background-size:cover; background-position:center; background-repeat:no-repeat; }
+.background video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
 .nav-bar { position: relative; width:100%; height:60px; display:flex; align-items:center; z-index:100; padding:0 20px; pointer-events: none; flex-shrink:0; }
 .nav-btn { pointer-events: auto; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 20px; text-decoration:none; touch-action:manipulation; }
@@ -125,7 +137,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .content-screen .element[data-type="image"],
 .content-screen .element[data-type="video"] { flex-grow:1; flex-basis:0 !important; height:0 !important; display:flex; flex-direction:column; min-height:0; margin-bottom:0; padding:10px 20px; }
 .content-screen .element[data-type="long-text"] { width:fit-content !important; max-width:100%; margin-left:auto; margin-right:auto; height:auto !important; }
-.content-screen .element[data-type="image"] > a { display:block; width:100%; height:100%; }
+.content-screen .element[data-type="image"] > .img-container { display:block; width:100%; height:100%; }
 .content-screen .element[data-type="video"] .video-wrapper { width:100%; height:100%; }
 .element[data-type="sticker"] { animation: float 4s ease-in-out infinite; pointer-events: none; }
 @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-10px) rotate(5deg); } }
@@ -160,30 +172,25 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .gallery { display:flex; flex-direction:column; width:100%; height:100%; padding:6px; box-sizing:border-box; }
 .gallery input[type="radio"] { display:none; }
 .gallery-frame { position:relative; width:100%; flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background-color:transparent; border-radius:10px; overflow:hidden; margin-bottom:8px; }
-.gallery-slide { position:absolute; inset:0; opacity:0; display:flex; align-items:center; justify-content:center; pointer-events:none; visibility:hidden; }
-.gallery-slide > a { display:block; width:100%; height:100%; }
-.gallery-slide img { width:100%; height:100%; object-fit:contain; object-position:center; }
+.gallery-slide { position:absolute; inset:0; opacity:0; display:flex; align-items:center; justify-content:center; pointer-events:none; visibility:hidden; width:100%; height:100%; }
+.gallery-slide > .gallery-img-container { display:block; width:100%; height:100%; background-size:contain; background-position:center; background-repeat:no-repeat; cursor:pointer; }
 .gallery-thumbs { display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; padding:4px 0; scrollbar-width:thin; -webkit-overflow-scrolling: touch; }
-.gallery-thumb { flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; opacity:0.75; background-color:#f0f0f0; display:block; touch-action:manipulation; }
-.gallery-thumb img { width:100%; height:100%; object-fit:cover; }
-.gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:none; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px; text-decoration:none; touch-action:manipulation; }
+.gallery-thumb { flex-shrink:0; width:60px; height:60px; border-radius:6px; overflow:hidden; cursor:pointer; border:2px solid transparent; opacity:0.75; background-color:#f0f0f0; display:block; touch-action:manipulation; background-size:cover; background-position:center; background-repeat:no-repeat; }
+.gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.6); border:none; border-radius:50%; width:36px; height:36px; display:none; align-items:center; justify-content:center; cursor:pointer; color:white; z-index:10; font-size:20px; text-decoration:none; touch-action:manipulation; line-height:1; }
 .gallery-nav.prev { left:8px; }
 .gallery-nav.next { right:8px; }
 
+/* Lightbox Checkbox Interaction */
+.lb-toggle { display: none; }
 .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.95); display:none; align-items:center; justify-content:center; z-index:9999; padding:0; }
-.lightbox:target { display:flex; }
-.lightbox .lb-slide { display:none; position:relative; width:100%; height:100%; align-items:center; justify-content:center; }
-.lightbox .lb-slide.active { display:flex; }
-/* Backdrop handles click-outside-to-close */
-.lightbox-backdrop { position:fixed; inset:0; width:100%; height:100%; z-index:1; cursor:default; }
-.lightbox .gallery-nav { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.4); border:none; border-radius:50%; width:56px; height:56px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; font-size:32px; text-decoration:none; z-index:10; transition:background 0.2s; }
-.lightbox .gallery-nav:hover { background:rgba(0,0,0,0.7); }
-.lightbox .gallery-nav.prev { left:24px; }
-.lightbox .gallery-nav.next { right:24px; }
-.lightbox img { max-width:92vw; max-height:92vh; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.5); position:relative; z-index:2; pointer-events:none; }
+.lb-toggle:checked + .lightbox { display:flex; }
+.lightbox-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+.lightbox-img { width:92vw; height:92vh; background-size:contain; background-position:center; background-repeat:no-repeat; pointer-events:none; }
 .lightbox video { max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 10px 40px rgba(0,0,0,0.5); background:#000; position:relative; z-index:2; }
+
 .lightbox-close { position:absolute; top:20px; right:20px; width:48px; height:48px; border:none; border-radius:50%; background:rgba(255,255,255,0.2); color:white; font-size:32px; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; z-index:20; transition:background 0.2s; touch-action:manipulation; }
 .lightbox-close:hover { background:rgba(255,255,255,0.4); }
+
 .video-wrapper { position:relative; width:100%; height:100%; }
 .video-wrapper video { width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit; pointer-events:none; }
 .video-lightbox-trigger { position:absolute; inset:0; z-index:5; }
@@ -198,57 +205,71 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
 
-    .long-text-preview {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 12;
-      overflow: hidden;
-      text-overflow: ellipsis; 
-    }
+.long-text-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 12;
+  overflow: hidden;
+  text-overflow: ellipsis; 
+}
 
-    .text-lightbox {
-      background: #ffffff;
-      color: #333;
-      padding: 60px 24px 24px 24px;
-      width: 90vw;
-      max-width: 600px;
-      max-height: 80vh;
-      border-radius: 16px;
-      overflow-y: auto;
-      font-family: var(--font-body);
-      font-size: 18px;
-      line-height: 1.6;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      position: relative;
-      z-index: 2;
-    }
-    .text-lightbox .lightbox-content {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    .text-lightbox-close {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        background: #f0f0f0;
-        color: #333;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        font-size: 24px;
-        line-height: 1;
-        border: none;
-        cursor: pointer;
-    }
+.text-lightbox {
+  background: #ffffff;
+  color: #333;
+  padding: 60px 24px 24px 24px;
+  width: 90vw;
+  max-width: 600px;
+  max-height: 80vh;
+  border-radius: 16px;
+  overflow-y: auto;
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.6;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 2;
+  cursor: default;
+}
+.text-lightbox .lightbox-content-text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.text-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    color: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 24px;
+    line-height: 1;
+    border: none;
+    cursor: pointer;
+}
 `;
 
-const buildGlobalCSS = async (): Promise<string> => {
+const buildGlobalCSS = async (project: Project): Promise<string> => {
   const embeddedFonts = await embedGoogleFonts();
-  return embeddedFonts + GLOBAL_CSS_TEMPLATE;
+
+  // Build CSS Variables for all media in library
+  const mediaVars = Object.entries(project.mediaLibrary)
+    .filter(([_, item]) => item.type === 'image') // Only deduplicate images via CSS vars
+    .map(([id, item]) => {
+      // Use the raw base64 data as the url value
+      return `--media-${safeId(id)}: url('${item.data}');`;
+    })
+    .join('\n');
+
+  // Inject vars into :root
+  const cssWithVars = GLOBAL_CSS_TEMPLATE.replace(':root {', `:root {\n${mediaVars}`);
+
+  return embeddedFonts + cssWithVars;
 };
 
 const buildOverlayHtml = (screen: Screen): string => {
@@ -379,46 +400,51 @@ const checkTextOverflow = (
   return scrollHeight > simHeight;
 };
 
-type GalleryBuild = { html: string; lightboxes: string[] };
-
 const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: string): GalleryBuild => {
-  let images: string[] = [];
+  let imageIds: string[] = [];
   try {
-    images = JSON.parse(elem.content);
+    imageIds = JSON.parse(elem.content);
   } catch {
-    images = [elem.content];
+    imageIds = [elem.content];
   }
-  if (!Array.isArray(images)) images = [elem.content];
-  images = images.map((id) => resolveMedia(id, project));
+  if (!Array.isArray(imageIds)) imageIds = [elem.content];
 
-  const galleryId = `gallery-${elem.id.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  const inputs = images
+  // We work with IDs primarily now to generate CSS vars
+  // resolved images will be handled via getMediaCssVal
+
+  const galleryId = `gallery-${safeId(elem.id)}`;
+
+  const inputs = imageIds
     .map((_, idx) => `<input type="radio" name="${galleryId}" id="${galleryId}-${idx}" ${idx === 0 ? 'checked' : ''}>`)
     .join('');
 
-
-
-  const slides = images
+  const slides = imageIds
     .map(
-      (src, idx) => `<div class="gallery-slide slide-${idx}">
-        <a href="#lb-${galleryId}-${idx}" data-gallery-open><img src="${src}" alt="" loading="lazy" decoding="async"></a>
-      </div>`
+      (imgId, idx) => {
+        const bgStyle = getMediaCssVal(imgId, project);
+        // Slide opens the lightbox via label for checkbox
+        return `<div class="gallery-slide slide-${idx}">
+          <label for="lb-${galleryId}-${idx}" class="gallery-img-container" style="background-image: ${bgStyle};"></label>
+        </div>`;
+      }
     )
     .join('');
 
-  const thumbs = images
+  const thumbs = imageIds
     .map(
-      (src, idx) =>
-        `<label class="gallery-thumb thumb-${idx}" for="${galleryId}-${idx}"><img src="${src}" alt="" loading="lazy" decoding="async"></label>`
+      (imgId, idx) => {
+        const bgStyle = getMediaCssVal(imgId, project);
+        return `<label class="gallery-thumb thumb-${idx}" for="${galleryId}-${idx}" style="background-image: ${bgStyle};"></label>`;
+      }
     )
     .join('');
 
   const navPrevNext =
-    images.length > 1
-      ? images
+    imageIds.length > 1
+      ? imageIds
         .map((_, idx) => {
-          const prevIdx = (idx - 1 + images.length) % images.length;
-          const nextIdx = (idx + 1) % images.length;
+          const prevIdx = (idx - 1 + imageIds.length) % imageIds.length;
+          const nextIdx = (idx + 1) % imageIds.length;
           return `
             <label class="gallery-nav prev nav-prev-${idx}" for="${galleryId}-${prevIdx}">‹</label>
             <label class="gallery-nav next nav-next-${idx}" for="${galleryId}-${nextIdx}">›</label>
@@ -427,26 +453,24 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
         .join('')
       : '';
 
-  const lightboxes = images.map((src, idx) => {
-    const prevIdx = (idx - 1 + images.length) % images.length;
-    const nextIdx = (idx + 1) % images.length;
+  const lightboxes = imageIds.map((imgId, idx) => {
+    // Checkbox Hack for Lightbox
+    const lbId = `lb-${galleryId}-${idx}`;
+    const bgStyle = getMediaCssVal(imgId, project);
+
+    // Structure: Input (sibling of root) + Overlay Label
     return `
-      <div class="lightbox" id="lb-${galleryId}-${idx}">
-        <a class="lightbox-backdrop" href="#screen-${screenId}" aria-label="Close"></a>
-        <a class="lightbox-close" href="#screen-${screenId}" aria-label="Close">×</a>
-        <img src="${src}" alt="">
-        ${images.length > 1
-        ? `
-              <a class="gallery-nav prev" href="#lb-${galleryId}-${prevIdx}">‹</a>
-              <a class="gallery-nav next" href="#lb-${galleryId}-${nextIdx}">›</a>
-            `
-        : ''
-      }
-      </div>
+      <input type="checkbox" id="${lbId}" class="lb-toggle">
+      <label class="lightbox" for="${lbId}">
+        <div class="lightbox-content">
+          <label class="lightbox-close" for="${lbId}">×</label>
+          <div class="lightbox-img" style="background-image: ${bgStyle};"></div>
+        </div>
+      </label>
     `;
   });
 
-  const cssBindings = images
+  const cssBindings = imageIds
     .map(
       (_, idx) => `
       #${galleryId}-${idx}:checked ~ .gallery-frame .slide-${idx} { opacity:1; position:absolute; display:flex; pointer-events:auto; visibility:visible; }
@@ -465,7 +489,7 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
         ${slides}
         ${navPrevNext}
       </div>
-      ${images.length > 1 ? `<div class="gallery-thumbs">${thumbs}</div>` : ''}
+      ${imageIds.length > 1 ? `<div class="gallery-thumbs">${thumbs}</div>` : ''}
 
     </div>
   `;
@@ -473,6 +497,7 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project, screenId: strin
   return { html, lightboxes };
 };
 
+type GalleryBuild = { html: string; lightboxes: string[] };
 type ElementBuild = { html: string; lightboxes: string[] };
 
 const buildElementHtml = (
@@ -498,7 +523,6 @@ const buildElementHtml = (
   const scaledFontSize = elem.styles?.fontSize ? elem.styles.fontSize * fontScaleFactor : undefined;
 
   // Auto-center logic for buttons on overlay screens
-  // If button midpoint is roughly 50% (+/- 5%), force true centering
   const centerPoint = elem.position.x + (elem.size.width || 0) / 2;
   const isCenteredButton = !isContentScreen && elem.type === 'button' && centerPoint >= 45 && centerPoint <= 55;
   const transformPrefix = isCenteredButton ? 'translateX(-50%) ' : '';
@@ -545,16 +569,23 @@ const buildElementHtml = (
   if (elem.type === 'text') {
     contentHtml = escapeHtml(elem.content);
   } else if (elem.type === 'image') {
-    const imageSrc = resolveMedia(elem.content, project);
-    const lbId = `lb-${elem.id}`;
-    contentHtml = `<a href="#${lbId}"><img src="${imageSrc}" alt="" style="width:100%; height:100%; object-fit:contain; object-position:center; display:block; border-radius:inherit;" /></a>`;
-    lightboxes.push(
-      `<div class="lightbox" id="${lbId}">
-        <a class="lightbox-backdrop" href="#screen-${screen.id}" aria-label="Close"></a>
-        <a class="lightbox-close" href="#screen-${screen.id}" aria-label="Close">×</a>
-        <img src="${imageSrc}" alt="">
-      </div>`
-    );
+    const bgStyle = getMediaCssVal(elem.content, project); // Returns var(--media-id) or url(...)
+    const lbId = `lb-${safeId(elem.id)}`;
+
+    // Use label to toggle lightbox
+    contentHtml = `<label for="${lbId}" class="img-container" style="width:100%; height:100%; display:block; border-radius:inherit; background-image:${bgStyle}; background-size:contain; background-position:center; background-repeat:no-repeat; cursor:pointer;" aria-label="View Image"></label>`;
+
+    // Lightbox using checkbox hack
+    lightboxes.push(`
+      <input type="checkbox" id="${lbId}" class="lb-toggle">
+      <label class="lightbox" for="${lbId}">
+        <div class="lightbox-content">
+          <label class="lightbox-close" for="${lbId}">×</label>
+          <div class="lightbox-img" style="background-image:${bgStyle};"></div>
+        </div>
+      </label>
+    `);
+
     className += '" data-type="image';
   } else if (elem.type === 'button') {
     className += ' element-button';
@@ -573,41 +604,28 @@ const buildElementHtml = (
     const gallery = buildGalleryHtml(elem, project, screen.id);
     contentHtml = gallery.html;
     lightboxes = gallery.lightboxes;
-    className += '" data-type="gallery'; // Add data attribute for CSS targeting
+    className += '" data-type="gallery';
   } else if (elem.type === 'video') {
-    const videoSrc = resolveMedia(elem.content, project);
-    const lbId = `lb-video-${elem.id}`;
-    contentHtml = `<div class="video-wrapper"><a class="video-lightbox-trigger" href="#${lbId}" aria-label="Open video"></a><video src="${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls preload="metadata"></video></div>`;
-    lightboxes.push(
-      `<div class="lightbox" id="${lbId}">
-        <a class="lightbox-backdrop" href="#screen-${screen.id}" aria-label="Close"></a>
-        <a class="lightbox-close" href="#screen-${screen.id}" aria-label="Close">×</a>
-        <video src="${videoSrc}" controls preload="metadata"></video>
-      </div>`
-    );
+    const videoSrc = getMediaSrc(elem.content, project); // Still duplicated
+    const lbId = `lb-video-${safeId(elem.id)}`;
+
+    contentHtml = `<div class="video-wrapper"><label class="video-lightbox-trigger" for="${lbId}" aria-label="Open video"></label><video src="${videoSrc}" style="width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit;" controls preload="metadata"></video></div>`;
+
+    lightboxes.push(`
+      <input type="checkbox" id="${lbId}" class="lb-toggle">
+      <label class="lightbox" for="${lbId}">
+        <div class="lightbox-content">
+          <label class="lightbox-close" for="${lbId}">×</label>
+          <video src="${videoSrc}" controls preload="metadata"></video>
+        </div>
+      </label>
+    `);
     className += '" data-type="video';
   } else if (elem.type === 'long-text') {
     const textContent = escapeHtml(elem.content);
 
-    // Check for overflow
-    // Use stored width/height if available, otherwise assume defaults or 'fit-content'
-    // For long-text, width is usually constrained by margins/padding, height is 'auto' in editor but restricted in export layout if fixed?
-    // In export, we set height: something% or auto. 
-    // Line 410: height:${adjustedHeight ? adjustedHeight + '%' : 'auto'};
-    // If height is 'auto', it won't overflow vertically (it just grows).
-    // BUT the requirement implies the *container* might be fixed or small, OR we want to cap it.
-    // Actually, earlier we fixed vertical resizing. So `adjustedHeight` should be the user-set height.
-    // If user set a height, we respect it. If it overflows THAT height, we show ellipsis.
-    // If height is auto, checking overflow is tricky (it never overflows).
-    // However, the user said "only when the text is overflowing the long text window". 
-    // This implies a fixed height window.
-
     const fontSizeVal = scaledFontSize || 16;
-    const checkHeight = adjustedHeight || 0; // If 0/undefined/auto, we might not overflow unless we enforce max-height?
-    // If height is auto, we CAN'T overflow.
-    // Assuming user resized it (so `adjustedHeight` > 0).
-    // If `adjustedHeight` is missing, we assume it fits? 
-    // Or maybe we treat 'auto' effectively as "fits"?
+    const checkHeight = adjustedHeight || 0;
 
     const isOverflowing = checkHeight > 0 && checkTextOverflow(
       elem.content,
@@ -617,8 +635,6 @@ const buildElementHtml = (
       fontSizeVal
     );
 
-    // Inject specific styles for long-text into the main style variable
-    // This allows us to use the single outer container for everything
     style += `
       padding:16px;
       background-color:${elem.styles.backgroundColor || 'rgba(255,255,255,0.9)'};
@@ -627,26 +643,24 @@ const buildElementHtml = (
       word-wrap: break-word;
     `;
 
-    // Add the preview class to the outer wrapper to handle line-clamping
     className += ' long-text-preview';
 
     if (isOverflowing) {
-      const lbId = `lb-text-${elem.id}`;
-      // Create Lightbox
-      lightboxes.push(
-        `<div class="lightbox" id="${lbId}">
-                <a class="lightbox-backdrop" href="#screen-${screen.id}" aria-label="Close"></a>
-                <div class="text-lightbox" onclick="event.stopPropagation()">
-                    <a class="text-lightbox-close" href="#screen-${screen.id}" aria-label="Close">×</a>
-                    <div class="lightbox-content" style="font-size:${fontSizeVal}px; font-family:${elem.styles.fontFamily || 'inherit'}">${textContent}</div>
-                </div>
-            </div>`
-      );
+      const lbId = `lb-text-${safeId(elem.id)}`;
 
-      // Just the text wrapped in a link
-      contentHtml = `<a href="#${lbId}" style="text-decoration:none; color:inherit;">${textContent}</a>`;
+      lightboxes.push(`
+        <input type="checkbox" id="${lbId}" class="lb-toggle">
+        <label class="lightbox" for="${lbId}">
+            <div class="text-lightbox" onclick="event.stopPropagation()">
+                <label class="text-lightbox-close" for="${lbId}">×</label>
+                <div class="lightbox-content-text" style="font-size:${fontSizeVal}px; font-family:${elem.styles.fontFamily || 'inherit'}">${textContent}</div>
+            </div>
+        </label>
+      `);
+
+      // Trigger is label
+      contentHtml = `<label for="${lbId}" style="text-decoration:none; color:inherit; cursor:pointer;">${textContent}</label>`;
     } else {
-      // Just the text
       contentHtml = textContent;
     }
 
@@ -670,11 +684,11 @@ const buildBackgroundHtml = (screen: Screen, project: Project): string => {
     return `<div class="background" style="background-image:${screen.background.value};"></div>`;
   }
   if (screen.background.type === 'image') {
-    const src = resolveMedia(screen.background.value, project);
-    return `<div class="background"><img src="${src}" aria-hidden="true" /></div>`;
+    const bgStyle = getMediaCssVal(screen.background.value, project);
+    return `<div class="background-media" style="background-image:${bgStyle};" aria-hidden="true"></div>`;
   }
   if (screen.background.type === 'video') {
-    const src = resolveMedia(screen.background.value, project);
+    const src = getMediaSrc(screen.background.value, project);
     return `<div class="background"><video src="${src}" autoplay loop muted playsinline></video></div>`;
   }
   return `<div class="background"></div>`;
@@ -789,7 +803,7 @@ export const buildExportHtml = async (project: Project): Promise<string> => {
     })
   };
 
-  const css = minifyCSS(await buildGlobalCSS());
+  const css = minifyCSS(await buildGlobalCSS(processedProject));
 
   const globalAudio = buildGlobalAudio(processedProject);
   let audioInjected = false;

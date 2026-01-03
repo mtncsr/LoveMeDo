@@ -146,9 +146,11 @@ export const convertProjectMediaToBase64 = async (project: import('../types/mode
     for (const [id, item] of Object.entries(mediaLibrary)) {
         if (item.type === 'image') {
             try {
-                if (item.data.startsWith('data:')) {
-                    // Already Base64 - RE-COMPRESS to ensure optimization (0.8 quality and max width)
-                    // This handles existing images that might be uncompressed or high quality
+                if (item.data.startsWith('data:image/webp;base64,')) {
+                    // Already WebP Base64 - reusable as-is (Immutable)
+                    // No action needed, preserving original quality
+                } else if (item.data.startsWith('data:')) {
+                    // Base64 but not WebP (e.g. legacy PNG/JPG) - Compress to WebP
                     const webpBase64 = await resizeImage(item.data);
                     mediaLibrary[id] = { ...item, data: webpBase64, mimeType: 'image/webp' };
                 } else if (item.data.startsWith('blob:') || item.data.startsWith('http') || item.data.startsWith('/')) {
