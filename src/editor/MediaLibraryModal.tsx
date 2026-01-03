@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useUIStore } from '../store/uiStore';
 import { useProjectStore } from '../store/projectStore';
-import { fileToBase64, resizeImage } from '../utils/fileHelpers';
+import { fileToBase64, compressImageFile } from '../utils/fileHelpers';
 import { X, Upload as UploadIcon, Check, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './MediaLibraryModal.module.css';
@@ -18,7 +18,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     const [activeTab, setActiveTab] = useState<TabType>('images');
     const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
     const [musicAssignmentType, setMusicAssignmentType] = useState<'global' | 'individual'>('global');
-    
+
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
     const musicInputRef = useRef<HTMLInputElement>(null);
@@ -26,14 +26,14 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
     if (!project || !contentManagerContext) return null;
 
     const { elementId, screenId, elementType } = contentManagerContext;
-    
+
     // Set music tab as active when music element is opened
     useEffect(() => {
         if (elementType === 'music') {
             setActiveTab('music');
         }
     }, [elementType]);
-    
+
     // Get the current element to determine assigned media
     const currentElement = useMemo(() => {
         if (!screenId || !elementId) return null;
@@ -47,7 +47,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
             // For music, check both global and screen-level assignments
             const assignedIds = new Set<string>();
             const currentScreen = screenId ? project.screens.find(s => s.id === screenId) : null;
-            
+
             // Check global music
             if (project.config.globalMusic && project.mediaLibrary[project.config.globalMusic]) {
                 assignedIds.add(project.config.globalMusic);
@@ -58,15 +58,15 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                 assignedIds.add(currentScreen.music);
                 setMusicAssignmentType('individual');
             }
-            
+
             setSelectedMediaIds(assignedIds);
             return;
         }
-        
+
         if (!currentElement) return;
-        
+
         const assignedIds = new Set<string>();
-        
+
         if (elementType === 'image' || elementType === 'video') {
             // Single media ID for hero images and videos
             const content = currentElement.content;
@@ -90,7 +90,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                 }
             }
         }
-        
+
         setSelectedMediaIds(assignedIds);
     }, [currentElement, elementType, project.mediaLibrary, project.config.globalMusic, screenId, project.screens]);
 
@@ -119,22 +119,39 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
             }
 
             try {
-                // 1. Convert to Base64
-                let base64 = await fileToBase64(file);
+                let base64 = "";
 
-                // 2. Resize/Compress if image
+                // 1. Convert to Base64 (Compressed for images, raw for others)
                 if (file.type.startsWith('image/')) {
-                    base64 = await resizeImage(base64);
+                    // Use new optimized flow: File -> ObjectURL -> Canvas -> Base64
+                    base64 = await compressImageFile(file);
+                } else {
+                    // Legacy flow for video/audio: File -> Base64
+                    base64 = await fileToBase64(file);
                 }
 
-                // 3. Create Item
+                // 2. Create Item
                 const newItem = {
                     id: uuidv4(),
                     type: expectedType,
                     originalName: file.name,
-                    mimeType: file.type,
+                    // mimeType: file.type, // Replaced by logic below
+                    // Actually, since we convert to WebP, we should probably update the mimeType for images to image/webp to be accurate.
+                    // But to be safe with existing logic, let's keep it as is or update if we are sure.
+                    // The previous logic didn't update mimeType in the newItem object explicitly here, 
+                    // but the `resizeImage` returned webp.
+                    // Let's update mimeType for images to 'image/webp' to be correct.
+                    // However, `expectedType` is 'image', 'video', 'audio'.
+                    // Let's stick to the file type for now to avoid side effects, or better yet, if image, set to image/webp.
+                    // The previous code: `mimeType: file.type`.
+                    // The previous code result: `data: canvas.toDataURL('image/webp', 0.9)`.
+                    // So the data was WebP, but the mimeType stored was original (e.g. image/jpeg).
+                    // This might be inconsistent but working.
+                    // Let's keep it consistent with previous behavior, OR improve it. 
+                    // If I change it, I might break something expecting original mime.
+                    mimeType: file.type.startsWith('image/') ? 'image/webp' : file.type,
                     data: base64,
-                    width: 0, // Should extract
+                    width: 0,
                     height: 0
                 };
 
@@ -238,9 +255,9 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
             const isScreen = currentScreen?.music === mediaId && project.mediaLibrary[mediaId];
             return isGlobal || isScreen;
         }
-        
+
         if (!currentElement) return false;
-        
+
         if (elementType === 'image' || elementType === 'video') {
             return currentElement.content === mediaId && project.mediaLibrary[mediaId];
         } else if (elementType === 'gallery') {
@@ -285,7 +302,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                         <Save size={18} />
                         <span>Save</span>
                     </button>
-                    
+
                     <div className={styles.tabs}>
                         <button
                             className={`${styles.tab} ${activeTab === 'images' ? styles.activeTab : ''}`}
@@ -316,8 +333,8 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                 <div className={styles.content}>
                     {/* Music Assignment Type Selector */}
                     {elementType === 'music' && (
-                        <div style={{ 
-                            padding: '16px', 
+                        <div style={{
+                            padding: '16px',
                             borderBottom: '1px solid #e0e0e0',
                             display: 'flex',
                             flexDirection: 'column',
@@ -348,11 +365,11 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                             </div>
                         </div>
                     )}
-                    
+
                     {/* Upload Section */}
                     <div className={styles.uploadSection}>
-                        <div 
-                            className={styles.uploadArea} 
+                        <div
+                            className={styles.uploadArea}
                             onClick={() => getFileInputRef().current?.click()}
                         >
                             <UploadIcon size={24} />
@@ -373,7 +390,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                         {filteredMediaItems.map(item => {
                             const isSelected = selectedMediaIds.has(item.id);
                             const hasCheckmark = isAssigned(item.id);
-                            
+
                             return (
                                 <div
                                     key={item.id}
@@ -395,14 +412,14 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                                             <span>Audio</span>
                                         </div>
                                     )}
-                                    
+
                                     {/* Checkmark overlay for assigned items */}
                                     {hasCheckmark && (
                                         <div className={styles.checkmarkOverlay}>
                                             <Check size={16} />
                                         </div>
                                     )}
-                                    
+
                                     {/* Selection indicator */}
                                     {isSelected && !hasCheckmark && (
                                         <div className={styles.selectionIndicator}>
@@ -413,7 +430,7 @@ const MediaLibraryModal: React.FC<Props> = ({ onSelect }) => {
                             );
                         })}
                     </div>
-                    
+
                     {filteredMediaItems.length === 0 && (
                         <div className={styles.emptyState}>
                             <p>No {activeTab} uploaded yet. Click "Upload" to add your first {activeTab === 'images' ? 'image' : activeTab === 'videos' ? 'video' : 'audio'}.</p>
