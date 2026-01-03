@@ -74,6 +74,7 @@
     position: absolute;
     z-index: 10;
     /* Interactable in preview/export, disabled in editor usually handled by wrapper */
+    touch-action: none;
 }
 
 .resizeHandle {

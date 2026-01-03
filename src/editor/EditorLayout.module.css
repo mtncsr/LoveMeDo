@@ -413,3 +413,68 @@
     transform: scale(1.2);
     box-shadow: 0 0 0 4px rgba(255, 77, 109, 0.1);
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .topBar {
+        padding: 0 8px;
+        height: 56px;
+    }
+
+    .left,
+    .right {
+        width: auto;
+    }
+
+    .saveBtn span,
+    .createBtn span {
+        display: none;
+    }
+    
+    .saveBtn {
+        padding: 8px;
+        margin-right: 4px;
+    }
+    
+    .createBtn {
+        padding: 8px;
+    }
+
+    .screenTitleInput {
+        max-width: 120px;
+        font-size: 1rem;
+    }
+
+    .tabsContainer {
+        height: 40px;
+        padding: 0 8px;
+    }
+
+    .floatingDeviceToggle {
+        top: 8px;
+        right: 8px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .zoomControl {
+        bottom: 90px;
+        right: 16px;
+    }
+
+    .bottomMenu {
+        height: 60px;
+        gap: 16px;
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding: 0 16px;
+    }
+
+    .menuItem {
+        min-width: 50px;
+    }
+
+    .canvasContainer {
+        padding: 16px 8px;
+    }
+}
