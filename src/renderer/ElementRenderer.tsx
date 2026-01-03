@@ -521,8 +521,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     const elementRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
     const resizeHandleRef = useRef<string | null>(null);
-    const pinchStartDistanceRef = useRef<number | null>(null);
-    const pinchStartSizeRef = useRef<{ width: number; height: number } | null>(null);
+
 
     // Get animation class
     const getAnimationClass = () => {
@@ -1047,7 +1046,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         },
         'data-type': type,
         'data-element-id': element.id,
-        'data-element-id': element.id,
+
         onMouseDown: handleMouseDown,
         onClick: handleInteraction,
         onTouchStart: handleTouchDragStart, // Use the new Drag Start handler
