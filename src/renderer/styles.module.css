@@ -15,9 +15,9 @@
     border: 8px solid #111;
     aspect-ratio: 9 / 16;
     /* Size based on available space - override base 100% width/height */
-    max-height: calc(95vh - 60px - 80px - 40px) !important;
-    height: calc(95vh - 60px - 80px - 40px) !important;
-    width: calc((95vh - 60px - 80px - 40px) * 9 / 16) !important;
+    max-height: calc(95dvh - 60px - 80px - 40px) !important;
+    height: calc(95dvh - 60px - 80px - 40px) !important;
+    width: calc((95dvh - 60px - 80px - 40px) * 9 / 16) !important;
     max-width: 375px !important;
     min-width: 250px;
     min-height: 400px;

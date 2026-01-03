@@ -191,3 +191,58 @@
     color: var(--color-primary);
     font-weight: bold;
 }
+
+@media (max-width: 768px) {
+    .container {
+        min-height: 100dvh;
+    }
+
+    .header {
+        padding: 16px;
+    }
+
+    .headerContent {
+        gap: 12px;
+    }
+
+    .headerText h1 {
+        font-size: 1.5rem;
+        margin-bottom: 4px;
+    }
+
+    .headerText p {
+        font-size: 0.8rem;
+        line-height: 1.2;
+    }
+
+    .headerActions {
+        gap: 8px;
+    }
+
+    /* Hide text labels in buttons on mobile to save space */
+    .yourProjectsButton span,
+    .importButton span {
+        display: none;
+    }
+
+    .yourProjectsButton,
+    .importButton {
+        padding: 10px;
+    }
+
+    .grid {
+        margin: 24px auto;
+        padding: 0 16px;
+        grid-template-columns: 1fr;
+        /* Stack cards on mobile */
+        gap: 20px;
+    }
+
+    .cardThumbnail {
+        height: 140px;
+    }
+
+    .emoji {
+        font-size: 48px;
+    }
+}

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useUIStore } from '../store/uiStore';
 import { getTemplate } from '../templates/registry';
 import { Renderer } from '../renderer/Renderer';
-import { Phone, Monitor, X, Check } from 'lucide-react';
+import { Smartphone, Monitor, X, Check } from 'lucide-react';
 import styles from './TemplatePreviewModal.module.css';
 import { useProjectStore } from '../store/projectStore';
 
@@ -52,7 +52,7 @@ export const TemplatePreviewModal: React.FC<Props> = ({ templateId }) => {
                             className={`${styles.toggleBtn} ${device === 'mobile' ? styles.active : ''}`}
                             onClick={() => setDevice('mobile')}
                         >
-                            <Phone size={20} />
+                            <Smartphone size={20} />
                             <span>Mobile</span>
                         </button>
                     </div>

@@ -11,6 +11,7 @@ import MediaLibraryModal from './MediaLibraryModal';
 import { ElementEditingMenu } from './ElementEditingMenu';
 import { YourProjectsModal } from '../components/YourProjectsModal';
 import { saveProject } from '../utils/projectStorage';
+import { useDevice } from '../hooks/useDevice';
 
 const EditorLayout: React.FC = () => {
     const { project, updateScreen, updateElement, addScreen, addElement } = useProjectStore();
@@ -19,7 +20,16 @@ const EditorLayout: React.FC = () => {
         selectedElementId, isMediaLibraryOpen, mediaLibraryMode, contentManagerContext,
         isYourProjectsOpen, setYourProjectsOpen
     } = useUIStore();
-    const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('mobile');
+
+    // Use device hook for accurate detection
+    const { isMobile } = useDevice();
+    const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>(() => isMobile ? 'mobile' : 'desktop');
+
+    // Update view when device type changes
+    useEffect(() => {
+        setDeviceView(isMobile ? 'mobile' : 'desktop');
+    }, [isMobile]);
+
     const [zoom, setZoom] = useState(100);
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
     const [editingScreenId, setEditingScreenId] = useState<string | null>(null);
