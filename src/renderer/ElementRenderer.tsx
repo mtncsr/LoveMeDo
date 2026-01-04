@@ -967,7 +967,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         width: size.width ? `${size.width}%` : 'auto',
         height: adjustedHeight ? `${adjustedHeight}%` : 'auto',
         color: elStyles.color,
-        backgroundColor: elStyles.backgroundColor,
+        // backgroundColor removed to preventing stretching effects
         fontSize: scaledFontSize ? `${scaledFontSize}px` : undefined,
         fontWeight: elStyles.fontWeight,
         fontFamily: elStyles.fontFamily,
@@ -976,7 +976,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         opacity: elStyles.opacity,
         transform: elStyles.rotation ? `rotate(${elStyles.rotation}deg)` : undefined,
         zIndex: elStyles.zIndex || 10,
-        boxShadow: elStyles.shadow ? 'var(--shadow-md)' : undefined,
+        // box-shadow removed from wrapper to prevent unwanted container boxes
+        textShadow: type === 'text' && elStyles.shadow ? '0 2px 4px rgba(0,0,0,0.5)' : undefined,
         textDecoration: elStyles.textDecoration,
         fontStyle: elStyles.fontStyle,
         cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery' || type === 'long-text') ? 'pointer' : 'default',
@@ -1037,7 +1038,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
     const commonProps: any = {
         ref: elementRef,
-        className: `${styles.element} ${type === 'text' ? styles.elementText : ''} ${type === 'image' ? styles.elementImage : ''} ${type === 'button' ? styles.elementButton : ''} ${getAnimationClass()}`,
+        className: `${styles.element} ${type === 'text' ? styles.elementText : ''} ${type === 'image' ? styles.elementImage : ''} ${getAnimationClass()}`,
         style: {
             ...style,
             padding: elStyles.backgroundColor && type === 'text' ? '12px 16px' : undefined,
@@ -1243,6 +1244,9 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '4px',
+                backgroundColor: elStyles.backgroundColor || 'var(--color-primary)',
+                color: elStyles.color || 'white',
+                boxShadow: elStyles.shadow ? 'var(--shadow-md)' : undefined,
             };
 
             return (

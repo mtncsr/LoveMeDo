@@ -582,7 +582,8 @@ const buildElementHtml = (
     z-index:${elem.styles.zIndex || 10};
     white-space: pre-wrap;
     word-wrap: break-word;
-    ${elem.styles.shadow ? 'box-shadow: 0 4px 10px rgba(0,0,0,0.2);' : ''}
+    ${elem.styles.shadow && elem.type !== 'text' ? 'box-shadow: 0 4px 10px rgba(0,0,0,0.2);' : ''}
+    ${elem.styles.shadow && elem.type === 'text' ? 'text-shadow: 0 2px 4px rgba(0,0,0,0.5);' : ''}
     ${elem.styles.opacity ? 'opacity:' + elem.styles.opacity + ';' : ''}
   `;
 
@@ -619,7 +620,10 @@ const buildElementHtml = (
     else if (target === 'back' && prevId) href = `#${prevId}`;
     else if (target === 'nav-screen') href = '#screen-nav';
     else if (target) href = `#screen-${target}`;
-    contentHtml = `<a href="${href}" style="color:inherit; text-decoration:none;">${escapeHtml(elem.content)}</a>`;
+
+    // Include sticker if present
+    const stickerHtml = elem.metadata?.sticker ? `<span>${elem.metadata.sticker}</span>` : '';
+    contentHtml = `<a href="${href}" style="color:inherit; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px;">${escapeHtml(elem.content)}${stickerHtml}</a>`;
   } else if (elem.type === 'sticker') {
     contentHtml = escapeHtml(elem.content);
     style += `font-size:${elem.styles.fontSize || 40}px;`;
@@ -761,11 +765,20 @@ const buildScreenHtml = (screen: Screen, project: Project, idx: number, audioHtm
   const nextId = idx < project.screens.length - 1 ? `screen-${project.screens[idx + 1].id}` : null;
   const navBar = buildNavigationBar(screen, prevId);
   const navPills = buildNavPills(screen, project);
-  const nextButton = buildNextButton(screen, nextId);
 
-  // Filter out explicit next buttons for content screens to avoid duplication with footer button
+  // Check for explicit visible next buttons (relax check to any navigation button)
+  const hasExplicitNextButton = screen.elements.some(
+    el => el.type === 'button' && el.metadata?.action === 'navigate' && !el.metadata?.hidden
+  );
+
+  // Only show footer next button if no explicit button exists
+  const nextButton = (!hasExplicitNextButton && screen.type === 'content')
+    ? buildNextButton(screen, nextId)
+    : '';
+
+  // Filter out ONLY hidden next buttons (used for styling automatic button)
   const elementsToRender = screen.elements.filter(el =>
-    screen.type !== 'content' || el.type !== 'button' || el.metadata?.target !== 'next'
+    !(el.type === 'button' && el.metadata?.action === 'navigate' && el.metadata?.hidden)
   );
 
   const elementsSorted = [...elementsToRender].sort((a, b) => {

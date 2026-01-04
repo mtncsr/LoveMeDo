@@ -51,19 +51,17 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
         allScreens.length > 0 &&
         currentScreenIndex < allScreens.length - 1;
 
-    // Check if screen has any button elements with navigation to 'next' (excluding hidden ones)
+    // Check if screen has any button elements with navigation (excluding hidden ones)
     const hasNavigationButtons = sortedElements.some(
         el => el.type === 'button' &&
             el.metadata?.action === 'navigate' &&
-            el.metadata?.target === 'next' &&
             !el.metadata?.hidden
     );
 
     // Find the navigation button element for styling (including hidden ones used for automatic next button)
     const navButtonElement = sortedElements.find(
         el => el.type === 'button' &&
-            el.metadata?.action === 'navigate' &&
-            el.metadata?.target === 'next'
+            el.metadata?.action === 'navigate'
     );
 
     // Render Background
@@ -186,8 +184,8 @@ export const ScreenRenderer: React.FC<Props> = ({ screen, mode, isActive, onNavi
                 );
             })}
 
-            {/* Next Button (for content screens only, at bottom) - always show in editor mode, otherwise only if no navigation button elements exist */}
-            {type === 'content' && hasNextScreen && (mode === 'editor' || !hasNavigationButtons) && (
+            {/* Next Button (for content screens only, at bottom) - only show if no navigation button elements exist */}
+            {type === 'content' && hasNextScreen && !hasNavigationButtons && (
                 <div className={styles.nextButtonContainer}>
                     <button
                         className={styles.nextButton}
