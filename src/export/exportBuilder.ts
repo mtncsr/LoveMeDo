@@ -776,17 +776,142 @@ const buildScreenHtml = (screen: Screen, project: Project, idx: number, audioHtm
     ? buildNextButton(screen, nextId)
     : '';
 
-  // Filter out ONLY hidden next buttons (used for styling automatic button)
-  const elementsToRender = screen.elements.filter(el =>
-    !(el.type === 'button' && el.metadata?.action === 'navigate' && el.metadata?.hidden)
-  );
+  // 1. Separate "Content" (Strict Layout) vs "Free" (Absolute) items
+  const contentElements: ScreenElement[] = [];
+  const freeElements: ScreenElement[] = [];
 
-  const elementsSorted = [...elementsToRender].sort((a, b) => {
-    if (screen.type === 'content') {
-      return a.position.y - b.position.y;
+  elementsToRender.forEach(el => {
+    if (['text', 'long-text', 'gallery'].includes(el.type) && screen.type === 'content') {
+      contentElements.push(el);
+    } else {
+      freeElements.push(el);
     }
+  });
+
+  // 2. Calculate Strict Layout for Content
+  let renderedContentHtml = '';
+
+  if (contentElements.length > 0) {
+    // Sort texts by Y to maintain relative order
+    // We process Texts then Galleries
+    const texts = contentElements.filter(el => ['text', 'long-text'].includes(el.type));
+    const galleries = contentElements.filter(el => el.type === 'gallery');
+    texts.sort((a, b) => a.position.y - b.position.y);
+
+    const safeAreaTop = 10; // 10%
+    const safeAreaBottom = 85; // 85%
+    const availableHeight = safeAreaBottom - safeAreaTop;
+    const padding = 2;
+
+    let currentY = safeAreaTop;
+
+    // Render Texts (fit content)
+    texts.forEach(el => {
+      // Modify the element's position/height for the builder
+      // For export, we construct style manually in buildElementHtml
+      // We can override it here by passing adjusted values but buildElementHtml takes the element.
+      // Better to Clone and Modify element.
+
+      // Note: `buildElementHtml` uses `adjustedY` logic. 
+      // We should probably rely on `buildElementHtml` calculating style based on what we pass.
+      // BUT `buildElementHtml` has its own safe area logic: `adjustedY = safeAreaTop + (elem.position.y / 100) * safeAreaHeight;`
+      // This maps 0-100 template space to Safe Area.
+      // OUR calculateLayout in registry ALREADY DID THIS MAPPING (mostly).
+      // Wait, `calculateLayout` runs in `ScreenRenderer` before passing to `ElementRenderer`.
+      // In `exportBuilder`, we are receiving the RAW `screen.elements`.
+      // These elements have their `position.y` in "Template Space" (0-100).
+      // Ideally, we should run `calculateLayout` logic HERE to get final positions.
+
+      // HOWEVER, existing `calculateLayout` logic in `registry.ts` returns elements with `y` in 0-100 space?
+      // Let's check `registry.ts`: `const finalY = Math.max(safeAreaTop, ...)` -> `finalY` was constrained between 0 and 99.
+      // Actually `safeAreaTop` in `calculateLayout` was 0.
+
+      // So `calculateLayout` returns positions in Template Space (0-100).
+      // `buildElementHtml` takes Template Space positions and maps them to Safe Area (10-85%).
+      // So we need to emulate `calculateLayout` logic here to set the Template Space Y positions.
+
+      // Let's perform a mini-layout-calculation here on the raw elements.
+      // Since we don't have the full DOM to measure text, we use `estimateTextHeight`? 
+      // `exportBuilder` doesn't have `estimateTextHeight` imported.
+      // We can assume `text` takes minimal space and `long-text` expands?
+      // Or just simpler logic:
+      // Texts = 0 to X
+      // Galleries = X to 100 (Rest)
+
+      // Logic:
+      // Text takes 0..N% (based on some heuristic/size).
+      // Gallery takes N..100%
+
+      // Since we can't accurately measure text height in Node/Export script without DOM,
+      // We'll rely on the `size.height` property which SHOULD be updated by the Editor/Renderer 
+      // when user edits text (if we implemented auto-resize).
+      // If `calculateLayout` runs in Editor, it updates the *visual* layout. 
+      // Does it update the `store`? NO. `calculateLayout` is a render-time derivation `ScreenRenderer`.
+      // So the `screen` object in `exportBuilder` has the ORIGINAL positions/sizes.
+
+      // This is a problem. The stricter layout rules are applied at Render Time.
+      // To match Export, we must duplicate that logic.
+      // But we assume `exportBuilder` runs in Browser (it uses `document.createElement` in `checkTextOverflow`).
+      // Yes, `checkTextOverflow` is used. So we CAN check overflow/measure.
+
+      // We can reuse the `checkTextOverflow` logic to verify height?
+      // Actually, `checkTextOverflow` determines if we need Lightbox.
+
+      // Let's implement a simplified stacking for Export:
+      // 1. Stack Texts at Top (Y=0).
+      // 2. Galleries fill the rest.
+
+      // NOTE: `buildElementHtml` maps 0-100 to 10-85.
+      // So we just need to set Y=0, Y=10 etc (Template Space).
+
+      const cloned = { ...el, position: { ...el.position }, size: { ...el.size } };
+
+      // Estimate Height
+      // Standard Text: assume 10% height? Or use `size.height` if set manually?
+      // `checkTextOverflow` logic exists.
+      // Let's assume standard height is sufficient for short text.
+      // For Long Text, we want it to expand.
+
+      // Simple Stack:
+      cloned.position.y = (currentY - safeAreaTop) / (availableHeight / 100); // Inverse map roughly? 
+      // No, let's work in Template Space (0-100).
+      // Template Space Top = 0.
+
+      // We need `currentTemplateY`.
+    });
+  }
+
+  // RE-PLAN:
+  // Instead of re-implementing complex layout, loop elements and render them.
+  // The user wants "Strict Rules". 
+  // If `ScreenRenderer` shows them layouted correctly, the User expects Export to match.
+  // Since `exportBuilder` runs in the client (browser), we can try to use `calculateLayout`.
+  // Is `calculateLayout` exported from `registry`? Yes.
+  // Can we import it? Yes.
+  // Line 2: `import { calculateLayout } from '../templates/registry';` - IT IS ALREADY IMPORTED!
+
+  // SOLUTION: Run `calculateLayout` on the elements before building HTML!
+  // This ensures 1:1 match with Editor/Preview.
+
+  // Note: `calculateLayout` expects (elements, device).
+  // Export is typically "Mobile" or responsive?
+  // `GLOBAL_CSS_TEMPLATE` has `#root.mobile` media queries.
+  // Let's assume 'mobile' layout for the base export as it handles 9:16 best.
+  // `calculateLayout(screen.elements, 'mobile')`.
+
+  const layoutedElements = (screen.type === 'content')
+    ? calculateLayout(screen.elements, 'mobile')
+    : screen.elements;
+
+  // Now sort by Z-Index for rendering order (or Y for content? calculateLayout handles Y).
+  // But strictly, we need to respect Z-index for overlap.
+  // `layoutedElements` returns everything (content + free).
+
+  const elementsSorted = [...layoutedElements].sort((a, b) => {
+    // Render order: Background -> ... -> Foreground
     return (a.styles?.zIndex || 10) - (b.styles?.zIndex || 10);
   });
+
   const elementBuilds = elementsSorted.map((el) => buildElementHtml(screen, el, project, prevId, nextId));
   const elementsHtml = elementBuilds.map((b) => b.html).join('');
   const overlayHtml = buildOverlayHtml(screen);

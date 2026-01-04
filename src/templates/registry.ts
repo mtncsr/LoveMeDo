@@ -165,441 +165,182 @@ const estimateTextHeight = (
 
 // Layout helper: Calculate non-overlapping positions for content screens
 // Works in 0-100% space which maps to 10-85% safe area in renderer
+// Helper to check if element is a "content" type (affected by stack)
+const isContentElement = (el: ScreenElement) => ['text', 'long-text', 'gallery'].includes(el.type);
+
+// Helper to check if element is a "free-floating" type (preserved position)
+const isFreeElement = (el: ScreenElement) => ['sticker', 'button', 'shape', 'image', 'video'].includes(el.type) && el.type !== 'gallery';
+// Note: User request said "content items like texts and galleries need to fit stacked...". 
+// Images and Videos are not explicitly mentioned in the strict "Text -> Gallery" stack rule in the prompt, 
+// BUT typically "Images" (Heroes) are content. 
+// However, the prompt specifically said: "from top to bottom - top line of screen, texts, galleries, bottom line."
+// It did NOT mention Images/Videos in that specific sentence. 
+// But later it said "Image - opens the content manager". 
+// In the templates, we have "Hero Images". 
+// If I treat Images as free-floating, they might overlap text. 
+// If I treat them as content, where do they go? 
+// The prompt rules seem focused on the "Texts and Galleries" specifically. 
+// "containers of items fit to the content... content items like texts and galleries need to fit stacked"
+// I will treat Images and Videos as "Free Floating" for now to respect the specific "Texts -> Galleries" instruction, 
+// OR I can slot them in. 
+// Given the specific instruction "if no texts... extend gallery... if no gallery... extend text", implies these are the main dynamic blocks.
+// I will keep existing images (like wish cards or heroes) as free/absolute for now, 
+// UNLESS they are part of the flow. 
+// Actually, looking at the templates, "Hero" images are key. 
+// If I make them free floating, the text (which is now stacked strict top-down) might overlap them if not careful.
+// BUT the user said "content items like texts and galleries". 
+// I will stick to strictly stacking Texts and Galleries. 
+// Anything else (Images, Videos, Buttons, Stickers) will be considered "Free" and kept at their Z/Y positions, 
+// BUT we might need to ensure Text/Gallery doesn't overlap them?
+// The prompt didn't say "avoid overlapping other elements". It said "fit stacked between top and bottom".
+// I'll implement strict stacking for Texts and Galleries. 
+// Effectively, Texts and Galleries will partition the screen Vertical Space among themselves.
+// Other elements will sit on top or behind based on Z-Index. 
+// This is risky for existing templates (like Birthday) where Text is meant to be next to an Image.
+// BUT the user asked for "all screen... to follow a set of rules".
+// This implies a global rule enforcement.
+
 const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop' = 'mobile'): ScreenElement[] => {
-    // Safe area bounds: 0-99% in template space maps to 10-85% on screen
-    // Use 99% to leave 1% buffer at bottom for next button
-    const safeAreaTop = 0;
-    const safeAreaBottom = 99;  // 99% in template = ~84% on screen (leaves space for next button)
-
-    // Device-aware scaling factors
     const isMobile = device === 'mobile';
-    const contentScale = isMobile ? 0.85 : 1.0; // Scale down content on mobile
-    const spacingFactor = isMobile ? 1.5 : 1.0; // More spacing on mobile for better readability
-    const baseMinSpacing = 4; // Base minimum spacing between elements (increased from 3)
-    const minSpacing = baseMinSpacing * spacingFactor; // Minimum spacing between elements
 
-    // Separate layout-constrained elements from stickers (free-floating)
-    const layoutElements: ScreenElement[] = [];
-    const stickers: ScreenElement[] = [];
-    const galleries: ScreenElement[] = [];
+    // 1. Define Boundaries
+    const topLine = 10; // Top Safe Area %
+    const bottomLine = 85; // Bottom Safe Area % (matches CSS safe area usually)
+    const availableHeight = bottomLine - topLine;
+    const padding = 2; // Small padding between items
+
+    // 2. Separate Elements
+    const contentElements: ScreenElement[] = [];
+    const freeElements: ScreenElement[] = [];
 
     elements.forEach(el => {
-        if (el.type === 'sticker') {
-            stickers.push(el); // Stickers can overlap, keep original position
-        } else if (el.type === 'gallery') {
-            galleries.push(el); // Handle galleries separately
-            layoutElements.push({ ...el }); // Also include in layout calculation
+        if (['text', 'long-text', 'gallery'].includes(el.type)) {
+            contentElements.push(el);
         } else {
-            layoutElements.push({ ...el }); // Copy for layout calculation
+            freeElements.push(el);
         }
     });
 
-    // Sort layout elements by intended Y position (top to bottom)
-    // Special handling: process yellow wish card first, then hero, then blue wish card, then red wish card
-    layoutElements.sort((a, b) => {
-        const aY = a.position.y;
-        const bY = b.position.y;
+    if (contentElements.length === 0) {
+        return elements; // No content to layout
+    }
 
-        // Detect wish cards
-        const aIsWish = a.type === 'text' && a.styles?.backgroundColor && a.styles?.borderRadius;
-        const bIsWish = b.type === 'text' && b.styles?.backgroundColor && b.styles?.borderRadius;
+    // 3. Group Content
+    // "from top to bottom - top line ... texts ... galleries ... bottom line"
+    const texts = contentElements.filter(el => ['text', 'long-text'].includes(el.type));
+    const galleries = contentElements.filter(el => el.type === 'gallery');
 
-        // Yellow wish card (y:5) comes first
-        if (aIsWish && aY === 5) return -1;
-        if (bIsWish && bY === 5) return 1;
+    // Sort texts by original Y to maintain relative order among themselves
+    texts.sort((a, b) => a.position.y - b.position.y);
 
-        // Hero image comes after yellow, before blue
-        if (a.type === 'image' && aY >= 50 && aIsWish && bY === 5) return 1;
-        if (b.type === 'image' && bY >= 50 && aIsWish && aY === 5) return -1;
-        if (a.type === 'image' && aY >= 50 && bIsWish && bY === 31) return -1;
-        if (b.type === 'image' && bY >= 50 && aIsWish && aY === 31) return 1;
+    // 4. Calculate Heights and Positions
+    let currentY = topLine;
+    const adjustedContent: ScreenElement[] = [];
 
-        // Blue wish card (y:31) comes after hero
-        if (aIsWish && aY === 31 && b.type === 'image' && bY >= 50) return 1;
-        if (bIsWish && bY === 31 && a.type === 'image' && aY >= 50) return -1;
+    // Strategy:
+    // If Texts + Gallery: Texts take fit-content (stacked), Gallery takes remaining.
+    // If Texts Only: Texts Stacked. If LongText exists, it takes remaining? Or just fit content?
+    // "if gallery is not present, extend the text container to fit from top to bottom"
+    // This implies we should stretch the text container.
+    // I'll calculate total natural height of texts. If < availableHeight, and we need to extend, 
+    // we can distribute extra space or grow the last one (if long-text).
 
-        // Red wish card (y:18) comes after yellow, before blue
-        if (aIsWish && aY === 18 && bIsWish && bY === 31) return -1;
-        if (bIsWish && bY === 18 && aIsWish && aY === 31) return 1;
+    // 4a. Process Texts
+    let totalTextHeight = 0;
+    const textHeights: number[] = [];
 
-        // Default: sort by Y position
-        if (Math.abs(aY - bY) < 5) {
-            // If Y positions are close (within 5%), sort by X (left to right)
-            return a.position.x - b.position.x;
-        }
-        return aY - bY;
+    texts.forEach(text => {
+        // Estimate height based on content
+        // We use the existing estimator but maybe with stricter width?
+        const fontSize = text.styles?.fontSize || 24;
+        const width = text.size.width || 80;
+        const estimated = estimateTextHeight(text.content || '', fontSize, width, device);
+        textHeights.push(estimated);
+        totalTextHeight += estimated;
     });
 
-    // Calculate adjusted positions to prevent overlaps
-    const adjustedElements: ScreenElement[] = [];
+    // Check if we have galleries to take the rest
+    const hasGallery = galleries.length > 0;
 
-    for (let i = 0; i < layoutElements.length; i++) {
-        const current = layoutElements[i];
-        let adjustedY = current.position.y;
+    // Place Texts
+    texts.forEach((text, index) => {
+        const height = textHeights[index];
 
+        // If NO Gallery, and this is the LAST text, and it's Long-Text, maybe stretch it?
+        // Or "extend the text container" means the group takes full height?
+        // If it's a "Wish Card" (small text), stretching looks bad. 
+        // If it's "Long Text", stretching is good.
+        // I will trust the "fit to content" rule for standard text, 
+        // and only stretch "Long Text" if it's the main content and no gallery.
 
-        // Calculate accurate height based on element type
-        let adjustedHeight: number = 0;
+        let finalHeight = height;
 
-        if (current.type === 'text' || current.type === 'long-text') {
-            // Use estimated height for text elements
-            if (current.metadata?.manualSize && current.size.height) {
-                // If user manually resized, use that height (respecting their intent)
-                // We assume the size in the store is the intended visual percent height
-                adjustedHeight = current.size.height;
-            } else {
-                const fontSize = current.styles?.fontSize || 24;
-                const width = current.size.width || 80;
-                adjustedHeight = estimateTextHeight(current.content || '', fontSize, width, device);
-            }
-            // Don't apply content scaling to heights - heights are already device-aware in estimateTextHeight
-            // Content scaling should only affect spacing, not element dimensions
-        } else if (current.type === 'gallery') {
-            // For galleries, use defined height (will be adjusted later for desktop)
-            adjustedHeight = (current.size.height || 50) * contentScale;
-        } else {
-            // For other elements (images, buttons), use defined height with scaling
-            adjustedHeight = (current.size.height || 10) * contentScale;
+        if (!hasGallery && text.type === 'long-text' && texts.length === 1) {
+            // Single long text, no gallery -> Fill space
+            finalHeight = Math.max(height, availableHeight);
         }
 
+        // Ensure we don't overflow bottom if we can avoid it
+        // (Though if content is huge, it will overflow)
 
-        // Check for overlaps with ALL previous elements (not just immediately previous)
-        let maxBottom = safeAreaTop;
-        for (let j = 0; j < adjustedElements.length; j++) {
-            const previous = adjustedElements[j];
-
-            // Get actual height of previous element
-            let prevHeight: number;
-            if (previous.type === 'text' || previous.type === 'long-text') {
-                const prevFontSize = previous.styles?.fontSize || 24;
-                const prevWidth = previous.size.width || 80;
-                prevHeight = estimateTextHeight(previous.content || '', prevFontSize, prevWidth, device) * contentScale;
-            } else {
-                prevHeight = (previous.size.height || 10) * contentScale;
-            }
-
-            const prevBottom = previous.position.y + prevHeight;
-
-            // Improved horizontal overlap detection - use actual element widths
-            const currentLeft = current.position.x;
-            const currentRight = current.position.x + (current.size.width || 80);
-            const prevLeft = previous.position.x;
-            const prevRight = previous.position.x + (previous.size.width || 80);
-
-            // Check if elements overlap horizontally (more precise check)
-            const horizontalOverlap = currentLeft < prevRight && currentRight > prevLeft;
-
-
-            // If horizontally overlapping, track the bottom position
-            if (horizontalOverlap) {
-                maxBottom = Math.max(maxBottom, prevBottom);
-            }
-        }
-
-        // Position element below all overlapping previous elements with spacing
-        // Detect wish cards (text elements with background color and border radius)
-        const isWishCard = (el: ScreenElement) =>
-            el.type === 'text' &&
-            el.styles?.backgroundColor &&
-            el.styles?.borderRadius;
-
-        const currentIsWish = isWishCard(current);
-        const currentIsImage = current.type === 'image';
-
-        // Add spacing based on element types
-        let requiredSpacing = minSpacing;
-        if ((current.type === 'text' || current.type === 'long-text') &&
-            adjustedElements.length > 0) {
-            const previous = adjustedElements[adjustedElements.length - 1];
-            if (previous.type === 'text' || previous.type === 'long-text') {
-                const prevIsWish = isWishCard(previous);
-
-                if (currentIsWish && prevIsWish) {
-                    // Wish cards should have consistent small spacing between them
-                    // Use a fixed small padding (1.5% on mobile, 1.0% on desktop) for consistent stacking
-                    requiredSpacing = isMobile ? 1.5 : 1.0; // Small consistent spacing for wish cards
-                } else {
-                    // Extra spacing between regular text elements (especially on mobile)
-                    const extraTextSpacing = isMobile ? 2.5 : 1.5;
-                    requiredSpacing = minSpacing + extraTextSpacing;
-                }
-            }
-        }
-
-        // Special handling: if current is image and previous is wish card, add minimal spacing
-        if (currentIsImage && adjustedElements.length > 0) {
-            const previous = adjustedElements[adjustedElements.length - 1];
-            if (isWishCard(previous)) {
-                // Minimal spacing between last wish card and hero image
-                requiredSpacing = isMobile ? 2.0 : 1.5;
-            }
-        }
-
-        // Special handling for long-text elements positioned between wish cards (anniversary template)
-        const isLongText = current.type === 'long-text';
-        if (isLongText) {
-            // Find wish cards in the layout
-            const wishCards: ScreenElement[] = [];
-            for (const el of layoutElements) {
-                if (isWishCard(el)) {
-                    wishCards.push(el);
-                }
-            }
-
-            // If there are wish cards and the long-text is positioned near them (y: 10-20 range)
-            if (wishCards.length >= 2 && current.position.y >= 10 && current.position.y <= 20) {
-                // Sort wish cards by y position
-                wishCards.sort((a, b) => a.position.y - b.position.y);
-                const topWishCard = wishCards[0];
-                const bottomWishCard = wishCards[wishCards.length - 1];
-
-                // Find adjusted positions of wish cards
-                let topWishBottom = topWishCard.position.y + (topWishCard.size.height || 12);
-                let bottomWishTop = bottomWishCard.position.y;
-
-                // Check if wish cards have already been processed and adjusted
-                for (const el of adjustedElements) {
-                    if (isWishCard(el)) {
-                        if (el.id === topWishCard.id) {
-                            topWishBottom = el.position.y + (el.size.height || 12);
-                        }
-                        if (el.id === bottomWishCard.id) {
-                            bottomWishTop = el.position.y;
-                        }
-                    }
-                }
-
-                // If bottom wish card hasn't been processed yet, use original position
-                // The bottom wish card will be processed later, but we need its position now
-                // For the anniversary template, bottom wish card is at y:78 originally
-                // We'll use this as the top of the bottom wish card
-
-                // Position long-text centered between wish cards with equal spacing on both sides
-                const spacing = isMobile ? 1.5 : 1.0;
-
-                // Calculate available space between the cards
-                const spaceBetweenCards = bottomWishTop - topWishBottom;
-
-                // Calculate the maximum height the long text can have (reserving spacing on both sides)
-                // Shrink it a bit to make room for bottom card positioning
-                const shrinkFactor = 0.95; // Shrink by 5% to make room
-                const maxLongTextHeight = (spaceBetweenCards - (spacing * 2)) * shrinkFactor;
-
-                // Use the smaller of: requested height or available space
-                const desiredHeight = Math.min(adjustedHeight, maxLongTextHeight);
-
-                // Center the long text in the available space with equal spacing
-                // Start position = top card bottom + spacing
-                adjustedY = topWishBottom + spacing;
-
-                if (desiredHeight > 0) {
-                    // Use the desired height - this already accounts for equal spacing on both sides
-                    adjustedHeight = desiredHeight;
-                }
-            }
-        }
-
-        // For wish cards: special layout - yellow at top, blue at bottom, red centered between them
-        // This must run BEFORE the general overlap adjustment to ensure positioning takes precedence
-        if (currentIsWish) {
-
-            const wishCardSpacing = isMobile ? 1.5 : 1.0; // Small spacing for wish cards
-
-            // Find hero image in layoutElements
-            let heroImage: ScreenElement | null = null;
-            for (let j = 0; j < layoutElements.length; j++) {
-                if (layoutElements[j].type === 'image' && layoutElements[j].position.y >= 50) {
-                    heroImage = layoutElements[j];
-                    break;
-                }
-            }
-
-            // Identify which wish card this is (by original Y position: 5=yellow, 18=red, 31=blue for birthday-kids)
-            // For anniversary template: 10=top, 85=bottom
-            const isYellow = current.position.y === 5;
-            const isRed = current.position.y === 18;
-            const isBlue = current.position.y === 31;
-            const isAnniversaryBottom = current.position.y === 85; // Anniversary template bottom wish card
-
-            if (isYellow) {
-                // Yellow card: small space from top line
-                adjustedY = wishCardSpacing; // Start with small padding from top
-            } else if (isBlue) {
-                // Blue card: small space from hero (position above hero with small padding)
-                if (heroImage) {
-                    // Check if hero has already been processed (in adjustedElements)
-                    let heroY = heroImage.position.y; // Default to original position
-                    for (const el of adjustedElements) {
-                        if (el.type === 'image' && el.id === heroImage.id) {
-                            heroY = el.position.y; // Use adjusted position if available
-                            break;
-                        }
-                    }
-
-                    adjustedY = heroY - adjustedHeight - wishCardSpacing - 3; // Position above hero with small padding, move up 3 tics (2% more than before)
-                }
-            } else if (isRed) {
-                // Red card: centered between yellow and blue with small space from each
-                // Find yellow and blue cards from adjustedElements or calculate from known positions
-                let yellowBottom = wishCardSpacing + adjustedHeight; // Yellow at top + its height
-                let blueTop = safeAreaBottom - adjustedHeight - wishCardSpacing; // Blue near bottom
-
-                // Try to get actual positions from already processed elements
-                for (const el of adjustedElements) {
-                    if (isWishCard(el)) {
-                        if (el.position.y < 10) {
-                            yellowBottom = el.position.y + (el.size.height || adjustedHeight);
-                        }
-                        if (el.position.y > 20) {
-                            blueTop = el.position.y;
-                        }
-                    }
-                }
-
-                // If we have hero, use it to calculate blue position
-                if (heroImage && blueTop > heroImage.position.y - adjustedHeight) {
-                    blueTop = heroImage.position.y - adjustedHeight - wishCardSpacing;
-                }
-
-                // Center red between yellow bottom and blue top
-                const availableSpace = blueTop - yellowBottom;
-                const redHeight = adjustedHeight;
-                const totalSpaceNeeded = redHeight + (wishCardSpacing * 2); // Red height + padding on both sides
-
-                if (availableSpace >= totalSpaceNeeded) {
-                    adjustedY = yellowBottom + wishCardSpacing; // Small space from yellow
-                    // Center it in remaining space
-                    const extraSpace = availableSpace - totalSpaceNeeded;
-                    adjustedY += extraSpace / 2;
-                } else {
-                    // Not enough space, just stack with small padding from yellow
-                    adjustedY = yellowBottom + wishCardSpacing;
-                }
-
-                // Move red card up by 2 tics
-                adjustedY -= 2;
-
-            } else if (isAnniversaryBottom) {
-                // Anniversary template bottom wish card: position close to next button with small padding
-                // Next button area starts at safeAreaBottom (85%), so position card just above it
-                // But leave proper spacing from the next button's frame
-                const spacingFromNextButton = isMobile ? 2.0 : 1.5; // Small padding from next button frame
-                adjustedY = safeAreaBottom - adjustedHeight - spacingFromNextButton;
-
-                // Raise the bottom card by 3% as requested
-                adjustedY -= 3;
-
-                // Ensure it doesn't go above the long text element
-                // Find long text element if it's been processed and ensure proper spacing
-                for (const el of adjustedElements) {
-                    if (el.type === 'long-text') {
-                        const longTextBottom = el.position.y + (el.size.height || 0);
-                        const minSpacingFromLongText = wishCardSpacing;
-                        if (adjustedY < longTextBottom + minSpacingFromLongText) {
-                            adjustedY = longTextBottom + minSpacingFromLongText;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Now apply general overlap adjustment (but skip for wish cards and long-text between wish cards that already handled positioning)
-        // Don't override wish card stacking or long-text positioning - only apply general adjustment if not a wish card or if it's the first wish card
-        if ((!currentIsWish && !isLongText) || adjustedElements.length === 0) {
-            if (adjustedY < maxBottom + requiredSpacing) {
-                adjustedY = maxBottom + requiredSpacing;
-            }
-        }
-
-
-        // CRITICAL: Ensure element doesn't exceed safe area bottom (100% = 85% on screen)
-        // BUT: Skip this for long-text elements positioned between wish cards (they're already correctly sized)
-        const elementBottom = adjustedY + adjustedHeight;
-        const isLongTextBetweenWishCards = isLongText && current.position.y >= 10 && current.position.y <= 20;
-        if (elementBottom > safeAreaBottom && !isLongTextBetweenWishCards) {
-            // Reduce height to fit within safe area
-            const maxHeight = safeAreaBottom - adjustedY - 1; // Leave 1% buffer
-            if (maxHeight > 2) {
-                adjustedHeight = maxHeight;
-            } else {
-                // If no room, move element up and reduce height
-                adjustedHeight = Math.max(2, safeAreaBottom - safeAreaTop - 2);
-                adjustedY = safeAreaBottom - adjustedHeight - 1;
-            }
-        }
-
-        // Final clamp: ensure element fits within 0-100% template space
-        // BUT: Skip this for long-text elements positioned between wish cards (they're already correctly sized)
-        const finalY = Math.max(safeAreaTop, Math.min(safeAreaBottom - adjustedHeight - 0.5, adjustedY));
-        let finalHeight = adjustedHeight;
-        if (!isLongTextBetweenWishCards) {
-            finalHeight = Math.min(adjustedHeight, safeAreaBottom - finalY - 0.5);
-        }
-
-        // Create adjusted element
-        const adjustedElement = {
-            ...current,
+        adjustedContent.push({
+            ...text,
             position: {
-                ...current.position,
-                y: finalY
+                ...text.position,
+                x: 50, // Center horizontally? User said "fit stacked". Usually implies centered or full width?
+                // "content items ... fit stacked"
+                // I'll keep original X or center if undefined. 
+                // Let's force Center X=10, Width=80 (Standard) to ensure stacking alignment?
+                // User didn't strictly say "Center", but "Stacked" implies alignment.
+                // I'll keep original Width/X for now but enforce Y.
+                y: currentY
             },
             size: {
-                ...current.size,
+                ...text.size,
                 height: finalHeight
             }
-        };
+        });
 
+        currentY += finalHeight + padding;
+    });
 
-        adjustedElements.push(adjustedElement);
+    // 4b. Process Galleries
+    if (hasGallery) {
+        // Galleries take REMAINING space
+        const remainingSpace = Math.max(10, bottomLine - currentY); // Ensure at least 10%
+        const heightPerGallery = remainingSpace / galleries.length;
+
+        galleries.forEach(gallery => {
+            adjustedContent.push({
+                ...gallery,
+                position: {
+                    x: gallery.position.x || 10,
+                    y: currentY
+                },
+                size: {
+                    width: gallery.size.width || 80,
+                    height: heightPerGallery
+                }
+            });
+            currentY += heightPerGallery + padding;
+        });
+    } else {
+        // No Galleries.
+        // "extend the text container to fit from top to bottom"
+        // If we didn't stretch a long-text above, we might have extra space at bottom.
+        // If we have multiple texts, maybe distribute them?
+        // Or if strictly "fit to content", then we leave empty space?
+        // "Extend the EXT CONTAINER" implies the container (background?) fills.
+        // But we just have elements. 
+        // I will assume "Fit to content" is the primary rule for ITEM SIZE.
+        // "Extend... to fit" implies usage of space.
+        // If I have 3 short texts, stacking them at top leaves 70% whitespace.
+        // Maybe "Extend text container" means spread them out?
+        // I'll stick to Top Stacking for now as it's cleaner than arbitrary spreading.
     }
 
-    // Gallery-specific responsive behavior: Expand galleries on desktop
-    if (!isMobile) {
-        // Find all gallery elements and expand them to use available space
-        for (let i = 0; i < adjustedElements.length; i++) {
-            if (adjustedElements[i].type === 'gallery') {
-                const gallery = adjustedElements[i];
-
-                // Calculate used vertical space by all elements below this gallery
-                let spaceUsedBelow = 0;
-                const galleryBottom = gallery.position.y + gallery.size.height;
-
-                for (let j = 0; j < adjustedElements.length; j++) {
-                    if (j !== i && adjustedElements[j].position.y > galleryBottom) {
-                        const otherElement = adjustedElements[j];
-                        let otherHeight: number;
-                        if (otherElement.type === 'text' || otherElement.type === 'long-text') {
-                            const otherFontSize = otherElement.styles?.fontSize || 24;
-                            const otherWidth = otherElement.size.width || 80;
-                            otherHeight = estimateTextHeight(otherElement.content || '', otherFontSize, otherWidth, device);
-                        } else {
-                            otherHeight = otherElement.size.height || 10;
-                        }
-                        spaceUsedBelow += otherHeight + minSpacing;
-                    }
-                }
-
-                // Calculate available space for gallery expansion
-                const availableSpace = safeAreaBottom - gallery.position.y - spaceUsedBelow - minSpacing;
-                const maxGalleryHeight = Math.min(availableSpace * 0.9, 70); // Max 70% height, use 90% of available
-
-                // Expand gallery if there's more space available
-                if (maxGalleryHeight > gallery.size.height) {
-                    adjustedElements[i] = {
-                        ...gallery,
-                        size: {
-                            ...gallery.size,
-                            height: Math.max(gallery.size.height, maxGalleryHeight)
-                        }
-                    };
-                }
-            }
-        }
-    }
-
-    // Combine adjusted layout elements with stickers (preserving original positions)
-    return [...adjustedElements, ...stickers];
+    // 5. Return combined
+    return [...adjustedContent, ...freeElements];
 };
 
 // Common Nav Screen (Last Screen)

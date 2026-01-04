@@ -6,9 +6,16 @@ import {
     Trash2, Type, Palette, MoveUp, MoveDown,
     Bold, Underline, Italic, Minus, Plus,
     Sparkles, Image as ImageIcon, X, FolderOpen,
-    AlignLeft, AlignCenter, AlignRight
+    AlignLeft, AlignCenter, AlignRight, Pipette
 } from 'lucide-react';
 import styles from './ElementEditingMenu.module.css';
+
+// Extend Window interface for EyeDropper API
+declare global {
+    interface Window {
+        EyeDropper?: any;
+    }
+}
 
 interface Props {
     element: ScreenElement;
@@ -51,11 +58,20 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const [showStickerPicker, setShowStickerPicker] = useState(false);
     const [showFrameShapePicker, setShowFrameShapePicker] = useState(false);
 
+    // Hue Selector Helper
+    const [hue, setHue] = useState(0);
+
     // Close dropdowns when clicking outside - handled by global click listener or relying on UI behavior
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            if (!target.closest(`.${styles.menu}`)) {
+            // Improved check: if click is NOT inside a dropdown/picker
+            if (
+                !target.closest(`.${styles.menu}`) &&
+                !target.closest(`.${styles.dropdown}`) &&
+                !target.closest(`.${styles.colorPicker}`) &&
+                !target.closest(`.${styles.stickerPicker}`)
+            ) {
                 setShowColorPicker(null);
                 setShowAnimationPicker(false);
                 setShowFontPicker(false);
@@ -69,6 +85,21 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
     }, [showColorPicker, showAnimationPicker, showFontPicker, showStickerPicker, showFrameShapePicker]);
+
+    // Generate colors based on hue
+    const getColorsFromHue = (h: number) => [
+        `hsl(${h}, 100%, 95%)`,
+        `hsl(${h}, 100%, 85%)`,
+        `hsl(${h}, 100%, 75%)`,
+        `hsl(${h}, 100%, 65%)`,
+        `hsl(${h}, 100%, 50%)`, // Pure
+        `hsl(${h}, 80%, 40%)`,
+        `hsl(${h}, 60%, 30%)`,
+        `hsl(${h}, 40%, 20%)`,
+        '#000000', '#FFFFFF'
+    ];
+
+    const currentPalette = showColorPicker ? getColorsFromHue(hue) : COMMON_COLORS;
 
     if (!activeScreenId) return null;
 
@@ -91,6 +122,28 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             styles: { ...element.styles, [showColorPicker]: color }
         });
         // Keep picker open for easier experimentation
+    };
+
+    const handleEyedropper = async (target: 'color' | 'backgroundColor' | 'frameColor') => {
+        if (!window.EyeDropper) {
+            alert('Your browser does not support the EyeDropper API');
+            return;
+        }
+
+        const eyeDropper = new window.EyeDropper();
+
+        try {
+            const result = await eyeDropper.open();
+            if (target === 'color') {
+                updateElement(activeScreenId, element.id, { styles: { ...element.styles, color: result.sRGBHex } });
+            } else if (target === 'backgroundColor') {
+                updateElement(activeScreenId, element.id, { styles: { ...element.styles, backgroundColor: result.sRGBHex } });
+            } else if (target === 'frameColor') {
+                updateElement(activeScreenId, element.id, { styles: { ...element.styles, frameColor: result.sRGBHex } });
+            }
+        } catch (e) {
+            console.log('Eyedropper canceled');
+        }
     };
 
     const handleAnimationChange = (animation: string) => {
@@ -146,7 +199,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         <>
             <button
                 className={styles.menuButton}
-                onClick={() => setShowFontPicker(!showFontPicker)}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowFontPicker(!showFontPicker); }}
                 title="Font"
             >
                 <Type size={18} />
@@ -154,7 +207,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             <div className={styles.fontSizeControl}>
                 <button
                     className={styles.menuButton}
-                    onClick={() => handleFontSizeChange(-2)}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleFontSizeChange(-2); }}
                     title="Decrease Size"
                 >
                     <Minus size={14} />
@@ -162,7 +215,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 <span className={styles.fontSizeValue}>{element.styles.fontSize || 24}px</span>
                 <button
                     className={styles.menuButton}
-                    onClick={() => handleFontSizeChange(2)}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleFontSizeChange(2); }}
                     title="Increase Size"
                 >
                     <Plus size={14} />
@@ -170,42 +223,42 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             </div>
             <button
                 className={`${styles.menuButton} ${element.styles.fontWeight === 'bold' ? styles.active : ''}`}
-                onClick={() => handleTextStyleToggle('bold')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTextStyleToggle('bold'); }}
                 title="Bold"
             >
                 <Bold size={18} />
             </button>
             <button
                 className={`${styles.menuButton} ${element.styles.textDecoration === 'underline' ? styles.active : ''}`}
-                onClick={() => handleTextStyleToggle('underline')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTextStyleToggle('underline'); }}
                 title="Underline"
             >
                 <Underline size={18} />
             </button>
             <button
                 className={`${styles.menuButton} ${element.styles.fontStyle === 'italic' ? styles.active : ''}`}
-                onClick={() => handleTextStyleToggle('italic')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTextStyleToggle('italic'); }}
                 title="Italic"
             >
                 <Italic size={18} />
             </button>
             <button
                 className={`${styles.menuButton} ${element.styles.textAlign === 'left' ? styles.active : ''}`}
-                onClick={() => handleTextAlignChange('left')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTextAlignChange('left'); }}
                 title="Align Left"
             >
                 <AlignLeft size={18} />
             </button>
             <button
                 className={`${styles.menuButton} ${element.styles.textAlign === 'center' ? styles.active : ''}`}
-                onClick={() => handleTextAlignChange('center')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTextAlignChange('center'); }}
                 title="Align Center"
             >
                 <AlignCenter size={18} />
             </button>
             <button
                 className={`${styles.menuButton} ${element.styles.textAlign === 'right' ? styles.active : ''}`}
-                onClick={() => handleTextAlignChange('right')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleTextAlignChange('right'); }}
                 title="Align Right"
             >
                 <AlignRight size={18} />
@@ -214,12 +267,14 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     );
 
     return (
-        <div className={styles.menu} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.menu} onMouseDown={(e) => e.stopPropagation()} data-editing-menu="true">
             {/* Contents Button (First for easy access) */}
             {(element.type === 'image' || element.type === 'video' || element.type === 'gallery') && (
                 <button
                     className={`${styles.menuButton} ${styles.contentsButton}`}
-                    onClick={() => {
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         if (activeScreenId) {
                             setMediaLibraryOpen(true, 'manage', {
                                 elementId: element.id,
@@ -243,16 +298,16 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
-                        onClick={() => setShowStickerPicker(!showStickerPicker)}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowStickerPicker(!showStickerPicker); }}
                         title="Sticker"
                     >
                         <Sparkles size={18} />
                     </button>
                     {showStickerPicker && (
-                        <div className={styles.stickerPicker}>
+                        <div className={styles.stickerPicker} onMouseDown={(e) => e.stopPropagation()}>
                             <div className={styles.stickerPickerHeader}>
                                 <span>Sticker</span>
-                                <button onClick={() => setShowStickerPicker(false)}>
+                                <button onMouseDown={(e) => { e.stopPropagation(); setShowStickerPicker(false); }}>
                                     <X size={16} />
                                 </button>
                             </div>
@@ -261,7 +316,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                                     <button
                                         key={sticker}
                                         className={styles.stickerButton}
-                                        onClick={() => handleStickerSelect(sticker)}
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleStickerSelect(sticker); }}
                                     >
                                         {sticker}
                                     </button>
@@ -277,78 +332,145 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'color' ? null : 'color')}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowColorPicker(showColorPicker === 'color' ? null : 'color'); }}
                         title="Text Color"
                     >
-                        <Palette size={18} />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Palette size={18} />
+                            <div style={{
+                                position: 'absolute',
+                                bottom: -4,
+                                left: 0,
+                                right: 0,
+                                height: 3,
+                                backgroundColor: element.styles.color || '#000000',
+                                borderRadius: 1
+                            }} />
+                        </div>
                     </button>
                     {showColorPicker === 'color' && (
-                        <div className={styles.colorPicker}>
+                        <div className={styles.colorPicker} onMouseDown={(e) => e.stopPropagation()}>
                             <div className={styles.colorPickerHeader}>
-                                <span>Text Color</span>
-                                <button onClick={() => setShowColorPicker(null)}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span>Text Color</span>
+                                    <button
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleEyedropper('color'); }}
+                                        title="Pick Color from Screen"
+                                    >
+                                        <Pipette size={14} />
+                                    </button>
+                                </div>
+                                <button onMouseDown={(e) => { e.stopPropagation(); setShowColorPicker(null); }}>
                                     <X size={16} />
                                 </button>
                             </div>
+
+                            {/* Hue Slider */}
+                            <div className={styles.hueSliderContainer}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="360"
+                                    value={hue}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onChange={(e) => setHue(parseInt(e.target.value))}
+                                    className={styles.hueSlider}
+                                    style={{ background: `linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)` }}
+                                />
+                            </div>
+
                             <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
+                                {currentPalette.map(color => (
                                     <button
                                         key={color}
                                         className={styles.colorSwatch}
                                         style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleColorChange(color); }}
                                         title={color}
                                     />
                                 ))}
                             </div>
-                            <input
-                                type="color"
-                                value={element.styles.color || '#000000'}
-                                onChange={(e) => handleColorChange(e.target.value)}
-                                className={styles.colorInput}
-                            />
                         </div>
                     )}
                 </div>
             )}
 
+            {/* Background Color */}
             {(element.type === 'text' || element.type === 'button') && (
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'backgroundColor' ? null : 'backgroundColor')}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowColorPicker(showColorPicker === 'backgroundColor' ? null : 'backgroundColor'); }}
                         title="Background Color"
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Palette size={18} />
-                            <span style={{ fontSize: '10px', marginLeft: '-6px', marginTop: '8px' }}>BG</span>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Palette size={18} />
+                                <span style={{ fontSize: '10px', marginLeft: '-6px', marginTop: '8px' }}>BG</span>
+                            </div>
+                            <div style={{
+                                position: 'absolute',
+                                bottom: -4,
+                                left: 0,
+                                right: 0,
+                                height: 3,
+                                backgroundColor: element.styles.backgroundColor === 'transparent' ? 'transparent' : (element.styles.backgroundColor || '#FFFFFF'),
+                                borderRadius: 1,
+                                border: element.styles.backgroundColor === 'transparent' ? '1px solid #ccc' : 'none'
+                            }} />
                         </div>
                     </button>
                     {showColorPicker === 'backgroundColor' && (
-                        <div className={styles.colorPicker}>
+                        <div className={styles.colorPicker} onMouseDown={(e) => e.stopPropagation()}>
                             <div className={styles.colorPickerHeader}>
-                                <span>Background</span>
-                                <button onClick={() => setShowColorPicker(null)}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span>Background</span>
+                                    <button
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleEyedropper('backgroundColor'); }}
+                                        title="Pick Color from Screen"
+                                    >
+                                        <Pipette size={14} />
+                                    </button>
+                                </div>
+                                <button onMouseDown={(e) => { e.stopPropagation(); setShowColorPicker(null); }}>
                                     <X size={16} />
                                 </button>
                             </div>
+
+                            <div className={styles.hueSliderContainer}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="360"
+                                    value={hue}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onChange={(e) => setHue(parseInt(e.target.value))}
+                                    className={styles.hueSlider}
+                                    style={{ background: `linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)` }}
+                                />
+                            </div>
+
                             <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
+                                {currentPalette.map(color => (
                                     <button
                                         key={color}
                                         className={styles.colorSwatch}
                                         style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleColorChange(color); }}
                                         title={color}
                                     />
                                 ))}
                             </div>
-                            <input
-                                type="color"
-                                value={element.styles.backgroundColor || '#FFFFFF'}
-                                onChange={(e) => handleColorChange(e.target.value)}
-                                className={styles.colorInput}
-                            />
+
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                <button
+                                    className={styles.transparentButton}
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleColorChange('transparent'); }}
+                                    title="No Background"
+                                >
+                                    None
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -359,38 +481,75 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
-                        onClick={() => setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor')}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowColorPicker(showColorPicker === 'frameColor' ? null : 'frameColor'); }}
                         title="Frame Color"
                     >
-                        <ImageIcon size={18} />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ImageIcon size={18} />
+                            <div style={{
+                                position: 'absolute',
+                                bottom: -4,
+                                left: 0,
+                                right: 0,
+                                height: 3,
+                                backgroundColor: element.styles.frameColor === 'transparent' ? 'transparent' : (element.styles.frameColor || '#000000'),
+                                borderRadius: 1,
+                                border: element.styles.frameColor === 'transparent' ? '1px solid #ccc' : 'none'
+                            }} />
+                        </div>
                     </button>
                     {showColorPicker === 'frameColor' && (
-                        <div className={styles.colorPicker}>
+                        <div className={styles.colorPicker} onMouseDown={(e) => e.stopPropagation()}>
                             <div className={styles.colorPickerHeader}>
-                                <span>Frame Color</span>
-                                <button onClick={() => setShowColorPicker(null)}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <span>Frame Color</span>
+                                    <button
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleEyedropper('frameColor'); }}
+                                        title="Pick Color from Screen"
+                                    >
+                                        <Pipette size={14} />
+                                    </button>
+                                </div>
+                                <button onMouseDown={(e) => { e.stopPropagation(); setShowColorPicker(null); }}>
                                     <X size={16} />
                                 </button>
                             </div>
+
+                            {/* Hue Slider */}
+                            <div className={styles.hueSliderContainer}>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="360"
+                                    value={hue}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onChange={(e) => setHue(parseInt(e.target.value))}
+                                    className={styles.hueSlider}
+                                    style={{ background: `linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)` }}
+                                />
+                            </div>
+
                             <div className={styles.colorSwatches}>
-                                {COMMON_COLORS.map(color => (
+                                {currentPalette.map(color => (
                                     <button
                                         key={color}
                                         className={styles.colorSwatch}
                                         style={{ backgroundColor: color }}
-                                        onClick={() => handleColorChange(color)}
+                                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleColorChange(color); }}
                                         title={color}
                                     />
                                 ))}
                             </div>
-                            <input
-                                type="color"
-                                value={element.styles.frameColor || '#000000'}
-                                onChange={(e) => {
-                                    handleColorChange(e.target.value);
-                                }}
-                                className={styles.colorInput}
-                            />
+
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                <button
+                                    className={styles.transparentButton}
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleColorChange('transparent'); }}
+                                    title="No Frame"
+                                >
+                                    None
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -400,16 +559,18 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                 <div className={styles.dropdownContainer}>
                     <button
                         className={styles.menuButton}
-                        onClick={() => setShowFrameShapePicker(!showFrameShapePicker)}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowFrameShapePicker(!showFrameShapePicker); }}
                         title="Frame Shape"
                     >
                         <ImageIcon size={18} />
                     </button>
                     {showFrameShapePicker && (
-                        <div className={styles.dropdown}>
+                        <div className={styles.dropdown} onMouseDown={(e) => e.stopPropagation()}>
                             <button
                                 className={`${styles.dropdownItem} ${!element.metadata?.frameShape ? styles.active : ''}`}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     const newMetadata = { ...element.metadata };
                                     delete newMetadata.frameShape;
                                     updateElement(activeScreenId!, element.id, { metadata: newMetadata });
@@ -420,7 +581,9 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                             </button>
                             <button
                                 className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'heart' ? styles.active : ''}`}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     updateElement(activeScreenId!, element.id, {
                                         metadata: { ...element.metadata, frameShape: 'heart' }
                                     });
@@ -431,7 +594,9 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                             </button>
                             <button
                                 className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'star' ? styles.active : ''}`}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     updateElement(activeScreenId!, element.id, {
                                         metadata: { ...element.metadata, frameShape: 'star' }
                                     });
@@ -442,7 +607,9 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                             </button>
                             <button
                                 className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'circle' ? styles.active : ''}`}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     updateElement(activeScreenId!, element.id, {
                                         metadata: { ...element.metadata, frameShape: 'circle' }
                                     });
@@ -453,7 +620,9 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
                             </button>
                             <button
                                 className={`${styles.dropdownItem} ${element.metadata?.frameShape === 'diamond' ? styles.active : ''}`}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     updateElement(activeScreenId!, element.id, {
                                         metadata: { ...element.metadata, frameShape: 'diamond' }
                                     });
@@ -471,18 +640,18 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             <div className={styles.dropdownContainer}>
                 <button
                     className={styles.menuButton}
-                    onClick={() => setShowAnimationPicker(!showAnimationPicker)}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowAnimationPicker(!showAnimationPicker); }}
                     title="Animation"
                 >
                     <Sparkles size={18} />
                 </button>
                 {showAnimationPicker && (
-                    <div className={styles.dropdown}>
+                    <div className={styles.dropdown} onMouseDown={(e) => e.stopPropagation()}>
                         {ANIMATIONS.map(anim => (
                             <button
                                 key={anim.value}
                                 className={`${styles.dropdownItem} ${element.styles.animation === anim.value ? styles.active : ''}`}
-                                onClick={() => handleAnimationChange(anim.value)}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleAnimationChange(anim.value); }}
                             >
                                 {anim.label}
                             </button>
@@ -493,12 +662,12 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
             {/* Font Selector */}
             {showFontPicker && (element.type === 'text' || element.type === 'button' || element.type === 'long-text') && (
-                <div className={styles.dropdown}>
+                <div className={styles.dropdown} onMouseDown={(e) => e.stopPropagation()}>
                     {FONTS.map(font => (
                         <button
                             key={font.value}
                             className={`${styles.dropdownItem} ${element.styles.fontFamily === font.value ? styles.active : ''}`}
-                            onClick={() => handleFontChange(font.value)}
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleFontChange(font.value); }}
                         >
                             {font.label}
                         </button>
@@ -511,14 +680,14 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             {/* Layer Controls */}
             <button
                 className={styles.menuButton}
-                onClick={() => handleMoveLayer('front')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveLayer('front'); }}
                 title="Move to Front"
             >
                 <MoveUp size={18} />
             </button>
             <button
                 className={styles.menuButton}
-                onClick={() => handleMoveLayer('back')}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleMoveLayer('back'); }}
                 title="Move to Back"
             >
                 <MoveDown size={18} />
@@ -527,7 +696,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
             {/* Delete */}
             <button
                 className={`${styles.menuButton} ${styles.deleteButton}`}
-                onClick={handleDelete}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
                 title="Delete"
             >
                 <Trash2 size={18} />

@@ -30,7 +30,6 @@
     color: var(--color-text);
     transition: background 0.2s;
     flex-shrink: 0;
-    /* Prevent shrinking in scroll */
 }
 
 .contentsButton {
@@ -65,7 +64,6 @@
 .deleteButton {
     color: #ef233c;
     margin-left: auto;
-    /* Push delete to end if space allows, or just be last */
 }
 
 .deleteButton:hover {
@@ -97,44 +95,38 @@
 }
 
 .dropdownContainer {
-    position: relative;
-    flex-shrink: 0;
+    /* Removed position: relative to prevent clipping context for fixed children */
 }
 
-/* Dropups (open upwards) */
-.dropdown {
-    position: absolute;
-    bottom: 100%;
+/* Base styles for all popups */
+.dropdown,
+.colorPicker,
+.stickerPicker {
+    position: fixed;
+    bottom: 140px;
+    /* Position above the menu bar */
     left: 50%;
     transform: translateX(-50%);
-    /* Center dropdown */
-    margin-bottom: 8px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 4px;
+    z-index: 10001;
     display: flex;
     flex-direction: column;
-    min-width: 120px;
-    z-index: 10001;
+}
+
+.dropdown {
+    padding: 4px;
+    min-width: 150px;
     max-height: 200px;
     overflow-y: auto;
 }
 
 .colorPicker,
 .stickerPicker {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    /* Center picker */
-    margin-bottom: 8px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 12px;
-    z-index: 10001;
-    min-width: 200px;
+    min-width: 240px;
+    max-width: 90vw;
 }
 
 .dropdownItem {
@@ -215,290 +207,10 @@
 
 .stickerGrid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 8px;
-}
-
-.stickerButton {
-    width: 40px;
-    height: 40px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    background: white;
-    cursor: pointer;
-    font-size: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.stickerButton:hover {
-    border-color: var(--color-primary);
-    transform: scale(1.1);
-}
-
-@media (max-width: 768px) {
-
-    /* Ensure no wrapping on mobile, just scroll */
-    .menu {
-        flex-wrap: nowrap;
-        width: 100%;
-        max-width: 100%;
-    }
-
-    /* Adjust dropdown positioning for mobile if needed */
-    .dropdown,
-    .colorPicker,
-    .stickerPicker {
-        position: fixed;
-        bottom: auto;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 80vw;
-        max-width: 300px;
-        box-shadow: 0 0 0 100vh rgba(0, 0, 0, 0.5);
-    }
-}
-
-.dragHandle {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: grab;
-    color: #999;
-    border-radius: 4px;
-    transition: all 0.2s;
-    z-index: 10001;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(4px);
-}
-
-.dragHandle:hover {
-    background: rgba(240, 240, 240, 0.9);
-    color: var(--color-primary);
-}
-
-.dragHandle:active {
-    cursor: grabbing;
-}
-
-.menuButton {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--color-text);
-    transition: background 0.2s;
-}
-
-.contentsButton {
-    width: auto;
-    min-width: auto;
-    padding: 8px 16px;
-    gap: 8px;
-    background: var(--color-primary);
-    color: white;
-    border-radius: var(--radius-full);
-    font-weight: 700;
-    font-size: 0.9rem;
-    box-shadow: var(--shadow-sm);
-}
-
-.buttonLabel {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: white;
-}
-
-.menuButton:hover:not(.contentsButton) {
-    background: #f0f0f0;
-}
-
-.menuButton.active {
-    background: var(--color-primary);
-    color: white;
-}
-
-.deleteButton {
-    color: #ef233c;
-}
-
-.deleteButton:hover {
-    background: #fff0f3;
-}
-
-.fontSizeControl {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0 4px;
-}
-
-.fontSizeValue {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-text);
-    min-width: 35px;
-    text-align: center;
-}
-
-.dropdownContainer {
-    position: relative;
-}
-
-.dropdown {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    margin-bottom: 8px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 4px;
-    display: flex;
-    flex-direction: column;
-    min-width: 120px;
-    z-index: 10001;
     max-height: 200px;
     overflow-y: auto;
-}
-
-.dropdownItem {
-    padding: 8px 12px;
-    border: none;
-    background: none;
-    text-align: left;
-    cursor: pointer;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    color: var(--color-text);
-    transition: background 0.2s;
-}
-
-.dropdownItem:hover {
-    background: #f0f0f0;
-}
-
-.dropdownItem.active {
-    background: var(--color-primary);
-    color: white;
-}
-
-.colorPicker {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    margin-bottom: 8px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 12px;
-    z-index: 10001;
-    min-width: 200px;
-}
-
-.colorPickerHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.colorPickerHeader button {
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: background 0.2s;
-}
-
-.colorPickerHeader button:hover {
-    background: #f0f0f0;
-}
-
-.colorSwatches {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 4px;
-    margin-bottom: 8px;
-}
-
-.colorSwatch {
-    width: 32px;
-    height: 32px;
-    border: 2px solid #e0e0e0;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.colorSwatch:hover {
-    transform: scale(1.1);
-    border-color: var(--color-primary);
-}
-
-.colorInput {
-    width: 100%;
-    height: 40px;
-    border: 2px solid #e0e0e0;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.stickerPicker {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    margin-bottom: 8px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 12px;
-    z-index: 10001;
-    min-width: 200px;
-}
-
-.stickerPickerHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
-    font-weight: 600;
-}
-
-.stickerPickerHeader button {
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: background 0.2s;
-}
-
-.stickerPickerHeader button:hover {
-    background: #f0f0f0;
-}
-
-.stickerGrid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
 }
 
 .stickerButton {
@@ -536,21 +248,55 @@
     border-color: var(--color-primary);
 }
 
+.hueSliderContainer {
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.hueSlider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 12px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+}
+
+.hueSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #ccc;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.transparentButton {
+    padding: 6px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    width: 100%;
+}
+
+.transparentButton:hover {
+    background: #f0f0f0;
+}
 
 @media (max-width: 768px) {
-
-    /* Ensure no wrapping on mobile, just scroll */
     .menu {
         flex-wrap: nowrap;
         width: 100%;
         max-width: 100%;
         padding: 0 4px;
-        /* Add slight padding for edge visibility */
         justify-content: flex-start;
-        /* Ensure items start from left */
     }
 
-    /* Target inner flex containers to ensure they don't wrap */
     .menu>div {
         flex-wrap: nowrap !important;
     }
@@ -558,10 +304,8 @@
     .dropdown,
     .colorPicker,
     .stickerPicker {
-        position: fixed;
         bottom: auto;
         top: 50%;
-        left: 50%;
         transform: translate(-50%, -50%);
         width: 80vw;
         max-width: 300px;
