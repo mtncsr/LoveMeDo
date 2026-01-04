@@ -165,43 +165,8 @@ const estimateTextHeight = (
 
 // Layout helper: Calculate non-overlapping positions for content screens
 // Works in 0-100% space which maps to 10-85% safe area in renderer
-// Helper to check if element is a "content" type (affected by stack)
-const isContentElement = (el: ScreenElement) => ['text', 'long-text', 'gallery'].includes(el.type);
-
-// Helper to check if element is a "free-floating" type (preserved position)
-const isFreeElement = (el: ScreenElement) => ['sticker', 'button', 'shape', 'image', 'video'].includes(el.type) && el.type !== 'gallery';
-// Note: User request said "content items like texts and galleries need to fit stacked...". 
-// Images and Videos are not explicitly mentioned in the strict "Text -> Gallery" stack rule in the prompt, 
-// BUT typically "Images" (Heroes) are content. 
-// However, the prompt specifically said: "from top to bottom - top line of screen, texts, galleries, bottom line."
-// It did NOT mention Images/Videos in that specific sentence. 
-// But later it said "Image - opens the content manager". 
-// In the templates, we have "Hero Images". 
-// If I treat Images as free-floating, they might overlap text. 
-// If I treat them as content, where do they go? 
-// The prompt rules seem focused on the "Texts and Galleries" specifically. 
-// "containers of items fit to the content... content items like texts and galleries need to fit stacked"
-// I will treat Images and Videos as "Free Floating" for now to respect the specific "Texts -> Galleries" instruction, 
-// OR I can slot them in. 
-// Given the specific instruction "if no texts... extend gallery... if no gallery... extend text", implies these are the main dynamic blocks.
-// I will keep existing images (like wish cards or heroes) as free/absolute for now, 
-// UNLESS they are part of the flow. 
-// Actually, looking at the templates, "Hero" images are key. 
-// If I make them free floating, the text (which is now stacked strict top-down) might overlap them if not careful.
-// BUT the user said "content items like texts and galleries". 
-// I will stick to strictly stacking Texts and Galleries. 
-// Anything else (Images, Videos, Buttons, Stickers) will be considered "Free" and kept at their Z/Y positions, 
-// BUT we might need to ensure Text/Gallery doesn't overlap them?
-// The prompt didn't say "avoid overlapping other elements". It said "fit stacked between top and bottom".
-// I'll implement strict stacking for Texts and Galleries. 
-// Effectively, Texts and Galleries will partition the screen Vertical Space among themselves.
-// Other elements will sit on top or behind based on Z-Index. 
-// This is risky for existing templates (like Birthday) where Text is meant to be next to an Image.
-// BUT the user asked for "all screen... to follow a set of rules".
-// This implies a global rule enforcement.
 
 const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop' = 'mobile'): ScreenElement[] => {
-    const isMobile = device === 'mobile';
 
     // 1. Define Boundaries
     const topLine = 10; // Top Safe Area %

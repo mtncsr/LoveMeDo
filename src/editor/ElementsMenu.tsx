@@ -3,14 +3,14 @@ import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import {
     Type, Image as ImageIcon, Video, Smile, MousePointerClick,
-    LayoutTemplate, Circle, Music, Sparkles, BoxSelect,
+    LayoutTemplate, Circle, Music, Sparkles,
     ArrowLeft, Monitor
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ElementsMenu.module.css';
 
 const ElementsMenu: React.FC = () => {
-    const { activeScreenId, setMediaLibraryOpen, setStickerPickerOpen } = useUIStore();
+    const { activeScreenId, setMediaLibraryOpen } = useUIStore();
     const { addElement } = useProjectStore();
     const [activeSubMenu, setActiveSubMenu] = useState<'none' | 'button' | 'shape'>('none');
 
@@ -87,12 +87,42 @@ const ElementsMenu: React.FC = () => {
     };
 
     const handleMediaClick = (type: 'image' | 'video' | 'music') => {
-        if (activeScreenId) {
-            setMediaLibraryOpen(true, 'select', {
-                screenId: activeScreenId,
-                elementType: type
-            });
+        if (!activeScreenId) return;
+
+        // Create placeholder element first
+        const id = uuidv4();
+        const position = { x: 50, y: 50 };
+        let size = { width: 40, height: 40 };
+        let content = '';
+
+        if (type === 'image') {
+            size = { width: 80, height: 40 };
+        } else if (type === 'video') {
+            size = { width: 80, height: 45 };
+        } else if (type === 'music') {
+            // Music is technically a background/global thing usually, or an invisible element?
+            // If type is 'music', we might be adding screen music?
+            // The Model has `music?: string` on Screen.
+            // If we want to add an element, it is type='music'?
+            // Model `ElementType` includes 'music'.
+            size = { width: 10, height: 10 };
         }
+
+        addElement(activeScreenId, {
+            id,
+            type: type as any,
+            content,
+            position,
+            size,
+            styles: { zIndex: 10 }
+        });
+
+        // Now open library for this element
+        setMediaLibraryOpen(true, 'select', {
+            screenId: activeScreenId,
+            elementId: id,
+            elementType: type
+        });
     };
 
     // Sub-menus

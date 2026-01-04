@@ -3,14 +3,14 @@ import type { Screen } from '../types/model';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
-import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn, Save } from 'lucide-react';
+import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn, Save, Check } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './EditorLayout.module.css';
 import ElementsMenu from './ElementsMenu';
 import MediaLibraryModal from './MediaLibraryModal';
 import { ElementEditingMenu } from './ElementEditingMenu';
 import { YourProjectsModal } from '../components/YourProjectsModal';
-import { saveProject } from '../utils/projectStorage';
+import { saveProject, getSavedProjects } from '../utils/projectStorage';
 import { useDevice } from '../hooks/useDevice';
 
 const EditorLayout: React.FC = () => {
@@ -34,6 +34,7 @@ const EditorLayout: React.FC = () => {
     const [isZoomExpanded, setIsZoomExpanded] = useState(false);
     const [editingScreenId, setEditingScreenId] = useState<string | null>(null);
     const [editScreenTitle, setEditScreenTitle] = useState<string>('');
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
 
     // If no active screen, set to first one
     // Also validate that activeScreenId still exists in project after updates
@@ -66,8 +67,20 @@ const EditorLayout: React.FC = () => {
     const handleSaveProject = () => {
         if (!project) return;
         try {
+            // Check if project is already saved
+            const savedProjects = getSavedProjects();
+            const isAlreadySaved = savedProjects.some(p => p.id === project.id);
+
             saveProject(project);
-            setYourProjectsOpen(true);
+
+            if (isAlreadySaved) {
+                // Quick save feedback
+                setSaveStatus('saved');
+                setTimeout(() => setSaveStatus('idle'), 2000);
+            } else {
+                // First time save - open modal
+                setYourProjectsOpen(true);
+            }
         } catch (error) {
             console.error('Failed to save project:', error);
             alert('Failed to save project. Please try again.');
@@ -150,9 +163,13 @@ const EditorLayout: React.FC = () => {
                     />
                 </div>
                 <div className={styles.right}>
-                    <button className={styles.saveBtn} onClick={handleSaveProject}>
-                        <Save size={18} />
-                        <span>Save Project</span>
+                    <button
+                        className={`${styles.saveBtn} ${saveStatus === 'saved' ? styles.saved : ''}`}
+                        onClick={handleSaveProject}
+                        disabled={saveStatus === 'saved'}
+                    >
+                        {saveStatus === 'saved' ? <Check size={18} /> : <Save size={18} />}
+                        <span>{saveStatus === 'saved' ? 'Saved!' : 'Save Project'}</span>
                     </button>
                     <button className={styles.createBtn} onClick={handleCreate}>
                         <Sparkles size={18} />

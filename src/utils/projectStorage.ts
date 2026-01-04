@@ -32,10 +32,10 @@ export function saveProject(project: Project, name?: string): void {
     try {
         const savedProjects = getSavedProjects();
         const projectName = name || project.config.title || `Project ${new Date().toLocaleDateString()}`;
-        
+
         // Check if project already exists (by ID)
         const existingIndex = savedProjects.findIndex(p => p.project.id === project.id);
-        
+
         const savedProject: SavedProject = {
             id: project.id,
             name: projectName,
@@ -99,6 +99,10 @@ export function renameProject(projectId: string, newName: string): void {
         const projectIndex = savedProjects.findIndex(p => p.id === projectId);
         if (projectIndex >= 0) {
             savedProjects[projectIndex].name = newName;
+            // Also update the internal project title to match
+            savedProjects[projectIndex].project.config.title = newName;
+            savedProjects[projectIndex].project.updatedAt = Date.now();
+            savedProjects[projectIndex].updatedAt = Date.now();
             localStorage.setItem(STORAGE_KEY, JSON.stringify(savedProjects));
         }
     } catch (error) {
