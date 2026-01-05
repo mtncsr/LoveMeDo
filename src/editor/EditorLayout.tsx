@@ -3,7 +3,7 @@ import type { Screen } from '../types/model';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { Renderer } from '../renderer/Renderer';
-import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn, Save, Check } from 'lucide-react';
+import { ArrowLeft, Sparkles, Plus, Smartphone, Monitor, Minus, ZoomIn, Save, Check, Trash2, Pencil, Settings } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './EditorLayout.module.css';
 import ElementsMenu from './ElementsMenu';
@@ -14,7 +14,7 @@ import { saveProject, getSavedProjects } from '../utils/projectStorage';
 import { useDevice } from '../hooks/useDevice';
 
 const EditorLayout: React.FC = () => {
-    const { project, updateScreen, updateElement, addScreen, addElement } = useProjectStore();
+    const { project, updateScreen, updateElement, addScreen, addElement, removeScreen } = useProjectStore();
     const {
         setMode, activeScreenId, setActiveScreenId, setSelectedElementId,
         selectedElementId, isMediaLibraryOpen, mediaLibraryMode, contentManagerContext,
@@ -35,6 +35,7 @@ const EditorLayout: React.FC = () => {
     const [editingScreenId, setEditingScreenId] = useState<string | null>(null);
     const [editScreenTitle, setEditScreenTitle] = useState<string>('');
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle');
+    const [isManageScreensMode, setManageScreensMode] = useState(false);
 
     // If no active screen, set to first one
     // Also validate that activeScreenId still exists in project after updates
@@ -104,6 +105,18 @@ const EditorLayout: React.FC = () => {
     const handleCancelEditScreen = () => {
         setEditingScreenId(null);
         setEditScreenTitle('');
+    };
+
+    const handleDeleteScreen = (screenId: string) => {
+        if (project && project.screens.length <= 1) {
+            alert('Cannot delete the last screen.');
+            return;
+        }
+
+        removeScreen(screenId);
+
+        // If deleted screen was active, activeScreenId useEffect will handle switching
+        // But if it was the manage mode... keep manage mode on.
     };
 
     const handleMediaSelect = (mediaIdOrArray: string | string[]) => {
@@ -185,7 +198,8 @@ const EditorLayout: React.FC = () => {
                         <div
                             key={screen.id}
                             className={`${styles.tab} ${activeScreenId === screen.id ? styles.activeTab : ''}`}
-                            onClick={() => !editingScreenId && setActiveScreenId(screen.id)}
+                            onClick={() => !editingScreenId && !isManageScreensMode && setActiveScreenId(screen.id)}
+                            style={{ paddingRight: isManageScreensMode ? '4px' : '12px' }}
                         >
                             <span className={styles.tabIndex}>{index + 1}</span>
                             {editingScreenId === screen.id ? (
@@ -209,36 +223,79 @@ const EditorLayout: React.FC = () => {
                                 <span
                                     className={styles.tabTitle}
                                     onDoubleClick={(e) => handleStartEditScreen(e, screen)}
-                                    title="Double-click to rename"
+                                    title={isManageScreensMode ? "Manage screen" : "Double-click to rename"}
                                 >
                                     {screen.title}
                                 </span>
                             )}
+
+                            {/* Manage Mode Controls */}
+                            {isManageScreensMode && (
+                                <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
+                                    <button
+                                        onClick={(e) => handleStartEditScreen(e, screen)}
+                                        className={styles.iconBtn}
+                                        style={{ width: '24px', height: '24px', padding: '4px' }}
+                                        title="Rename"
+                                    >
+                                        <Pencil size={12} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirm('Are you sure you want to delete this screen?')) {
+                                                handleDeleteScreen(screen.id);
+                                            }
+                                        }}
+                                        className={styles.iconBtn}
+                                        style={{ width: '24px', height: '24px', padding: '4px', color: '#ef233c' }}
+                                        title="Delete"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
+
+                    {!isManageScreensMode && (
+                        <button
+                            className={styles.addScreenBtn}
+                            onClick={() => {
+                                const type = prompt('Screen type (overlay/content/navigation):', 'content') as 'overlay' | 'content' | 'navigation' | null;
+                                if (type && ['overlay', 'content', 'navigation'].includes(type)) {
+                                    const newScreen = {
+                                        id: uuidv4(),
+                                        title: `Screen ${project.screens.length + 1}`,
+                                        type: type as 'overlay' | 'content' | 'navigation',
+                                        background: {
+                                            type: 'solid' as const,
+                                            value: '#FFFFFF',
+                                            animation: 'fade' as const
+                                        },
+                                        elements: []
+                                    };
+                                    addScreen(newScreen);
+                                    setActiveScreenId(newScreen.id);
+                                }
+                            }}
+                            title="Add Screen"
+                        >
+                            <Plus size={16} />
+                        </button>
+                    )}
+
                     <button
-                        className={styles.addScreenBtn}
-                        onClick={() => {
-                            const type = prompt('Screen type (overlay/content/navigation):', 'content') as 'overlay' | 'content' | 'navigation' | null;
-                            if (type && ['overlay', 'content', 'navigation'].includes(type)) {
-                                const newScreen = {
-                                    id: uuidv4(),
-                                    title: `Screen ${project.screens.length + 1}`,
-                                    type: type as 'overlay' | 'content' | 'navigation',
-                                    background: {
-                                        type: 'solid' as const,
-                                        value: '#FFFFFF',
-                                        animation: 'fade' as const
-                                    },
-                                    elements: []
-                                };
-                                addScreen(newScreen);
-                                setActiveScreenId(newScreen.id);
-                            }
+                        className={styles.iconBtn}
+                        onClick={() => setManageScreensMode(!isManageScreensMode)}
+                        title={isManageScreensMode ? "Done Editing" : "Manage Screens"}
+                        style={{
+                            marginLeft: '8px',
+                            backgroundColor: isManageScreensMode ? '#e9ecef' : 'transparent',
+                            color: isManageScreensMode ? 'var(--color-primary)' : 'var(--color-text-subtle)'
                         }}
-                        title="Add Screen"
                     >
-                        <Plus size={16} />
+                        {isManageScreensMode ? <Check size={16} /> : <Settings size={16} />}
                     </button>
                 </div>
             </div>
