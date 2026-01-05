@@ -99,20 +99,38 @@ const GLOBAL_CSS_TEMPLATE = `
   --font-body: 'Outfit', sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: var(--font-body); background: #000; overflow: hidden; height: 100vh; height: 100dvh; width: 100vw; display: flex; align-items: center; justify-content: center; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; touch-action: manipulation; }
-#root { width: 100%; height: 100%; position: relative; background: white; overflow: hidden; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-#root.mobile, #root.responsive { max-width: 375px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); position: relative; padding-bottom: 177.78%; border-radius: 30px; }
-@supports (aspect-ratio: 9 / 16) { #root.mobile, #root.responsive { padding-bottom: 0; aspect-ratio: 9 / 16; } }
+body { 
+  font-family: var(--font-body); 
+  background: #000; 
+  overflow: hidden; 
+  width: 100vw; 
+  height: 100dvh; /* Dynamic viewport height specifically for mobile */
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  /* Safe area padding ensures the container never touches the edges or is hidden by notches/bars */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-font-smoothing: antialiased; 
+  -moz-osx-font-smoothing: grayscale; 
+  touch-action: manipulation; 
+}
+#root { 
+  width: 100%; 
+  height: 100%; 
+  max-width: 500px; /* Default to mobile card size */
+  position: relative; 
+  background: white; 
+  overflow: hidden; 
+  box-shadow: 0 0 50px rgba(0,0,0,0.5); 
+  border-radius: 20px; 
+}
+
 @media (min-width: 768px) {
-  #root.mobile, #root.responsive {
-    max-width: 1200px;
-    width: min(90vw, (100vh - 40px) * 16 / 9);
-    padding-bottom: 56.25%;
-    border-radius: 12px;
-    height: auto;
-  }
-  @supports (aspect-ratio: 16 / 9) {
-    #root.mobile, #root.responsive { padding-bottom: 0; aspect-ratio: 16 / 9; }
+  #root {
+    max-width: 1600px; /* Allow much wider on desktop */
+    width: 95vw; /* Use most of the width */
+    height: 95dvh; /* Use most of the height */
+    border-radius: 30px;
   }
 }
 
@@ -154,14 +172,14 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .bubble { position: absolute; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2)); box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); border: 1px solid rgba(255, 255, 255, 0.4); animation-name: floatBubble; animation-timing-function: linear; animation-iteration-count: infinite; }
 @keyframes floatBubble { 0% { transform: translateY(110vh) translateX(0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translateY(-20vh) translateX(20px); opacity: 0; } }
 
-.navigation-pills { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; padding:20px 20px calc(20px + env(safe-area-inset-bottom)) 20px; z-index:10; overflow-y:auto; align-items:center; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
+.navigation-pills { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; padding:20px; z-index:10; overflow-y:auto; align-items:center; box-sizing:border-box; -webkit-overflow-scrolling: touch; }
 .navigation-pills > * + * { margin-top: 10px; }
 .nav-pill { background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border-radius:50px; padding:16px 24px; display:flex; align-items:center; justify-content:flex-start; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s,background 0.2s; border:2px solid rgba(255,255,255,0.3); width:100%; max-width:400px; min-height:60px; cursor:pointer; text-decoration:none; color:inherit; touch-action:manipulation; }
 .nav-pill:hover { transform:translateX(4px); box-shadow:0 6px 16px rgba(0,0,0,0.2); background:rgba(255,255,255,1); }
 .nav-pill-number { font-size:18px; font-weight:700; color:var(--color-primary); background:rgba(74,144,226,0.1); border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--font-heading); }
 .nav-pill-title { font-size:16px; font-weight:600; color:var(--color-text); text-align:left; flex:1; font-family:var(--font-body); }
 
-.next-button-container { position:absolute; bottom:0; left:0; padding:12px 20px calc(20px + env(safe-area-inset-bottom)) 20px; z-index:150; width:100%; display:flex; justify-content:center; }
+.next-button-container { position:absolute; bottom:0; left:0; padding:12px 20px 20px 20px; z-index:150; width:100%; display:flex; justify-content:center; }
 .next-button { background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:var(--color-primary); border:none; padding:12px 32px; border-radius:999px; font-size:1rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; display:flex; align-items:center; text-decoration:none; touch-action:manipulation; }
 .next-button:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
 .next-button:active { transform:translateY(0); transition:none; }
@@ -197,7 +215,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .video-wrapper video { width:100%; height:100%; object-fit:contain; object-position:center; border-radius:inherit; pointer-events:none; }
 .video-lightbox-trigger { position:absolute; inset:0; z-index:5; }
 
-.audio-box { position:absolute; bottom:calc(20px + env(safe-area-inset-bottom)); right:20px; z-index:50; background:rgba(0,0,0,0.4); padding:10px 12px; border-radius:12px; }
+.audio-box { position:absolute; bottom:20px; right:20px; z-index:50; background:rgba(0,0,0,0.4); padding:10px 12px; border-radius:12px; }
 .audio-box audio { display:block; }
 
 .nav-pill-number, .nav-pill-title, .screen-title { pointer-events:none; }

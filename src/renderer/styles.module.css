@@ -10,28 +10,36 @@
 }
 
 /* Device Frame Styles for Template Preview */
+/* Device Frame Styles for Template Preview */
 .rendererContainer[data-mode="templatePreview"][data-device="mobile"] {
     border-radius: 30px;
     border: 8px solid #111;
+    /* Aspect ratio for mobile simulation */
     aspect-ratio: 9 / 16;
-    /* Size based on available space - override base 100% width/height */
+
+    /* Dynamic sizing logic */
+    /* Constraints: 95dvh height limit, standard mobile width limit */
     max-height: calc(95dvh - 60px - 80px - 40px) !important;
-    height: calc(95dvh - 60px - 80px - 40px) !important;
-    width: calc((95dvh - 60px - 80px - 40px) * 9 / 16) !important;
-    max-width: 375px !important;
-    min-width: 250px;
-    min-height: 400px;
+    height: 100% !important;
+    width: auto !important;
+    max-width: 500px !important;
+
     background: white !important;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     flex-shrink: 0;
 }
 
 .rendererContainer[data-mode="templatePreview"][data-device="desktop"] {
-    border-radius: 8px;
-    aspect-ratio: 16 / 9;
-    width: 100% !important;
-    max-width: 1200px !important;
-    height: auto !important;
+    border-radius: 20px;
+
+    /* Desktop simulation: Wide and tall */
+    width: 95% !important;
+    height: 95% !important;
+    max-width: 1600px !important;
+    max-height: 95dvh !important;
+    aspect-ratio: auto !important;
+    /* Allow free aspect ratio on desktop */
+
     background: white !important;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
