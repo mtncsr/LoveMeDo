@@ -252,12 +252,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             ...text,
             position: {
                 ...text.position,
-                x: 50, // Center horizontally? User said "fit stacked". Usually implies centered or full width?
-                // "content items ... fit stacked"
-                // I'll keep original X or center if undefined. 
-                // Let's force Center X=10, Width=80 (Standard) to ensure stacking alignment?
-                // User didn't strictly say "Center", but "Stacked" implies alignment.
-                // I'll keep original Width/X for now but enforce Y.
+                x: (100 - (text.size?.width || 80)) / 2,
                 y: currentY
             },
             size: {
@@ -279,7 +274,7 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
             adjustedContent.push({
                 ...gallery,
                 position: {
-                    x: gallery.position.x || 10,
+                    x: (100 - (gallery.size?.width || 80)) / 2,
                     y: currentY
                 },
                 size: {
