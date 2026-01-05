@@ -104,20 +104,20 @@ body {
   background: #000; 
   overflow: hidden; 
   width: 100vw; 
-  height: 100dvh; /* Dynamic viewport height specifically for mobile */
+  height: 100dvh; 
   display: flex; 
   align-items: center; 
   justify-content: center; 
-  /* Safe area padding ensures the container never touches the edges or is hidden by notches/bars */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Safe area padding removed - strict margins on #root handle safety now */
+  padding: 0;
   -webkit-font-smoothing: antialiased; 
   -moz-osx-font-smoothing: grayscale; 
   touch-action: manipulation; 
 }
 #root { 
-  width: 100%; 
-  height: 100%; 
-  max-width: 500px; /* Default to mobile card size */
+  width: 90vw; /* Strict 5% margin on sides */
+  height: 90dvh; /* Strict 5% margin top/bottom */
+  max-width: 450px; /* Mobile Card constraint */
   position: relative; 
   background: white; 
   overflow: hidden; 
@@ -127,9 +127,9 @@ body {
 
 @media (min-width: 768px) {
   #root {
-    max-width: 1600px; /* Allow much wider on desktop */
-    width: 95vw; /* Use most of the width */
-    height: 95dvh; /* Use most of the height */
+    max-width: 1400px; /* Wide desktop */
+    width: 90vw; 
+    height: 85dvh; /* Slightly more breathe room on desktop */
     border-radius: 30px;
   }
 }
