@@ -79,24 +79,21 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .screen { position:absolute; inset:0; width:100%; height:100%; display:none; z-index:1; }
 .screen:target { display:block; z-index:2; }
 .screen.default-visible { display:block; z-index:1; }
-.screen.content-screen { display:none; flex-direction:column; background:white; }
-.screen.content-screen:target, .screen.content-screen.default-visible { display:flex; }
-.content-wrapper { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; width:100%; position:relative; }
+/* Content screen: No longer flexbox, just a container */
+.screen.content-screen { display:none; background:white; }
+.screen.content-screen:target, .screen.content-screen.default-visible { display:block; }
+.content-wrapper { width:100%; height:100%; position:relative; overflow:hidden; }
 
 .background { position:absolute; inset:0; width:100%; height:100%; overflow:hidden; }
 .background-media { position:absolute; inset:0; width:100%; height:100%; background-size:cover; background-position:center; background-repeat:no-repeat; }
 .background video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 
-.nav-bar { position: relative; width:100%; height:60px; display:flex; align-items:center; z-index:100; padding:0 20px; pointer-events: none; flex-shrink:0; }
+.nav-bar { position: absolute; top:0; left:0; width:100%; height:60px; display:flex; align-items:center; z-index:100; padding:0 20px; pointer-events: none; }
 .nav-btn { pointer-events: auto; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border:none; color:white; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size: 20px; text-decoration:none; touch-action:manipulation; }
 .screen-title { flex:1; text-align:center; color:white; font-family: var(--font-heading); font-weight:700; text-shadow:0 2px 4px rgba(0,0,0,0.2); }
 
 .element { position: absolute; z-index: 10; cursor: pointer; }
-.content-screen .element { position:relative !important; inset:auto !important; width:100% !important; height:auto !important; margin-bottom:12px; padding:0 20px; flex-shrink:0; }
-.content-screen .element[data-type="gallery"],
-.content-screen .element[data-type="image"],
-.content-screen .element[data-type="video"] { flex-grow:1; flex-basis:0 !important; height:0 !important; display:flex; flex-direction:column; min-height:0; margin-bottom:0; padding:10px 20px; }
-.content-screen .element[data-type="long-text"] { width:fit-content !important; max-width:100%; margin-left:auto; margin-right:auto; height:auto !important; }
+/* Content elements now use absolute positioning too, driven by JS calculations */
 .content-screen .element[data-type="image"] > .img-container { display:block; width:100%; height:100%; }
 .content-screen .element[data-type="video"] .video-wrapper { width:100%; height:100%; }
 .element[data-type="sticker"] { animation: float 4s ease-in-out infinite; pointer-events: none; }
@@ -124,7 +121,7 @@ body { font-family: var(--font-body); background: #000; overflow: hidden; height
 .nav-pill-number { font-size:18px; font-weight:700; color:var(--color-primary); background:rgba(74,144,226,0.1); border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--font-heading); }
 .nav-pill-title { font-size:16px; font-weight:600; color:var(--color-text); text-align:left; flex:1; font-family:var(--font-body); }
 
-.next-button-container { position:relative; margin-top:auto; padding:12px 20px 20px 20px; z-index:150; width:100%; display:flex; justify-content:center; flex-shrink:0; }
+.next-button-container { position:absolute; bottom:0; left:0; padding:12px 20px 20px 20px; z-index:150; width:100%; display:flex; justify-content:center; }
 .next-button { background:rgba(255,255,255,0.3); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); color:var(--color-primary); border:none; padding:12px 32px; border-radius:999px; font-size:1rem; font-weight:600; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:transform 0.2s,box-shadow 0.2s; display:flex; align-items:center; text-decoration:none; touch-action:manipulation; }
 .next-button:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
 .next-button:active { transform:translateY(0); transition:none; }
@@ -253,18 +250,18 @@ ${d}`);return u+r},ix=o=>{if(!o.background.overlay||o.background.overlay==="none
       ${d.length>1?`<div class="gallery-thumbs">${m}</div>`:""}
 
     </div>
-  `,lightboxes:T}},sx=(o,u,d,r,g)=>{const b=o.type==="content",S=10,z=85-S;let m=u.position.y,C=u.size.height;b&&(m=S+u.position.y/100*z,C&&(C=C/100*z));const U=u.styles?.fontSize?u.styles.fontSize*1.1:void 0,$=u.position.x+(u.size.width||0)/2,R=!b&&u.type==="button"&&$>=45&&$<=55,j=R?"translateX(-50%) ":"";let D="";b||(u.type==="button"?D=`
-      left:${R?"50":u.position.x}%; top:${m}%;
-      width:fit-content;
-      height:auto;
-      min-width:${u.size.width?u.size.width+"%":"auto"};
-      padding:12px 32px;
-      white-space:nowrap;
-      `:D=`
-      left:${u.position.x}%; top:${m}%;
-      width:${u.size.width?u.size.width+"%":"auto"};
-      height:${C?C+"%":"auto"};
-      `),D+=`
+  `,lightboxes:T}},sx=(o,u,d,r,g)=>{const b=o.type==="content",S=10,z=85-S;let m=u.position.y,C=u.size.height;b&&(u.type==="sticker"?(m=u.position.y,C=u.size.height):(m=S+u.position.y/100*z,C&&(C=C/100*z)));const U=u.styles?.fontSize?u.styles.fontSize*1.1:void 0,$=u.position.x+(u.size.width||0)/2,R=!b&&u.type==="button"&&$>=45&&$<=55,j=R?"translateX(-50%) ":"";let D="";u.type==="button"?D=`
+    left:${R?"50":u.position.x}%; top:${m}%;
+    width:fit-content;
+    height:auto;
+    min-width:${u.size.width?u.size.width+"%":"auto"};
+    padding:12px 32px;
+    white-space:nowrap;
+    `:D=`
+    left:${u.position.x}%; top:${m}%;
+    width:${u.size.width?u.size.width+"%":"auto"};
+    height:${C?C+"%":"auto"};
+    `,D+=`
     color:${u.styles?.color||"inherit"};
     background-color:${u.styles?.backgroundColor||"transparent"};
     font-size:${U?U+"px":""};
