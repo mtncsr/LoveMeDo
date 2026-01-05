@@ -12,7 +12,7 @@ import styles from './ElementsMenu.module.css';
 const ElementsMenu: React.FC = () => {
     const { activeScreenId, setMediaLibraryOpen } = useUIStore();
     const { addElement } = useProjectStore();
-    const [activeSubMenu, setActiveSubMenu] = useState<'none' | 'button' | 'shape'>('none');
+    const [activeSubMenu, setActiveSubMenu] = useState<'none' | 'button' | 'shape' | 'image'>('none');
 
     if (!activeScreenId) return null;
 
@@ -64,6 +64,14 @@ const ElementsMenu: React.FC = () => {
                 size = { width: 20, height: 20 };
                 elementStyles = { ...elementStyles, backgroundColor: '#ccc', borderRadius: 0 };
                 break;
+            case 'gallery':
+                content = '[]'; // Empty array for gallery
+                size = { width: 90, height: 40 };
+                // Store layout in styles
+                if (metadata?.layout) {
+                    elementStyles = { ...elementStyles, galleryLayout: metadata.layout };
+                }
+                break;
             case 'background':
                 // Special case: Background isn't an element, it modifies screen.
                 // But user asked for "Background Element".
@@ -73,8 +81,9 @@ const ElementsMenu: React.FC = () => {
                 return;
         }
 
+        const newId = uuidv4();
         addElement(activeScreenId, {
-            id: uuidv4(),
+            id: newId,
             type,
             content,
             position,
@@ -82,6 +91,14 @@ const ElementsMenu: React.FC = () => {
             styles: elementStyles,
             metadata: metadata || {}
         });
+
+        if (type === 'gallery') {
+            setMediaLibraryOpen(true, 'select', {
+                screenId: activeScreenId,
+                elementId: newId,
+                elementType: 'gallery'
+            });
+        }
 
         setActiveSubMenu('none');
     };
@@ -151,6 +168,29 @@ const ElementsMenu: React.FC = () => {
         );
     }
 
+    if (activeSubMenu === 'image') {
+        return (
+            <div className={styles.container}>
+                <button className={styles.backButton} onClick={() => setActiveSubMenu('none')}>
+                    <ArrowLeft size={16} /> Back
+                </button>
+                <button className={styles.item} onClick={() => handleMediaClick('image')}>
+                    {/* Reuse Image Icon */}
+                    <div className={styles.iconBox}><ImageIcon size={20} /></div>
+                    <span>Single Image</span>
+                </button>
+                <button className={styles.item} onClick={() => handleAdd('gallery', { layout: 'carousel' })}>
+                    <div className={styles.iconBox}><LayoutTemplate size={20} /></div>
+                    <span>Carousel</span>
+                </button>
+                <button className={styles.item} onClick={() => handleAdd('gallery', { layout: 'grid' })}>
+                    <div className={styles.iconBox}><LayoutTemplate size={20} /></div>
+                    <span>Scroll Grid</span>
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.container}>
             <button className={styles.item} onClick={() => handleAdd('text')}>
@@ -161,7 +201,7 @@ const ElementsMenu: React.FC = () => {
                 <div className={styles.iconBox}><LayoutTemplate size={20} /></div>
                 <span>Long Text</span>
             </button>
-            <button className={styles.item} onClick={() => handleMediaClick('image')}>
+            <button className={styles.item} onClick={() => setActiveSubMenu('image')}>
                 <div className={styles.iconBox}><ImageIcon size={20} /></div>
                 <span>Image</span>
             </button>

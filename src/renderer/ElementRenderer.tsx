@@ -1323,6 +1323,55 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
             const galleryTitle = element.metadata?.title && element.metadata.title.trim() !== '';
             const gallerySubtitle = element.metadata?.subtitle && element.metadata.subtitle.trim() !== '';
 
+            const isGrid = elStyles.galleryLayout === 'grid';
+
+            // --- GRID LAYOUT ---
+            if (isGrid) {
+                return (
+                    <div
+                        {...commonProps}
+                        style={{
+                            ...commonProps.style,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                            gap: '8px',
+                            overflowY: 'auto',
+                            padding: '8px',
+                            alignContent: 'start',
+                            backgroundColor: elStyles.backgroundColor || 'transparent',
+                        }}
+                    >
+                        {resolvedImages.map((resolvedUrl, index) => (
+                            <div
+                                key={index}
+                                style={{
+                                    width: '100%',
+                                    aspectRatio: '1',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    position: 'relative',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Could open a lightbox or just be static in this context
+                                }}
+                            >
+                                <img
+                                    src={resolvedUrl}
+                                    loading="lazy"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    draggable={false}
+                                />
+                            </div>
+                        ))}
+                        {renderResizeHandles()}
+                    </div>
+                );
+            }
+
+            // --- CAROUSEL LAYOUT (Default) ---
             return (
                 <div
                     {...commonProps}

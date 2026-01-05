@@ -35,6 +35,7 @@ export interface ElementStyles {
   textDecoration?: 'none' | 'underline';
   fontStyle?: 'normal' | 'italic';
   frameColor?: string; // For gallery item frames
+  galleryLayout?: 'carousel' | 'grid'; // Layout type for galleries
 }
 
 export interface ScreenElement {

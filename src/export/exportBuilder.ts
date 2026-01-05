@@ -411,13 +411,64 @@ const buildGalleryHtml = (elem: ScreenElement, project: Project): GalleryBuild =
   }
   if (!Array.isArray(imageIds)) imageIds = [elem.content];
 
-  // We work with IDs primarily now to generate CSS vars
-  // resolved images will be handled via getMediaCssVal
-
   const galleryId = `gallery-${safeId(elem.id)}`;
   const lbGroupName = `lb-group-${galleryId}`;
   const closeRadioId = `close-${galleryId}`;
 
+  // GRID LAYOUT Logic
+  if (elem.styles.galleryLayout === 'grid') {
+    const lightboxes: string[] = [];
+    const gridItems = imageIds.map((imgId, idx) => {
+      const bgStyle = getMediaCssVal(imgId, project);
+      // Each grid item has its own independent lightbox toggle
+      const lbId = `lb-${galleryId}-${idx}`;
+
+      lightboxes.push(`
+            <input type="checkbox" id="${lbId}" class="lb-toggle">
+            <label class="lightbox" for="${lbId}">
+                <div class="lightbox-content">
+                    <label class="lightbox-close" for="${lbId}">×</label>
+                    <div class="lightbox-img" style="background-image: ${bgStyle};"></div>
+                </div>
+            </label>
+        `);
+
+      return `
+            <label for="${lbId}" class="gallery-grid-item" style="
+                cursor:pointer; 
+                position:relative; 
+                overflow:hidden; 
+                border-radius:8px; 
+                background-color:rgba(0,0,0,0.05);
+                display:block;
+                aspect-ratio: 1 / 1;
+            ">
+                <div style="position:absolute; inset:0; background-image: ${bgStyle}; background-size:cover; background-position:center; transition:transform 0.3s;"></div>
+            </label>
+        `;
+    }).join('');
+
+    const html = `
+        <div class="gallery-grid" style="
+            display:grid; 
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); 
+            gap:8px; 
+            width:100%; 
+            height:100%; 
+            overflow-y:auto; 
+            padding:4px;
+            align-content: start;
+        ">
+            ${gridItems}
+        </div>
+        <style>
+            .gallery-grid-item:hover > div { transform: scale(1.05); }
+        </style>
+    `;
+    return { html, lightboxes };
+  }
+
+  // CAROUSEL LAYOUT (Default)
   // Close radio (hidden, resets selection)
   const closeRadio = `<input type="radio" name="${lbGroupName}" id="${closeRadioId}" class="lb-toggle" style="display:none">`;
 
