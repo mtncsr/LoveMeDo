@@ -94,9 +94,7 @@
     flex-shrink: 0;
 }
 
-.dropdownContainer {
-    /* Removed position: relative to prevent clipping context for fixed children */
-}
+
 
 /* Base styles for all popups */
 .dropdown,
@@ -255,6 +253,7 @@
 
 .hueSlider {
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     height: 12px;
     border-radius: 6px;
