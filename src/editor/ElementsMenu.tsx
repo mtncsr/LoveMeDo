@@ -4,17 +4,23 @@ import { useUIStore } from '../store/uiStore';
 import {
     Type, Image as ImageIcon, Video, Smile, MousePointerClick,
     LayoutTemplate, Circle, Music, Sparkles,
-    ArrowLeft, Monitor
+    ArrowLeft, Monitor, FolderOpen
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ElementsMenu.module.css';
+import { BackgroundSelector } from './BackgroundSelector';
+import { AnimationSelector } from './AnimationSelector';
 
 const ElementsMenu: React.FC = () => {
     const { activeScreenId, setMediaLibraryOpen } = useUIStore();
-    const { addElement } = useProjectStore();
+    const { project, addElement } = useProjectStore();
     const [activeSubMenu, setActiveSubMenu] = useState<'none' | 'button' | 'shape' | 'image'>('none');
+    const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
+    const [showAnimationSelector, setShowAnimationSelector] = useState(false);
 
-    if (!activeScreenId) return null;
+    if (!activeScreenId || !project) return null;
+
+    const isBlankTemplate = project.templateId === 'blank';
 
     const handleAdd = (type: 'text' | 'button' | 'sticker' | 'image' | 'video' | 'long-text' | 'shape' | 'gallery' | 'background', metadata?: any) => {
         let content = '';
@@ -191,6 +197,50 @@ const ElementsMenu: React.FC = () => {
         );
     }
 
+    // For non-blank templates, show only 4 items
+    if (!isBlankTemplate) {
+        return (
+            <>
+                <div className={styles.container}>
+                    <button className={styles.item} onClick={() => setShowBackgroundSelector(true)}>
+                        <div className={styles.iconBox}><Monitor size={20} /></div>
+                        <span>Background</span>
+                    </button>
+                    <button className={styles.item} onClick={() => setShowAnimationSelector(true)}>
+                        <div className={styles.iconBox}><Sparkles size={20} /></div>
+                        <span>Animation</span>
+                    </button>
+                    <button className={styles.item} onClick={() => handleAdd('sticker')}>
+                        <div className={styles.iconBox}><Smile size={20} /></div>
+                        <span>Sticker</span>
+                    </button>
+                    <button className={styles.item} onClick={() => {
+                        // Open media library in manage mode for content manager
+                        setMediaLibraryOpen(true, 'manage', {
+                            screenId: activeScreenId,
+                            elementId: null,
+                            elementType: 'image' // Use image as default, but media library will show all tabs
+                        });
+                    }}>
+                        <div className={styles.iconBox}><FolderOpen size={20} /></div>
+                        <span>Content</span>
+                    </button>
+                </div>
+                {showBackgroundSelector && (
+                    <BackgroundSelector
+                        onClose={() => setShowBackgroundSelector(false)}
+                    />
+                )}
+                {showAnimationSelector && (
+                    <AnimationSelector
+                        onClose={() => setShowAnimationSelector(false)}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // For blank template, show all elements
     return (
         <div className={styles.container}>
             <button className={styles.item} onClick={() => handleAdd('text')}>
@@ -229,20 +279,11 @@ const ElementsMenu: React.FC = () => {
                 <span>Shape</span>
             </button>
 
-            <button className={styles.item} onClick={() => {
-                // Trigger background selector - simpler to use existing media library for now or just generic background
-                // User asked for "Background Selector with all template backgrounds".
-                // Use media library? Or separate logic.
-                // For now, placeholder.
-                alert("Background Selector to be implemented");
-            }}>
+            <button className={styles.item} onClick={() => setShowBackgroundSelector(true)}>
                 <div className={styles.iconBox}><Monitor size={20} /></div>
                 <span>Backgrnd</span>
             </button>
-            <button className={styles.item} onClick={() => {
-                // Trigger Animations Selector
-                alert("Animations Selector to be implemented");
-            }}>
+            <button className={styles.item} onClick={() => setShowAnimationSelector(true)}>
                 <div className={styles.iconBox}><Sparkles size={20} /></div>
                 <span>Anim</span>
             </button>

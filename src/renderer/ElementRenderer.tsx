@@ -531,6 +531,11 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         return styles[`elementAnimate${animation.charAt(0).toUpperCase() + animation.slice(1)}`] || '';
     };
 
+    // Check if dragging/resizing should be disabled for non-blank templates
+    const isBlankTemplate = project?.templateId === 'blank';
+    const canDrag = isBlankTemplate || type === 'sticker';
+    const canResize = isBlankTemplate;
+
     // Handle drag
     const dragStartRef = useRef<{ x: number; y: number } | null>(null);
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -563,8 +568,8 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         // For non-text elements or unselected text elements, stop propagation
         e.stopPropagation();
 
-        // Only enable dragging if onUpdate is available
-        if (!onUpdate) return;
+        // Only enable dragging if onUpdate is available and dragging is allowed
+        if (!onUpdate || !canDrag) return;
 
         const startX = e.clientX;
         const startY = e.clientY;
@@ -616,7 +621,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         onClick?.(e as any);
         e.stopPropagation();
 
-        if (!onUpdate) return;
+        if (!onUpdate || !canDrag) return;
 
         const touch = e.touches[0];
         const startX = touch.clientX;
@@ -665,7 +670,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
     // Handle resize
     const handleResizeStart = (e: React.MouseEvent | React.TouchEvent, handle: string) => {
-        if (mode !== 'editor' || !onUpdate) return;
+        if (mode !== 'editor' || !onUpdate || !canResize) return;
         e.stopPropagation();
 
         // Normalize event coordinates
@@ -949,6 +954,9 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
     let adjustedY = position.y;
     let adjustedHeight = size.height;
 
+    // Check for pixel-based positioning override in metadata
+    const topPx = element.metadata?.positionTopPx;
+
     if (isContentScreen) {
         // Map element's y position (0-100%) to safe area (10-85%)
         // Element at y: 0% → renders at y: 10% (top of safe area)
@@ -963,7 +971,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
     const style: React.CSSProperties = {
         left: `${position.x}%`,
-        top: `${adjustedY}%`,
+        top: topPx !== undefined ? `${topPx}px` : `${adjustedY}%`,
         width: size.width ? `${size.width}%` : 'auto',
         height: adjustedHeight ? `${adjustedHeight}%` : 'auto',
         color: elStyles.color,
@@ -980,7 +988,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
         textShadow: type === 'text' && elStyles.shadow ? '0 2px 4px rgba(0,0,0,0.5)' : undefined,
         textDecoration: elStyles.textDecoration,
         fontStyle: elStyles.fontStyle,
-        cursor: mode === 'editor' && !isResizing ? 'move' : (type === 'button' || type === 'image' || type === 'gallery' || type === 'long-text') ? 'pointer' : 'default',
+        cursor: mode === 'editor' && !isResizing && canDrag ? 'move' : (type === 'button' || type === 'image' || type === 'gallery' || type === 'long-text') ? 'pointer' : 'default',
         border: isSelected && mode === 'editor' ? '2px solid var(--color-primary)' : 'none',
         direction: type === 'text' ? detectTextDirection(content) : 'ltr',
     };
@@ -998,7 +1006,7 @@ export const ElementRenderer: React.FC<Props> = ({ element, mode, onClick, onUpd
 
     // Render resize handles
     const renderResizeHandles = () => {
-        if (mode !== 'editor' || !isSelected) return null;
+        if (mode !== 'editor' || !isSelected || !canResize) return null;
 
         const handles = [
             { id: 'nw', pos: { top: '-6px', left: '-6px' }, cursor: 'nw-resize' },

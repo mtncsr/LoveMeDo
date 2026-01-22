@@ -172,14 +172,17 @@ const calculateLayout = (elements: ScreenElement[], device: 'mobile' | 'desktop'
     const topLine = 10; // Top Safe Area %
     const bottomLine = 85; // Bottom Safe Area % (matches CSS safe area usually)
     const availableHeight = bottomLine - topLine;
-    const padding = 2; // Small padding between items
+    const padding = 10; // Small padding between items
 
     // 2. Separate Elements
     const contentElements: ScreenElement[] = [];
     const freeElements: ScreenElement[] = [];
 
     elements.forEach(el => {
-        if (['text', 'long-text', 'gallery'].includes(el.type)) {
+        // Skip elements that have fixed positioning (positionTopPx or fixedPosition flag)
+        if (el.metadata?.positionTopPx !== undefined || el.metadata?.fixedPosition) {
+            freeElements.push(el);
+        } else if (['text', 'long-text', 'gallery'].includes(el.type)) {
             contentElements.push(el);
         } else {
             freeElements.push(el);
@@ -402,9 +405,11 @@ const templates: Template[] = [
             s4.elements[2].styles.rotation = -1;
 
             // Screen 5: Video Standalone - Bright cyan background
+            const videoText = createText('A special message for you', 12, 26, true, '#FF4D6D');
+            videoText.metadata = { positionTopPx: 150 }; // Fixed pixel position from top
             const s5 = createScreen('Video', 'content', 'linear-gradient(135deg, #4CC9F0, #7DD3FC, #FFFFFF)', [
                 createSticker('🎬', 12, 10, 40, 5),
-                createText('A special message for you', 12, 26, true, '#FF4D6D'),
+                videoText,
                 {
                     id: uuidv4(),
                     type: 'video' as const,

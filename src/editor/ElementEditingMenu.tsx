@@ -51,7 +51,7 @@ const STICKERS = ['⭐', '❤️', '🎉', '🎈', '🎁', '💝', '💖', '✨'
 
 export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
     const { activeScreenId, setMediaLibraryOpen, setSelectedElementId } = useUIStore();
-    const { updateElement, removeElement } = useProjectStore();
+    const { project, updateElement, removeElement } = useProjectStore();
     const [showColorPicker, setShowColorPicker] = useState<string | null>(null); // 'color' | 'backgroundColor' | 'frameColor' | null
     const [showAnimationPicker, setShowAnimationPicker] = useState(false);
     const [showFontPicker, setShowFontPicker] = useState(false);
@@ -101,7 +101,9 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
     const currentPalette = showColorPicker ? getColorsFromHue(hue) : COMMON_COLORS;
 
-    if (!activeScreenId) return null;
+    if (!activeScreenId || !project) return null;
+
+    const isBlankTemplate = project.templateId === 'blank';
 
     const handleDelete = () => {
         removeElement(activeScreenId, element.id);
@@ -190,7 +192,7 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
 
     const handleStickerSelect = (sticker: string) => {
         updateElement(activeScreenId, element.id, {
-            metadata: { ...element.metadata, sticker }
+            content: sticker
         });
         setShowStickerPicker(false);
     };
@@ -266,6 +268,174 @@ export const ElementEditingMenu: React.FC<Props> = ({ element }) => {
         </>
     );
 
+    // For non-blank templates, restrict editing based on element type
+    if (!isBlankTemplate) {
+        // Buttons are completely non-editable
+        if (element.type === 'button') {
+            return null;
+        }
+
+        // For text elements, allow full text editing and styling
+        if (element.type === 'text' || element.type === 'long-text') {
+            return (
+                <div className={styles.menu} onMouseDown={(e) => e.stopPropagation()} data-editing-menu="true">
+                    {renderTextFeatures()}
+                    {/* Colors */}
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowColorPicker(showColorPicker === 'color' ? null : 'color'); }}
+                            title="Text Color"
+                        >
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Palette size={18} />
+                                <div style={{
+                                    position: 'absolute',
+                                    bottom: -4,
+                                    left: 0,
+                                    right: 0,
+                                    height: 3,
+                                    backgroundColor: element.styles.color || '#000000',
+                                    borderRadius: 1
+                                }} />
+                            </div>
+                        </button>
+                        {showColorPicker === 'color' && (
+                            <div className={styles.colorPicker} onMouseDown={(e) => e.stopPropagation()}>
+                                <div className={styles.colorPickerHeader}>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <span>Text Color</span>
+                                        <button
+                                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleEyedropper('color'); }}
+                                            title="Pick Color from Screen"
+                                        >
+                                            <Pipette size={14} />
+                                        </button>
+                                    </div>
+                                    <button onMouseDown={(e) => { e.stopPropagation(); setShowColorPicker(null); }}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className={styles.hueSliderContainer}>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="360"
+                                        value={hue}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        onChange={(e) => setHue(parseInt(e.target.value))}
+                                        className={styles.hueSlider}
+                                        style={{ background: `linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)` }}
+                                    />
+                                </div>
+                                <div className={styles.colorSwatches}>
+                                    {currentPalette.map(color => (
+                                        <button
+                                            key={color}
+                                            className={styles.colorSwatch}
+                                            style={{ backgroundColor: color }}
+                                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleColorChange(color); }}
+                                            title={color}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Font Selector */}
+                    {showFontPicker && (
+                        <div className={styles.dropdown} onMouseDown={(e) => e.stopPropagation()}>
+                            {FONTS.map(font => (
+                                <button
+                                    key={font.value}
+                                    className={`${styles.dropdownItem} ${element.styles.fontFamily === font.value ? styles.active : ''}`}
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleFontChange(font.value); }}
+                                >
+                                    {font.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // For image/video elements, show only Contents button
+        if (element.type === 'image' || element.type === 'video' || element.type === 'gallery') {
+            return (
+                <div className={styles.menu} onMouseDown={(e) => e.stopPropagation()} data-editing-menu="true">
+                    <button
+                        className={`${styles.menuButton} ${styles.contentsButton}`}
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (activeScreenId) {
+                                setMediaLibraryOpen(true, 'manage', {
+                                    elementId: element.id,
+                                    screenId: activeScreenId,
+                                    elementType: element.type as 'image' | 'video' | 'gallery'
+                                });
+                            }
+                        }}
+                        title="Contents"
+                    >
+                        <FolderOpen size={18} />
+                        <span className={styles.buttonLabel}>Contents</span>
+                    </button>
+                </div>
+            );
+        }
+
+        // For sticker elements, allow replacement and deletion
+        if (element.type === 'sticker') {
+            return (
+                <div className={styles.menu} onMouseDown={(e) => e.stopPropagation()} data-editing-menu="true">
+                    <div className={styles.dropdownContainer}>
+                        <button
+                            className={styles.menuButton}
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowStickerPicker(!showStickerPicker); }}
+                            title="Replace Sticker"
+                        >
+                            <Sparkles size={18} />
+                        </button>
+                        {showStickerPicker && (
+                            <div className={styles.stickerPicker} onMouseDown={(e) => e.stopPropagation()}>
+                                <div className={styles.stickerPickerHeader}>
+                                    <span>Sticker</span>
+                                    <button onMouseDown={(e) => { e.stopPropagation(); setShowStickerPicker(false); }}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <div className={styles.stickerGrid}>
+                                    {STICKERS.map(sticker => (
+                                        <button
+                                            key={sticker}
+                                            className={styles.stickerButton}
+                                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleStickerSelect(sticker); }}
+                                        >
+                                            {sticker}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <button
+                        className={`${styles.menuButton} ${styles.deleteButton}`}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
+                        title="Delete"
+                    >
+                        <Trash2 size={18} />
+                    </button>
+                </div>
+            );
+        }
+
+        // For other elements in non-blank templates, hide editing menu
+        return null;
+    }
+
+    // For blank template, show all editing options
     return (
         <div className={styles.menu} onMouseDown={(e) => e.stopPropagation()} data-editing-menu="true">
             {/* Contents Button (First for easy access) */}
