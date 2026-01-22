@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useProjectStore } from '../store/projectStore';
 import { useUIStore } from '../store/uiStore';
 import { X, Upload as UploadIcon } from 'lucide-react';
-import { fileToBase64, compressImageFile } from '../utils/fileHelpers';
+import { compressImageFile } from '../utils/fileHelpers';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './BackgroundSelector.module.css';
 
@@ -59,15 +59,14 @@ export const BackgroundSelector: React.FC<Props> = ({ onClose }) => {
         if (!file) return;
 
         try {
-            const compressed = await compressImageFile(file);
-            const base64 = await fileToBase64(compressed);
+            const base64 = await compressImageFile(file);
             
             const mediaId = uuidv4();
             addMediaItem({
                 id: mediaId,
                 type: 'image',
                 originalName: file.name,
-                mimeType: file.type,
+                mimeType: 'image/webp', // compressImageFile converts to webp
                 data: base64
             });
 

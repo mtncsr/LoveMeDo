@@ -216,9 +216,11 @@ const ElementsMenu: React.FC = () => {
                     </button>
                     <button className={styles.item} onClick={() => {
                         // Open media library in manage mode for content manager
+                        // Use a dummy elementId since this is for general content management
+                        const dummyId = 'content-manager';
                         setMediaLibraryOpen(true, 'manage', {
                             screenId: activeScreenId,
-                            elementId: null,
+                            elementId: dummyId,
                             elementType: 'image' // Use image as default, but media library will show all tabs
                         });
                     }}>
